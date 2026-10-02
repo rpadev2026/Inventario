@@ -31,7 +31,12 @@ export default async function ComprasPage() {
                 <td>{c.FechaFactura}</td><td>{c.FechaRecepcion}</td><td>{nombreForma.get(c.FormaPago) ?? c.FormaPago}</td>
                 <td className="num">{clp.format(c.Total)}</td>
                 <td>{c.IdEstado === 1 ? <Badge tone="ok">Vigente</Badge> : <span title={c.MotivoAnulacion ?? ""}><Badge tone="danger">Anulada</Badge></span>}</td>
-                <td>{c.IdEstado === 1 && <AnularFactura id={c.IdCompra} folio={c.Folio} />}</td>
+                <td>
+                  <div className="flex flex-wrap items-start gap-x-4 gap-y-1">
+                    <Link className="link link-sm" href={`/compras/${c.IdCompra}`} aria-label={`Ver factura folio ${c.Folio}`}>Ver</Link>
+                    {c.IdEstado === 1 && <AnularFactura id={c.IdCompra} folio={c.Folio} />}
+                  </div>
+                </td>
               </tr>
             ))}
           </tbody>
