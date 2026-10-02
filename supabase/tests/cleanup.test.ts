@@ -63,6 +63,21 @@ describe("e2e-cleanup.sql", () => {
     expect(Number((await db.query<any>(`select nextval('seq_numero_solicitud') n`)).rows[0].n)).toBe(1);
   });
 
+  it("desvincula a los usuarios E2E de territorio (auditoría) en vez de abortar", async () => {
+    // e2e.admin (IdUsuario 4) desactivó/reactivó una comuna y creó una ciudad de prueba.
+    await db.exec(`
+      update "Comunas" set "IdUsuarioModificacion" = 4 where "Codigo" = '13123';
+      update "Regiones" set "IdUsuarioModificacion" = 4, "IdUsuarioCreacion" = 4 where "Codigo" = '13';
+      update "Provincias" set "IdUsuarioCreacion" = 4 where "Codigo" = '131';
+    `);
+    await db.exec(cleanup);
+    expect(await count("Usuarios")).toBe(1);
+    expect(await count("Comunas")).toBe(346);
+    const c = (await db.query<any>(`select "IdUsuarioModificacion" m from "Comunas" where "Codigo" = '13123'`)).rows[0];
+    expect(c.m).toBeNull();
+    expect((await db.query<any>(`select "IdUsuarioCreacion" c, "IdUsuarioModificacion" m from "Regiones" where "Codigo"='13'`)).rows[0]).toEqual({ c: null, m: null });
+  });
+
   it("es idempotente (segunda ejecución no falla ni borra más)", async () => {
     await db.exec(cleanup);
     await db.exec(cleanup);

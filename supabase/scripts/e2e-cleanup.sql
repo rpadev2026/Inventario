@@ -10,7 +10,8 @@
 --   roles     : nombre terminado en ' E2E' (p. ej. 'Consulta E2E') que no sea rol base
 -- Los usuarios E2E incluyen e2e.admin (rol Administrador); se borran como los demás.
 -- Se conservan: el administrador real, Bodega Central, los roles base, los maestros (formas de pago,
--- unidades, formatos; si creó alguno de prueba, bórrelo a mano) y cualquier dato real.
+-- unidades, formatos; si creó alguno de prueba, bórrelo a mano), el territorio oficial (regiones,
+-- ciudades, comunas: solo se desvincula la auditoría de los usuarios E2E) y cualquier dato real.
 
 do $$
 declare
@@ -77,6 +78,14 @@ begin
   delete from "UsuariosRoles" where "IdUsuario" = any(u_ids) or "IdRol" = any(r_ids);
   delete from "RolesPermisos" where "IdRol" = any(r_ids);
   delete from "Roles" where "IdRol" = any(r_ids);
+  -- Territorio (regiones, ciudades, comunas): son datos oficiales que se conservan; solo se quita la
+  -- referencia de auditoría a los usuarios E2E (p. ej. e2e.admin que desactivó/reactivó una comuna).
+  update "Regiones" set "IdUsuarioCreacion" = null where "IdUsuarioCreacion" = any(u_ids);
+  update "Regiones" set "IdUsuarioModificacion" = null where "IdUsuarioModificacion" = any(u_ids);
+  update "Provincias" set "IdUsuarioCreacion" = null where "IdUsuarioCreacion" = any(u_ids);
+  update "Provincias" set "IdUsuarioModificacion" = null where "IdUsuarioModificacion" = any(u_ids);
+  update "Comunas" set "IdUsuarioCreacion" = null where "IdUsuarioCreacion" = any(u_ids);
+  update "Comunas" set "IdUsuarioModificacion" = null where "IdUsuarioModificacion" = any(u_ids);
   -- Si algún dato real referencia a estos usuarios (IdUsuarioCreacion, etc.), la FK aborta todo.
   delete from "Usuarios" where "IdUsuario" = any(u_ids);
 
