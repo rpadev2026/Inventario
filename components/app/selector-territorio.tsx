@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import Combobox from "./combobox";
-import { opcionesCiudad, opcionesComuna, opcionesRegion, type Seleccion, type Territorio } from "../../lib/territorio-opciones";
+import { opcionesCiudad, opcionesComuna, opcionesRegion, siguienteSeleccion, type Seleccion, type Territorio } from "../../lib/territorio-opciones";
 
 const MAX = 1000; // las listas territoriales se navegan completas, sin teclear
 
@@ -29,22 +29,27 @@ export default function SelectorTerritorio({ territorio, inicial }: { territorio
           label="Región"
           opciones={opcionesRegion(territorio, inicial.region)}
           valor={sel.region ?? ""}
-          onCambio={(v) => setSel({ region: v || null, ciudad: null, comuna: null })}
+          onCambio={(v) => setSel((s) => siguienteSeleccion(s, "region", v))}
           maxOpciones={MAX}
+          limpiarAlSalir
         />
         <Combobox
-          label="Ciudad"
+          label="Ciudad (provincia)"
           opciones={opcionesCiudad(territorio, sel.region, inicial.ciudad)}
           valor={sel.ciudad ?? ""}
-          onCambio={(v) => setSel((s) => ({ ...s, ciudad: v || null, comuna: null }))}
+          onCambio={(v) => setSel((s) => siguienteSeleccion(s, "ciudad", v))}
           maxOpciones={MAX}
+          limpiarAlSalir
+          hint={sel.region ? undefined : "Elija primero una región"}
         />
         <Combobox
           label="Comuna"
           opciones={opcionesComuna(territorio, sel.ciudad, inicial.comuna)}
           valor={sel.comuna ?? ""}
-          onCambio={(v) => setSel((s) => ({ ...s, comuna: v || null }))}
+          onCambio={(v) => setSel((s) => siguienteSeleccion(s, "comuna", v))}
           maxOpciones={MAX}
+          limpiarAlSalir
+          hint={sel.ciudad ? undefined : "Elija primero una ciudad"}
         />
       </div>
       <input ref={ancla} type="hidden" name="region" value={sel.region ?? ""} />

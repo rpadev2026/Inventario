@@ -9,19 +9,19 @@ export { FormCatalogo };
 
 type Accion = (prev: unknown, fd: FormData) => Promise<{ error?: string; ok?: boolean }>;
 
-/** Opciones del padre: regiones «CÓDIGO — Nombre»; ciudades «Nombre (Región)». */
+/** Opciones del padre (todas; `vigente` permite filtrar al crear): regiones «CÓDIGO — Nombre»; ciudades «Nombre (Región)». */
 async function cargarOpcionesPadre(tabla: "Regiones" | "Provincias"): Promise<OpcionPadre[]> {
   if (tabla === "Regiones") {
     const { data } = await db.from("Regiones").select("Codigo, Nombre, IdEstado").order("Codigo");
-    return (data ?? []).filter((r) => r.IdEstado === 1).map((r) => ({ codigo: r.Codigo, etiqueta: `${r.Codigo} — ${r.Nombre}` }));
+    return (data ?? []).map((r) => ({ codigo: r.Codigo, etiqueta: `${r.Codigo} — ${r.Nombre}`, vigente: r.IdEstado === 1 }));
   }
   const [{ data: provs }, { data: regs }] = await Promise.all([
     db.from("Provincias").select("Codigo, Nombre, CodigoRegion, IdEstado").order("Nombre"),
     db.from("Regiones").select("Codigo, Nombre"),
   ]);
   const reg = new Map((regs ?? []).map((r) => [r.Codigo, r.Nombre]));
-  return (provs ?? []).filter((p) => p.IdEstado === 1)
-    .map((p) => ({ codigo: p.Codigo, etiqueta: `${p.Nombre} (${reg.get(p.CodigoRegion) ?? p.CodigoRegion})` }));
+  return (provs ?? [])
+    .map((p) => ({ codigo: p.Codigo, etiqueta: `${p.Nombre} (${reg.get(p.CodigoRegion) ?? p.CodigoRegion})`, vigente: p.IdEstado === 1 }));
 }
 
 /** Página servidor genérica de un mantenedor de catálogo (solo Administrador). */

@@ -9,7 +9,7 @@ export type CatalogoCfg = {
   ruta: string;
   patronCodigo?: RegExp;
   ayudaCodigo?: string;
-  padre?: { columna: "CodigoRegion" | "CodigoProvincia"; tabla: "Regiones" | "Provincias"; etiqueta: "Región" | "Ciudad" };
+  padre?: { columna: "CodigoRegion" | "CodigoProvincia"; tabla: "Regiones" | "Provincias"; etiqueta: "Región" | "Ciudad (provincia)" };
 };
 
 export const CATALOGOS: Record<"formasPago" | "unidades" | "formatos" | "regiones" | "ciudades" | "comunas", CatalogoCfg> = {
@@ -28,7 +28,7 @@ export const CATALOGOS: Record<"formasPago" | "unidades" | "formatos" | "regione
   comunas: {
     tabla: "Comunas", id: "IdComuna", titulo: "Comunas", ruta: "/mantenedores/comunas",
     patronCodigo: /^\d{5}$/, ayudaCodigo: "5 dígitos, código CUT",
-    padre: { columna: "CodigoProvincia", tabla: "Provincias", etiqueta: "Ciudad" },
+    padre: { columna: "CodigoProvincia", tabla: "Provincias", etiqueta: "Ciudad (provincia)" },
   },
 };
 
@@ -54,6 +54,9 @@ export function validarEntradaCatalogo(cfg: CatalogoCfg, fd: FormData): { error?
   const padre = String(fd.get("padre") ?? "").trim();
   const editando = fd.get("modo") === "editar";
   if (cfg.padre && !editando && !padre) return { error: `Elija ${cfg.padre.etiqueta}` };
+  if (cfg.padre && !editando && !p.data.codigo.startsWith(padre)) {
+    return { error: `El código debe comenzar con ${padre}` };
+  }
   return { datos: { ...p.data, ...(padre ? { padre } : {}) } };
 }
 

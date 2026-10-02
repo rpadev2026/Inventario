@@ -49,3 +49,14 @@ export function errorTerritorio(t: Territorio, sel: Seleccion, actual: Seleccion
   if (comuna && comuna.CodigoProvincia !== sel.ciudad) return "La comuna no pertenece a la ciudad";
   return null;
 }
+
+export type Nivel = "region" | "ciudad" | "comuna";
+
+/** Selección resultante de elegir `valor` ("" = vaciar) en `nivel`: cambiar un nivel limpia los inferiores; repetir el valor actual no cambia nada. */
+export function siguienteSeleccion(sel: Seleccion, nivel: Nivel, valor: string): Seleccion {
+  const v = valor || null;
+  if (v === sel[nivel]) return sel;
+  if (nivel === "region") return { region: v, ciudad: null, comuna: null };
+  if (nivel === "ciudad") return { ...sel, ciudad: v, comuna: null };
+  return { ...sel, comuna: v };
+}

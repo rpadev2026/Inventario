@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { opcionesRegion, opcionesCiudad, opcionesComuna, errorTerritorio, type Territorio } from "./territorio-opciones";
+import { opcionesRegion, opcionesCiudad, opcionesComuna, errorTerritorio, siguienteSeleccion, type Territorio } from "./territorio-opciones";
 
 const t: Territorio = {
   regiones: [
@@ -56,5 +56,26 @@ describe("errorTerritorio", () => {
   it("comuna inactiva igual a la actual es válida", () => {
     const s = { region: "13", ciudad: "131", comuna: "13102" };
     expect(errorTerritorio(t, s, s)).toBeNull();
+  });
+});
+
+describe("siguienteSeleccion", () => {
+  const completa = { region: "13", ciudad: "131", comuna: "13101" };
+  it("cambiar región limpia ciudad y comuna", () => {
+    expect(siguienteSeleccion(completa, "region", "05")).toEqual({ region: "05", ciudad: null, comuna: null });
+  });
+  it("vaciar región limpia todo", () => {
+    expect(siguienteSeleccion(completa, "region", "")).toEqual(vacio);
+  });
+  it("repetir el mismo valor no cambia nada", () => {
+    expect(siguienteSeleccion(completa, "region", "13")).toBe(completa);
+    expect(siguienteSeleccion(completa, "ciudad", "131")).toBe(completa);
+    expect(siguienteSeleccion(completa, "comuna", "13101")).toBe(completa);
+  });
+  it("cambiar ciudad limpia la comuna y conserva la región", () => {
+    expect(siguienteSeleccion(completa, "ciudad", "132")).toEqual({ region: "13", ciudad: "132", comuna: null });
+  });
+  it("cambiar comuna conserva lo demás", () => {
+    expect(siguienteSeleccion(completa, "comuna", "")).toEqual({ region: "13", ciudad: "131", comuna: null });
   });
 });

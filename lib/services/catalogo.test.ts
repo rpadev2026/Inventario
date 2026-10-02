@@ -76,7 +76,7 @@ describe("catálogos territoriales", () => {
   it("configuración de las tres claves nuevas", () => {
     expect(reg).toMatchObject({ tabla: "Regiones", id: "IdRegion", ruta: "/mantenedores/regiones", titulo: "Regiones" });
     expect(ciu).toMatchObject({ tabla: "Provincias", id: "IdProvincia", ruta: "/mantenedores/ciudades", titulo: "Ciudades (provincias)", padre: { columna: "CodigoRegion", tabla: "Regiones", etiqueta: "Región" } });
-    expect(com).toMatchObject({ tabla: "Comunas", id: "IdComuna", ruta: "/mantenedores/comunas", titulo: "Comunas", padre: { columna: "CodigoProvincia", tabla: "Provincias", etiqueta: "Ciudad" } });
+    expect(com).toMatchObject({ tabla: "Comunas", id: "IdComuna", ruta: "/mantenedores/comunas", titulo: "Comunas", padre: { columna: "CodigoProvincia", tabla: "Provincias", etiqueta: "Ciudad (provincia)" } });
     expect(reg.patronCodigo?.test("13")).toBe(true);
     expect(ciu.patronCodigo?.test("131")).toBe(true);
     expect(com.patronCodigo?.test("13101")).toBe(true);
@@ -102,7 +102,7 @@ describe("catálogos territoriales", () => {
 
   it("exige padre al crear ciudades y comunas", async () => {
     expect(await guardarCatalogo(ciu, 1, fd({ codigo: "131", nombre: "Santiago" }))).toEqual({ error: "Elija Región" });
-    expect(await guardarCatalogo(com, 1, fd({ codigo: "13101", nombre: "Santiago" }))).toEqual({ error: "Elija Ciudad" });
+    expect(await guardarCatalogo(com, 1, fd({ codigo: "13101", nombre: "Santiago" }))).toEqual({ error: "Elija Ciudad (provincia)" });
     expect(llamadas).toHaveLength(0);
   });
   it("al editar no exige padre", () => {
@@ -120,6 +120,17 @@ describe("catálogos territoriales", () => {
     expect(llamadas[0].fila).toMatchObject({ Codigo: "13101", CodigoProvincia: "131" });
   });
 
+  it("el código debe comenzar con el código del padre", async () => {
+    expect(await guardarCatalogo(com, 1, fd({ codigo: "13101", nombre: "Santiago", padre: "051" }))).toEqual({ error: "El código debe comenzar con 051" });
+    expect(await guardarCatalogo(ciu, 1, fd({ codigo: "131", nombre: "Santiago", padre: "05" }))).toEqual({ error: "El código debe comenzar con 05" });
+    expect(llamadas).toHaveLength(0);
+    expect(validarEntradaCatalogo(com, fd({ codigo: "13101", nombre: "Santiago", padre: "131" })).error).toBeUndefined();
+    expect(validarEntradaCatalogo(ciu, fd({ codigo: "131", nombre: "Santiago", padre: "13" })).error).toBeUndefined();
+  });
+  it("al editar no se exige el prefijo del padre", () => {
+    expect(validarEntradaCatalogo(com, fd({ modo: "editar", codigo: "13101", nombre: "Santiago", padre: "051" })).error).toBeUndefined();
+  });
+
   it("P0001 devuelve el mensaje de negocio", async () => {
     errorSimulado = { code: "P0001", message: "No se puede desactivar: tiene ciudades vigentes" };
     const r = await guardarCatalogo(reg, 1, fd({ modo: "editar", codigo: "13", nombre: "RM", estado: "0" }));
@@ -127,7 +138,7 @@ describe("catálogos territoriales", () => {
   });
   it("23503 informa padre inexistente", async () => {
     errorSimulado = { code: "23503" };
-    const r = await guardarCatalogo(com, 1, fd({ codigo: "13101", nombre: "Santiago", padre: "999" }));
+    const r = await guardarCatalogo(com, 1, fd({ codigo: "99901", nombre: "Santiago", padre: "999" }));
     expect(r).toEqual({ error: "El padre elegido no existe" });
   });
 });

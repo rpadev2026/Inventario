@@ -4,13 +4,15 @@ import Field from "@/components/app/field";
 import type { CatalogoCfg } from "@/lib/services/catalogo";
 
 export type ItemCatalogo = { Codigo: string; Nombre: string; IdEstado: number; [padre: string]: string | number };
-export type OpcionPadre = { codigo: string; etiqueta: string };
+export type OpcionPadre = { codigo: string; etiqueta: string; vigente: boolean };
 type Accion = (prev: unknown, fd: FormData) => Promise<{ error?: string; ok?: boolean }>;
 
 export function FormCatalogo({ item, accion, cfg, opcionesPadre }: {
   item?: ItemCatalogo; accion: Accion; cfg?: CatalogoCfg; opcionesPadre?: OpcionPadre[];
 }) {
   const padre = cfg?.padre;
+  // Al crear solo se ofrecen padres vigentes; al editar se muestran todos para reflejar el padre real.
+  const padres = (opcionesPadre ?? []).filter((o) => item || o.vigente);
   const padreActual = padre && item ? String(item[padre.columna] ?? "") : "";
   const { state, pending, onSubmit } = useAccion(accion, { limpiarSiOk: !item });
   return (
@@ -21,7 +23,7 @@ export function FormCatalogo({ item, accion, cfg, opcionesPadre }: {
           <Field label={padre.etiqueta} hint={item ? "No se puede cambiar" : undefined}>
             <select name="padre" defaultValue={padreActual} disabled={!!item} required={!item} className="input">
               {!item && <option value="">Seleccione…</option>}
-              {(opcionesPadre ?? []).map((o) => <option key={o.codigo} value={o.codigo}>{o.etiqueta}</option>)}
+              {padres.map((o) => <option key={o.codigo} value={o.codigo}>{o.etiqueta}</option>)}
             </select>
           </Field>
         )}
