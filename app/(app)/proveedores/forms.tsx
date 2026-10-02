@@ -3,6 +3,8 @@ import { useRouter } from "next/navigation";
 import { useAccion } from "@/lib/use-accion";
 import { rutaVolverSegura } from "@/lib/volver";
 import Field from "@/components/app/field";
+import SelectorTerritorio from "@/components/app/selector-territorio";
+import type { Territorio } from "@/lib/territorio-opciones";
 import { guardarProveedor, guardarSucursal, guardarVendedor } from "./actions";
 
 type Msg = { error?: string; ok?: boolean } | undefined;
@@ -24,7 +26,7 @@ export type Proveedor = {
   Telefono: string | null; Correo: string | null; IdEstado: number;
 };
 
-export function FormProveedor({ p, volver }: { p?: Proveedor; volver?: string }) {
+export function FormProveedor({ p, volver, territorio }: { p?: Proveedor; volver?: string; territorio: Territorio }) {
   const router = useRouter();
   const { state, pending, onSubmit } = useAccion(guardarProveedor, {
     limpiarSiOk: !p,
@@ -42,9 +44,7 @@ export function FormProveedor({ p, volver }: { p?: Proveedor; volver?: string })
         <Field label="Razón social" className="fld-2"><input name="razonSocial" defaultValue={p?.RazonSocial} required className="input" /></Field>
         <Field label="Giro" className="fld-full"><input name="giro" defaultValue={p?.Giro ?? ""} className="input" /></Field>
         <Field label="Dirección" className="fld-full"><input name="direccion" defaultValue={p?.Direccion ?? ""} className="input" autoComplete="street-address" /></Field>
-        <Field label="Región"><input name="region" defaultValue={p?.Region ?? ""} className="input" /></Field>
-        <Field label="Comuna"><input name="comuna" defaultValue={p?.Comuna ?? ""} className="input" /></Field>
-        <Field label="Ciudad"><input name="ciudad" defaultValue={p?.Ciudad ?? ""} className="input" /></Field>
+        <SelectorTerritorio territorio={territorio} inicial={{ region: p?.Region ?? null, ciudad: p?.Ciudad ?? null, comuna: p?.Comuna ?? null }} />
         <Field label="RUT representante legal"><input name="rutRepresentante" defaultValue={p?.RutRepresentanteLegal ?? ""} className="input" autoComplete="off" /></Field>
         <Field label="Nombre representante legal" className="fld-2"><input name="nombreRepresentante" defaultValue={p?.NombreRepresentanteLegal ?? ""} className="input" /></Field>
         <Field label="Teléfono"><input name="telefono" type="tel" defaultValue={p?.Telefono ?? ""} className="input" inputMode="tel" /></Field>
@@ -64,7 +64,7 @@ export type Sucursal = {
   Telefono: string | null; Correo: string | null; EncargadoSucursal: string | null; IdEstado: number;
 };
 
-export function FormSucursal({ idProveedor, s }: { idProveedor: number; s?: Sucursal }) {
+export function FormSucursal({ idProveedor, s, territorio }: { idProveedor: number; s?: Sucursal; territorio: Territorio }) {
   const { state, pending, onSubmit } = useAccion(guardarSucursal, { limpiarSiOk: !s });
   return (
     <form onSubmit={onSubmit} className="grid gap-4 divider-t pt-4">
@@ -72,9 +72,7 @@ export function FormSucursal({ idProveedor, s }: { idProveedor: number; s?: Sucu
       {s && <input type="hidden" name="idSucursal" value={s.IdSucursal} />}
       <div className="form-grid form-grid-4">
         <Field label="Dirección" className="fld-2"><input name="direccion" defaultValue={s?.Direccion ?? ""} required className="input" /></Field>
-        <Field label="Región"><input name="region" defaultValue={s?.Region ?? ""} className="input" /></Field>
-        <Field label="Comuna"><input name="comuna" defaultValue={s?.Comuna ?? ""} className="input" /></Field>
-        <Field label="Ciudad"><input name="ciudad" defaultValue={s?.Ciudad ?? ""} className="input" /></Field>
+        <SelectorTerritorio territorio={territorio} inicial={{ region: s?.Region ?? null, ciudad: s?.Ciudad ?? null, comuna: s?.Comuna ?? null }} />
         <Field label="Teléfono"><input name="telefono" type="tel" defaultValue={s?.Telefono ?? ""} className="input" inputMode="tel" /></Field>
         <Field label="Correo"><input name="correo" type="email" defaultValue={s?.Correo ?? ""} className="input" inputMode="email" /></Field>
         <Field label="Encargado"><input name="encargado" defaultValue={s?.EncargadoSucursal ?? ""} className="input" /></Field>

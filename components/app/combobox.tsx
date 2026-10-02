@@ -12,10 +12,12 @@ type Props = {
   required?: boolean;
   placeholder?: string;
   hint?: string;
+  /** Máximo de opciones mostradas (por defecto el de `filtrarOpciones`). */
+  maxOpciones?: number;
 };
 
 /** Autocompletado accesible (patrón ARIA 1.2 combobox con lista). El filtrado vive en lib/buscar.ts. */
-export default function Combobox({ label, opciones, valor, onCambio, required, placeholder, hint }: Props) {
+export default function Combobox({ label, opciones, valor, onCambio, required, placeholder, hint, maxOpciones }: Props) {
   const uid = useId();
   const idInput = `${uid}-input`;
   const idLista = `${uid}-lista`;
@@ -35,7 +37,7 @@ export default function Combobox({ label, opciones, valor, onCambio, required, p
     if (!valor && elegida === null && texto !== "" && !abierto) setTexto("");
   }
 
-  const filtradas = useMemo(() => filtrarOpciones(opciones, elegida && texto === elegida.etiqueta ? "" : texto), [opciones, texto, elegida]);
+  const filtradas = useMemo(() => filtrarOpciones(opciones, elegida && texto === elegida.etiqueta ? "" : texto, maxOpciones), [opciones, texto, elegida, maxOpciones]);
   const indiceActivo = Math.min(activo, Math.max(filtradas.length - 1, 0));
   const idOpcion = (i: number) => `${uid}-op-${i}`;
   const lista = abierto && filtradas.length > 0;
