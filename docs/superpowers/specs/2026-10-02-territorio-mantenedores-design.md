@@ -1,6 +1,6 @@
 # Mantenedores de Región, Ciudad y Comuna
 
-Fecha: 2026-10-02 · Estado: pendiente de revisión
+Fecha: 2026-10-02 · Estado: implementado (migraciones aplicadas en Supabase 2026-10-02)
 
 ## Objetivo
 En Proveedores (datos del proveedor y sus sucursales), Región, Ciudad y Comuna dejan de ser texto libre y pasan a ser listas desplegables dependientes alimentadas por tres mantenedores. Los mantenedores viven en el menú **Mantenedores** y solo los puede usar el rol **Administrador**. Los datos iniciales provienen de una fuente oficial del Estado de Chile.
@@ -10,7 +10,7 @@ En Proveedores (datos del proveedor y sus sucursales), Región, Ciudad y Comuna 
 - **Fuente oficial:** servicio DPA (División Político-Administrativa, datos SUBDERE) publicado por el MOP: `https://rest-sit.mop.gob.cl/arcgis/rest/services/INTEROP/SERVICIO_DPA/MapServer` (capas 1 Comunas, 2 Provincias, 3 Regiones; campos `CUT_REG`, `CUT_PROV`, `CUT_COM`, `REGION`, `PROVINCIA`, `COMUNA`).
 - Al consultarlo (2026-10-02) devuelve 16 regiones, 56 provincias y **345 comunas**; las oficiales son 346. Falta **Antártica** (CUT 12202, provincia Antártica Chilena 122, Magallanes): se agrega manualmente en el generador y queda documentado.
 
-## Datos (migración `supabase/migrations/0008_territorio.sql`)
+## Datos (migraciones `0008_territorio.sql` tablas, `0009_territorio_datos.sql` datos generados por `scripts/generar-territorio.ts`, `0010_territorio_proveedores.sql` conversión + FK + trigger)
 - Tablas `Regiones`, `Provincias`, `Comunas` con el patrón de `FormasPago`: id identity, `Codigo` único (CUT: `^[0-9]{2}$`, `^[0-9]{3}$`, `^[0-9]{5}$`), `Nombre`, `IdEstado` (0/1), campos de auditoría, trigger `set_modificacion`, RLS activo y `revoke all` a `anon, authenticated`.
 - `Provincias."CodigoRegion"` → FK a `Regiones."Codigo"`; `Comunas."CodigoProvincia"` → FK a `Provincias."Codigo"`. Códigos inmutables.
 - Seed generado por `scripts/generar-territorio.ts`, que consulta el servicio del MOP, agrega Antártica, valida 16/56/346 y escribe el SQL de inserción. El SQL queda versionado en la migración; la app no depende del servicio en ejecución.
