@@ -32,6 +32,20 @@ export const CATALOGOS: Record<"formasPago" | "unidades" | "formatos" | "regione
   },
 };
 
+/** Datos planos (serializables) que FormCatalogo necesita; nunca pasar el cfg completo (tiene RegExp) a un componente cliente. */
+export type PropsFormCatalogo = {
+  codigoNumerico: boolean;
+  ayudaCodigo?: string;
+  padre?: { columna: "CodigoRegion" | "CodigoProvincia"; etiqueta: string };
+};
+
+export function propsFormCatalogo(cfg: CatalogoCfg): PropsFormCatalogo {
+  const props: PropsFormCatalogo = { codigoNumerico: !!cfg.patronCodigo };
+  if (cfg.ayudaCodigo) props.ayudaCodigo = cfg.ayudaCodigo;
+  if (cfg.padre) props.padre = { columna: cfg.padre.columna, etiqueta: cfg.padre.etiqueta };
+  return props;
+}
+
 type Datos = { codigo: string; nombre: string; estado: number; padre?: string };
 
 /** Fila a persistir. Al editar nunca incluye `Codigo` ni el padre (inmutables). */

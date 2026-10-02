@@ -15,7 +15,7 @@ vi.mock("../db/supabase", () => ({
   },
 }));
 
-import { CATALOGOS, guardarCatalogo, prepararFila, validarEntradaCatalogo } from "./catalogo";
+import { CATALOGOS, guardarCatalogo, prepararFila, propsFormCatalogo, validarEntradaCatalogo } from "./catalogo";
 import { catalogoSchema } from "../validation/catalogo";
 
 const cfg = CATALOGOS.formasPago;
@@ -140,5 +140,32 @@ describe("catálogos territoriales", () => {
     errorSimulado = { code: "23503" };
     const r = await guardarCatalogo(com, 1, fd({ codigo: "99901", nombre: "Santiago", padre: "999" }));
     expect(r).toEqual({ error: "El padre elegido no existe" });
+  });
+});
+
+describe("propsFormCatalogo (frontera servidor -> cliente)", () => {
+  function esSerializable(v: unknown): boolean {
+    if (v === null || ["string", "number", "boolean", "undefined"].includes(typeof v)) return true;
+    if (Array.isArray(v)) return v.every(esSerializable);
+    if (typeof v === "object" && Object.getPrototypeOf(v) === Object.prototype) {
+      return Object.values(v as object).every(esSerializable);
+    }
+    return false;
+  }
+
+  it("el cfg completo NO es serializable (contiene RegExp) y la detección lo nota", () => {
+    expect(esSerializable(CATALOGOS.regiones)).toBe(false);
+  });
+
+  it.each(Object.keys(CATALOGOS) as (keyof typeof CATALOGOS)[])("%s: solo datos planos serializables", (k) => {
+    const props = propsFormCatalogo(CATALOGOS[k]);
+    expect(esSerializable(props)).toBe(true);
+    expect(JSON.parse(JSON.stringify(props))).toEqual(props);
+  });
+
+  it("deriva codigoNumerico, ayuda y padre", () => {
+    expect(propsFormCatalogo(CATALOGOS.formasPago)).toEqual({ codigoNumerico: false });
+    expect(propsFormCatalogo(CATALOGOS.regiones)).toEqual({ codigoNumerico: true, ayudaCodigo: "2 dígitos, código CUT" });
+    expect(propsFormCatalogo(CATALOGOS.comunas).padre).toEqual({ columna: "CodigoProvincia", etiqueta: "Ciudad (provincia)" });
   });
 });

@@ -1,14 +1,14 @@
 "use client";
 import { useAccion } from "@/lib/use-accion";
 import Field from "@/components/app/field";
-import type { CatalogoCfg } from "@/lib/services/catalogo";
+import type { PropsFormCatalogo } from "@/lib/services/catalogo";
 
 export type ItemCatalogo = { Codigo: string; Nombre: string; IdEstado: number; [padre: string]: string | number };
 export type OpcionPadre = { codigo: string; etiqueta: string; vigente: boolean };
 type Accion = (prev: unknown, fd: FormData) => Promise<{ error?: string; ok?: boolean }>;
 
 export function FormCatalogo({ item, accion, cfg, opcionesPadre }: {
-  item?: ItemCatalogo; accion: Accion; cfg?: CatalogoCfg; opcionesPadre?: OpcionPadre[];
+  item?: ItemCatalogo; accion: Accion; cfg?: PropsFormCatalogo; opcionesPadre?: OpcionPadre[];
 }) {
   const padre = cfg?.padre;
   // Al crear solo se ofrecen padres vigentes; al editar se muestran todos para reflejar el padre real.
@@ -30,7 +30,7 @@ export function FormCatalogo({ item, accion, cfg, opcionesPadre }: {
         <Field label="Código" hint={item ? "No se puede cambiar" : (cfg?.ayudaCodigo ?? "Letras, números y _ (se guarda en mayúsculas)")}>
           <input
             name="codigo" defaultValue={item?.Codigo} readOnly={!!item} required maxLength={30} className="input"
-            inputMode={cfg?.patronCodigo ? "numeric" : undefined}
+            inputMode={cfg?.codigoNumerico ? "numeric" : undefined}
           />
         </Field>
         <Field label="Nombre">

@@ -3,7 +3,7 @@ import Badge from "@/components/app/badge";
 import { FormCatalogo, type ItemCatalogo, type OpcionPadre } from "@/components/app/catalogo-form";
 import { db } from "@/lib/db/supabase";
 import { requerirPaginaAdmin } from "@/lib/auth/session";
-import type { CatalogoCfg } from "@/lib/services/catalogo";
+import { propsFormCatalogo, type CatalogoCfg } from "@/lib/services/catalogo";
 
 export { FormCatalogo };
 
@@ -41,7 +41,7 @@ export async function PaginaCatalogo({ cfg, accion, searchParams }: {
       <h1 className="page-title">{cfg.titulo}</h1>
       <div className="card">
         <h2 className="section-title mb-3">{enEdicion ? `Editar ${enEdicion.Codigo}` : "Nuevo registro"}</h2>
-        <FormCatalogo key={enEdicion?.Codigo ?? "nuevo"} item={enEdicion} accion={accion} cfg={cfg} opcionesPadre={opcionesPadre} />
+        <FormCatalogo key={enEdicion?.Codigo ?? "nuevo"} item={enEdicion} accion={accion} cfg={propsFormCatalogo(cfg)} opcionesPadre={opcionesPadre} />
       </div>
       <div className="table-wrap">
         <table className="table">
