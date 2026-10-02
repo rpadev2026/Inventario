@@ -241,3 +241,35 @@ describe("roles y permisos", () => {
     expect(await permisos("Administrador")).toEqual([]);
   });
 });
+
+describe("territorio", () => {
+  it("carga 16 regiones, 56 provincias y 346 comunas", async () => {
+    expect(Number(await val(`select count(*) from "Regiones"`))).toBe(16);
+    expect(Number(await val(`select count(*) from "Provincias"`))).toBe(56);
+    expect(Number(await val(`select count(*) from "Comunas"`))).toBe(346);
+  });
+  it("incluye Antártica (12202)", async () => {
+    expect(await val(`select "Nombre" from "Comunas" where "Codigo"='12202'`)).toBe("Antártica");
+  });
+  it("rechaza una comuna con provincia inexistente", async () => {
+    await fails(`insert into "Comunas"("Codigo","Nombre","CodigoProvincia") values ('99999','X','998')`);
+  });
+  it("rechaza códigos de región con formato inválido", async () => {
+    await fails(`insert into "Regiones"("Codigo","Nombre") values ('1','X')`);
+    await fails(`insert into "Regiones"("Codigo","Nombre") values ('AB','X')`);
+  });
+  it("rechaza desactivar una región con ciudades vigentes", async () => {
+    await fails(`update "Regiones" set "IdEstado"=0 where "Codigo"='13'`, /ciudades vigentes/);
+  });
+  it("rechaza desactivar una provincia con comunas vigentes", async () => {
+    await fails(`update "Provincias" set "IdEstado"=0 where "Codigo"='131'`, /comunas vigentes/);
+  });
+  it("permite desactivar una región sin hijos", async () => {
+    await db.query(`insert into "Regiones"("Codigo","Nombre") values ('99','Prueba')`);
+    await db.query(`update "Regiones" set "IdEstado"=0 where "Codigo"='99'`);
+    expect(Number(await val(`select "IdEstado" from "Regiones" where "Codigo"='99'`))).toBe(0);
+  });
+  it("tiene RLS activo en las tres tablas", async () => {
+    expect(Number(await val(`select count(*) from pg_class where relname in ('Regiones','Provincias','Comunas') and relrowsecurity`))).toBe(3);
+  });
+});
