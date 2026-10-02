@@ -298,7 +298,7 @@ describe("territorio en proveedores", () => {
     await fails(`insert into "ProveedoresSucursales"("IdProveedor","Region","Comuna") values (1,'13','13101')`, /requiere ciudad/);
   });
   it("rechaza código inexistente por FK", async () => {
-    await fails(prov(`"Region"`, `'77'`, "T-6"));
+    await fails(prov(`"Region"`, `'77'`, "T-6"), /foreign key|violates/i);
   });
   it("convierte texto libre a códigos", async () => {
     const conv = async (r: string | null, c: string | null, m: string | null) => {
@@ -308,6 +308,11 @@ describe("territorio en proveedores", () => {
     expect(await conv("ÑUBLE", null, null)).toEqual({ region: "16", ciudad: null, comuna: null });
     expect(await conv(null, null, "providencia")).toEqual({ region: "13", ciudad: "131", comuna: "13123" });
     expect(await conv("Valparaiso", "Valparaíso", null)).toEqual({ region: "05", ciudad: "051", comuna: null });
+    expect(await conv("ñuble", null, null)).toEqual({ region: "16", ciudad: null, comuna: null });
+    expect(await conv(null, null, "ñuñoa")).toEqual({ region: "13", ciudad: "131", comuna: "13120" });
+    expect(await conv(null, null, "ÑUÑOA")).toEqual({ region: "13", ciudad: "131", comuna: "13120" });
+    expect(await conv(null, null, "CONCEPCIÓN")).toEqual({ region: "08", ciudad: "081", comuna: "08101" });
+    expect(await conv("VALPARAÍSO", "VALPARAÍSO", null)).toEqual({ region: "05", ciudad: "051", comuna: null });
     expect(await conv("xyz", "abc", "def")).toEqual({ region: null, ciudad: null, comuna: null });
   });
 });

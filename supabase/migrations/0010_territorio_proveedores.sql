@@ -10,22 +10,22 @@ language sql stable set search_path = public as $$
       join "Provincias" p on p."Codigo" = c."CodigoProvincia"
       join "Regiones" r on r."Codigo" = p."CodigoRegion"
      where $3 is not null
-       and lower(translate(trim(c."Nombre"),'áéíóúüñ','aeiouun')) = lower(translate(trim($3),'áéíóúüñ','aeiouun'))
+       and translate(lower(trim(c."Nombre")),'áéíóúüñ','aeiouun') = translate(lower(trim($3)),'áéíóúüñ','aeiouun')
     union all
     select r."Codigo", p."Codigo", null, 2
       from "Provincias" p
       join "Regiones" r on r."Codigo" = p."CodigoRegion"
      where $2 is not null
-       and lower(translate(trim(p."Nombre"),'áéíóúüñ','aeiouun')) = lower(translate(trim($2),'áéíóúüñ','aeiouun'))
+       and translate(lower(trim(p."Nombre")),'áéíóúüñ','aeiouun') = translate(lower(trim($2)),'áéíóúüñ','aeiouun')
     union all
     select r."Codigo", null, null, 3
       from "Regiones" r
      where $1 is not null
-       and lower(translate(trim(r."Nombre"),'áéíóúüñ','aeiouun')) = lower(translate(trim($1),'áéíóúüñ','aeiouun'))
+       and translate(lower(trim(r."Nombre")),'áéíóúüñ','aeiouun') = translate(lower(trim($1)),'áéíóúüñ','aeiouun')
     union all
     select null, null, null, 4
   ) x
-  order by x.prio
+  order by x.prio, x.reg, x.prov, x.com
   limit 1
 $$;
 
