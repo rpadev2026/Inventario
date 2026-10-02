@@ -26,7 +26,7 @@ export type Proveedor = {
   Telefono: string | null; Correo: string | null; IdEstado: number;
 };
 
-export function FormProveedor({ p, volver, territorio }: { p?: Proveedor; volver?: string; territorio: Territorio }) {
+export function FormProveedor({ p, volver, territorio, onGuardado }: { p?: Proveedor; volver?: string; territorio: Territorio; onGuardado?: () => void }) {
   const router = useRouter();
   const { state, pending, onSubmit } = useAccion(guardarProveedor, {
     limpiarSiOk: !p,
@@ -34,6 +34,7 @@ export function FormProveedor({ p, volver, territorio }: { p?: Proveedor; volver
       // Solo al crear: vuelve a la pantalla de origen (ruta interna segura) con el nuevo proveedor elegido.
       const ruta = rutaVolverSegura(volver);
       if (!p && r.id && ruta) router.push(`${ruta}?proveedor=${encodeURIComponent(String(r.id))}`);
+      else if (!p) onGuardado?.();
     },
   });
   return (

@@ -4,7 +4,7 @@ import { db } from "@/lib/db/supabase";
 import { requerirPaginaPermiso } from "@/lib/auth/session";
 import { rutaVolverSegura } from "@/lib/volver";
 import { cargarTerritorio } from "@/lib/services/territorio";
-import { FormProveedor } from "./forms";
+import PanelNuevoProveedor from "./panel-nuevo";
 
 export default async function ProveedoresPage({ searchParams }: { searchParams: Promise<{ volver?: string }> }) {
   await requerirPaginaPermiso("proveedores.ver");
@@ -16,12 +16,8 @@ export default async function ProveedoresPage({ searchParams }: { searchParams: 
   ]);
   return (
     <section className="space-y-6">
-      <h1 className="page-title">Proveedores</h1>
       {rutaVolver && <Link href={rutaVolver} className="link">← Volver a la factura</Link>}
-      <div className="card">
-        <h2 className="section-title mb-3">Nuevo proveedor</h2>
-        <FormProveedor territorio={territorio} volver={rutaVolver ?? undefined} />
-      </div>
+      <PanelNuevoProveedor territorio={territorio} volver={rutaVolver ?? undefined} abiertoInicial={!!rutaVolver} />
       <div className="table-wrap">
         <table className="table">
           <thead><tr><th>RUT</th><th>Razón social</th><th>Giro</th><th>Teléfono</th><th>Correo</th><th>Estado</th><th></th></tr></thead>
