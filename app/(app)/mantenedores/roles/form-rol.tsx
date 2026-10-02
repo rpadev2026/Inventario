@@ -1,0 +1,64 @@
+"use client";
+import { useAccion } from "@/lib/use-accion";
+import Field from "@/components/app/field";
+import { PERMISOS } from "@/lib/auth/permisos";
+
+export type RolItem = { IdRol: number; NombreRol: string; DetalleRol: string | null; IdEstado: number; EsBase: boolean };
+type Accion = (prev: unknown, fd: FormData) => Promise<{ error?: string; ok?: boolean }>;
+
+const MODULOS = [...new Set(PERMISOS.map((p) => p.modulo))];
+
+export default function FormRol({ rol, permisos = [], accion }: { rol?: RolItem; permisos?: string[]; accion: Accion }) {
+  const { state, pending, onSubmit } = useAccion(accion, { limpiarSiOk: !rol });
+  const base = !!rol?.EsBase;
+  const esAdmin = rol?.NombreRol === "Administrador";
+  return (
+    <form onSubmit={onSubmit} className="grid gap-4">
+      {rol && <input type="hidden" name="id" value={rol.IdRol} />}
+      {/* Los campos deshabilitados no se envían: los roles base conservan nombre y estado vigentes. */}
+      {base && <input type="hidden" name="nombre" value={rol.NombreRol} />}
+      {base && <input type="hidden" name="estado" value={rol.IdEstado} />}
+      <div className="form-grid form-grid-3">
+        <Field label="Nombre">
+          <input name={base ? undefined : "nombre"} defaultValue={rol?.NombreRol} disabled={base} required maxLength={60} className="input" />
+        </Field>
+        <Field label="Detalle">
+          <input name="detalle" defaultValue={rol?.DetalleRol ?? ""} maxLength={200} className="input" />
+        </Field>
+        <Field label="Estado">
+          <select name={base ? undefined : "estado"} defaultValue={rol?.IdEstado ?? 1} disabled={base} className="input">
+            <option value={1}>Vigente</option>
+            <option value={0}>No vigente</option>
+          </select>
+        </Field>
+      </div>
+      {base && <p className="text-muted">Rol base: no se puede renombrar ni desactivar.</p>}
+      {esAdmin ? (
+        <p className="text-muted">Tiene todos los permisos.</p>
+      ) : (
+        <fieldset className="grid gap-3">
+          <legend className="section-title mb-1">Permisos</legend>
+          <p className="text-muted">Para crear solicitudes también conviene marcar &quot;Ver y recepcionar solicitudes propias&quot;</p>
+          <div className="form-grid form-grid-3">
+            {MODULOS.map((m) => (
+              <div key={m} className="grid gap-2 content-start">
+                <strong>{m}</strong>
+                {PERMISOS.filter((p) => p.modulo === m).map((p) => (
+                  <label key={p.codigo} className="flex items-center gap-2">
+                    <input type="checkbox" name="permisos" value={p.codigo} defaultChecked={permisos.includes(p.codigo)} />
+                    <span>{p.descripcion}</span>
+                  </label>
+                ))}
+              </div>
+            ))}
+          </div>
+        </fieldset>
+      )}
+      <div className="form-actions">
+        <button disabled={pending} className="btn btn-primary">{rol ? "Guardar cambios" : "Crear rol"}</button>
+        {state?.error && <span role="alert" className="msg msg-error">{state.error}</span>}
+        {state?.ok && <span role="status" className="msg msg-ok">Guardado</span>}
+      </div>
+    </form>
+  );
+}
