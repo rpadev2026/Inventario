@@ -89,6 +89,7 @@ body { background: var(--bg); color: var(--text); font-family: var(--font-body);
   /* ───────── Tipografía y utilidades ───────── */
   .page-title { font-family: var(--font-heading); font-size: 1.5rem; font-weight: 600; letter-spacing: -0.015em; line-height: 1.25; }
   @media (min-width: 640px) { .page-title { font-size: 1.75rem; } }
+  .page-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: .75rem; }
   .section-title { font-family: var(--font-heading); font-size: 1.0625rem; font-weight: 600; }
   .text-muted { color: var(--text-muted); }
   .text-danger { color: var(--danger); }
