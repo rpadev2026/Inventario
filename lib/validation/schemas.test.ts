@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { facturaSchema, productoSchema, proveedorSchema, rolSchema } from "./schemas";
+import { facturaSchema, productoSchema, proveedorSchema, rolSchema, sucursalSchema } from "./schemas";
 import { catalogoSchema } from "./catalogo";
 
 const base = { idProveedor: 1, folio: 10, fechaFactura: "2026-10-01", fechaRecepcion: "2026-10-02", formaPago: "Contado",
@@ -59,6 +59,30 @@ describe("producto", () => {
 describe("proveedor", () => {
   it("rechaza RUT inválido", () => expect(proveedorSchema.safeParse({ rut: "1-1", razonSocial: "X" }).success).toBe(false));
   it("acepta mínimo válido", () => expect(proveedorSchema.safeParse({ rut: "76.086.428-5", razonSocial: "X" }).success).toBe(true));
+});
+describe("territorio en proveedor y sucursal", () => {
+  const prov = { rut: "76.086.428-5", razonSocial: "X" };
+  const suc = { direccion: "Calle 1" };
+  const casos: [string, (t: object) => { success: boolean; data?: { region: string | null; ciudad: string | null; comuna: string | null }; error?: { issues: unknown[] } }][] = [
+    ["proveedor", (t) => proveedorSchema.safeParse({ ...prov, ...t })],
+    ["sucursal", (t) => sucursalSchema.safeParse({ ...suc, ...t })],
+  ];
+  for (const [nombre, parse] of casos) {
+    it(`${nombre}: acepta vacío, región sola y trío`, () => {
+      expect(parse({}).success).toBe(true);
+      expect(parse({ region: "13" }).success).toBe(true);
+      const r = parse({ region: "13", ciudad: "131", comuna: "13101" });
+      expect([r.data?.region, r.data?.ciudad, r.data?.comuna]).toEqual(["13", "131", "13101"]);
+    });
+    it(`${nombre}: rechaza comuna sin ciudad`, () => {
+      const r = parse({ region: "13", comuna: "13101" });
+      expect(r.error?.issues[0]).toMatchObject({ message: "La comuna requiere ciudad", path: ["comuna"] });
+    });
+    it(`${nombre}: rechaza ciudad sin región`, () => {
+      const r = parse({ ciudad: "131" });
+      expect(r.error?.issues[0]).toMatchObject({ message: "La ciudad requiere región", path: ["ciudad"] });
+    });
+  }
 });
 describe("catalogo", () => {
   it("normaliza código y acepta", () => {
