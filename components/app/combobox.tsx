@@ -12,10 +12,17 @@ type Props = {
   required?: boolean;
   placeholder?: string;
   hint?: string;
+  /** Máximo de opciones mostradas (por defecto el de `filtrarOpciones`). */
+  maxOpciones?: number;
+  /**
+   * Campo opcional cuyo valor enviado debe coincidir con lo que se ve: teclear no borra la selección;
+   * al salir, un texto vacío la quita y un texto que no corresponde a una opción vuelve a la selección vigente.
+   */
+  limpiarAlSalir?: boolean;
 };
 
 /** Autocompletado accesible (patrón ARIA 1.2 combobox con lista). El filtrado vive en lib/buscar.ts. */
-export default function Combobox({ label, opciones, valor, onCambio, required, placeholder, hint }: Props) {
+export default function Combobox({ label, opciones, valor, onCambio, required, placeholder, hint, maxOpciones, limpiarAlSalir }: Props) {
   const uid = useId();
   const idInput = `${uid}-input`;
   const idLista = `${uid}-lista`;
@@ -35,7 +42,7 @@ export default function Combobox({ label, opciones, valor, onCambio, required, p
     if (!valor && elegida === null && texto !== "" && !abierto) setTexto("");
   }
 
-  const filtradas = useMemo(() => filtrarOpciones(opciones, elegida && texto === elegida.etiqueta ? "" : texto), [opciones, texto, elegida]);
+  const filtradas = useMemo(() => filtrarOpciones(opciones, elegida && texto === elegida.etiqueta ? "" : texto, maxOpciones), [opciones, texto, elegida, maxOpciones]);
   const indiceActivo = Math.min(activo, Math.max(filtradas.length - 1, 0));
   const idOpcion = (i: number) => `${uid}-op-${i}`;
   const lista = abierto && filtradas.length > 0;
@@ -62,7 +69,7 @@ export default function Combobox({ label, opciones, valor, onCambio, required, p
     setTexto(v);
     setActivo(0);
     setAbierto(true);
-    if (valor) onCambio("");
+    if (valor && !limpiarAlSalir) onCambio("");
   }
 
   function alTeclear(e: React.KeyboardEvent<HTMLInputElement>) {
@@ -114,7 +121,12 @@ export default function Combobox({ label, opciones, valor, onCambio, required, p
         onFocus={() => setAbierto(true)}
         onBlur={() => {
           setAbierto(false);
-          if (elegida) setTexto(elegida.etiqueta);
+          if (limpiarAlSalir) {
+            if (texto.trim() === "") {
+              if (valor) onCambio("");
+              setTexto("");
+            } else setTexto(elegida?.etiqueta ?? "");
+          } else if (elegida) setTexto(elegida.etiqueta);
         }}
         onMouseDown={() => setAbierto(true)}
       />

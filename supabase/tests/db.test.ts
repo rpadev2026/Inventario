@@ -241,3 +241,78 @@ describe("roles y permisos", () => {
     expect(await permisos("Administrador")).toEqual([]);
   });
 });
+
+describe("territorio", () => {
+  it("carga 16 regiones, 56 provincias y 346 comunas", async () => {
+    expect(Number(await val(`select count(*) from "Regiones"`))).toBe(16);
+    expect(Number(await val(`select count(*) from "Provincias"`))).toBe(56);
+    expect(Number(await val(`select count(*) from "Comunas"`))).toBe(346);
+  });
+  it("incluye Antártica (12202)", async () => {
+    expect(await val(`select "Nombre" from "Comunas" where "Codigo"='12202'`)).toBe("Antártica");
+  });
+  it("rechaza una comuna con provincia inexistente", async () => {
+    await fails(`insert into "Comunas"("Codigo","Nombre","CodigoProvincia") values ('99999','X','998')`);
+  });
+  it("rechaza códigos de región con formato inválido", async () => {
+    await fails(`insert into "Regiones"("Codigo","Nombre") values ('1','X')`);
+    await fails(`insert into "Regiones"("Codigo","Nombre") values ('AB','X')`);
+  });
+  it("rechaza desactivar una región con ciudades vigentes", async () => {
+    await fails(`update "Regiones" set "IdEstado"=0 where "Codigo"='13'`, /ciudades vigentes/);
+  });
+  it("rechaza desactivar una provincia con comunas vigentes", async () => {
+    await fails(`update "Provincias" set "IdEstado"=0 where "Codigo"='131'`, /comunas vigentes/);
+  });
+  it("permite desactivar una región sin hijos", async () => {
+    await db.query(`insert into "Regiones"("Codigo","Nombre") values ('99','Prueba')`);
+    await db.query(`update "Regiones" set "IdEstado"=0 where "Codigo"='99'`);
+    expect(Number(await val(`select "IdEstado" from "Regiones" where "Codigo"='99'`))).toBe(0);
+  });
+  it("tiene RLS activo en las tres tablas", async () => {
+    expect(Number(await val(`select count(*) from pg_class where relname in ('Regiones','Provincias','Comunas') and relrowsecurity`))).toBe(3);
+  });
+});
+
+describe("territorio en proveedores", () => {
+  const prov = (cols: string, vals: string, rut: string) =>
+    `insert into "Proveedores"("Rut","RazonSocial",${cols}) values ('${rut}','T',${vals})`;
+  it("permite proveedor con solo región", async () => {
+    await db.query(prov(`"Region"`, `'13'`, "T-1"));
+  });
+  it("rechaza comuna sin ciudad", async () => {
+    await fails(prov(`"Comuna"`, `'13101'`, "T-2"), /requiere ciudad/);
+  });
+  it("rechaza ciudad sin región", async () => {
+    await fails(prov(`"Ciudad"`, `'131'`, "T-2b"), /requiere región/);
+  });
+  it("rechaza ciudad que no pertenece a la región", async () => {
+    await fails(prov(`"Region","Ciudad"`, `'05','131'`, "T-3"), /no pertenece a la región/);
+  });
+  it("rechaza comuna que no pertenece a la ciudad", async () => {
+    await fails(prov(`"Region","Ciudad","Comuna"`, `'13','131','05101'`, "T-4"), /no pertenece a la ciudad/);
+  });
+  it("acepta combinación válida en proveedores y sucursales", async () => {
+    await db.query(prov(`"Region","Ciudad","Comuna"`, `'13','131','13101'`, "T-5"));
+    await db.query(`insert into "ProveedoresSucursales"("IdProveedor","Region","Ciudad","Comuna") values (1,'13','131','13101')`);
+    await fails(`insert into "ProveedoresSucursales"("IdProveedor","Region","Comuna") values (1,'13','13101')`, /requiere ciudad/);
+  });
+  it("rechaza código inexistente por FK", async () => {
+    await fails(prov(`"Region"`, `'77'`, "T-6"), /foreign key|violates/i);
+  });
+  it("convierte texto libre a códigos", async () => {
+    const conv = async (r: string | null, c: string | null, m: string | null) => {
+      const q = (v: string | null) => (v === null ? "null" : `'${v}'`);
+      return (await db.query<any>(`select * from convertir_territorio_texto(${q(r)},${q(c)},${q(m)})`)).rows[0];
+    };
+    expect(await conv("ÑUBLE", null, null)).toEqual({ region: "16", ciudad: null, comuna: null });
+    expect(await conv(null, null, "providencia")).toEqual({ region: "13", ciudad: "131", comuna: "13123" });
+    expect(await conv("Valparaiso", "Valparaíso", null)).toEqual({ region: "05", ciudad: "051", comuna: null });
+    expect(await conv("ñuble", null, null)).toEqual({ region: "16", ciudad: null, comuna: null });
+    expect(await conv(null, null, "ñuñoa")).toEqual({ region: "13", ciudad: "131", comuna: "13120" });
+    expect(await conv(null, null, "ÑUÑOA")).toEqual({ region: "13", ciudad: "131", comuna: "13120" });
+    expect(await conv(null, null, "CONCEPCIÓN")).toEqual({ region: "08", ciudad: "081", comuna: "08101" });
+    expect(await conv("VALPARAÍSO", "VALPARAÍSO", null)).toEqual({ region: "05", ciudad: "051", comuna: null });
+    expect(await conv("xyz", "abc", "def")).toEqual({ region: null, ciudad: null, comuna: null });
+  });
+});

@@ -6,6 +6,9 @@ const TARJETAS = [
   { ...CATALOGOS.formasPago, desc: "Medios con los que se pagan las facturas de compra." },
   { ...CATALOGOS.unidades, desc: "Unidades en que se miden los productos (kg, lt, un...)." },
   { ...CATALOGOS.formatos, desc: "Presentaciones de los productos (caja, bolsa, saco...)." },
+  { ...CATALOGOS.regiones, desc: "Regiones de Chile (código CUT)." },
+  { ...CATALOGOS.ciudades, desc: "Ciudades = provincias de cada región." },
+  { ...CATALOGOS.comunas, desc: "Comunas de cada ciudad." },
   { ruta: "/mantenedores/roles", titulo: "Roles y permisos", desc: "Permisos asignados a cada rol." },
 ];
 

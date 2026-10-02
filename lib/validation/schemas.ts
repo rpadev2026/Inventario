@@ -12,6 +12,15 @@ const correoOpt = z.string().trim().toLowerCase().max(254).optional()
   .refine((v) => v === null || z.string().email().safeParse(v).success, "Correo inválido");
 const estado = z.coerce.number().pipe(z.union([z.literal(0), z.literal(1)])).default(1);
 
+/** Jerarquía territorial: la comuna requiere ciudad y la ciudad requiere región (existencia/pertenencia se validan en la acción). */
+const territorioCompleto = (
+  v: { region: string | null; ciudad: string | null; comuna: string | null },
+  ctx: z.RefinementCtx,
+) => {
+  if (v.comuna && !v.ciudad) ctx.addIssue({ code: "custom", message: "La comuna requiere ciudad", path: ["comuna"] });
+  if (v.ciudad && !v.region) ctx.addIssue({ code: "custom", message: "La ciudad requiere región", path: ["ciudad"] });
+};
+
 export const proveedorSchema = z.object({
   rut,
   razonSocial: txt().min(1, "Razón social requerida"),
@@ -20,12 +29,12 @@ export const proveedorSchema = z.object({
     .refine((v) => v === null || validarRut(v), "RUT del representante inválido"),
   nombreRepresentante: opt(),
   telefono: opt(30), correo: correoOpt, estado,
-});
+}).superRefine(territorioCompleto);
 
 export const sucursalSchema = z.object({
   region: opt(), comuna: opt(), ciudad: opt(), direccion: txt().min(1, "Dirección requerida"),
   telefono: opt(30), correo: correoOpt, encargado: opt(), estado,
-});
+}).superRefine(territorioCompleto);
 
 export const vendedorSchema = z.object({
   rut, nombres: txt().min(1, "Nombres requeridos"), apellidos: txt().min(1, "Apellidos requeridos"),

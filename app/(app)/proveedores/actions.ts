@@ -1,9 +1,11 @@
 "use server";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
+import type { Seleccion } from "@/lib/territorio-opciones";
 import { db } from "@/lib/db/supabase";
 import { requerirPermiso } from "@/lib/auth/session";
 import { normalizarRut } from "@/lib/validation/rut";
+import { verificarTerritorio } from "@/lib/services/territorio";
 import { proveedorSchema, sucursalSchema, vendedorSchema } from "@/lib/validation/schemas";
 
 type R = { error?: string; ok?: boolean; id?: number; razonSocial?: string };
@@ -20,11 +22,18 @@ export async function guardarProveedor(_: unknown, fd: FormData): Promise<R> {
     NombreRepresentanteLegal: d.nombreRepresentante, Telefono: d.telefono, Correo: d.correo, IdEstado: d.estado, IdUsuario: s.uid,
   };
   const editId = fd.get("idProveedor");
+  let actual: Seleccion = { region: null, ciudad: null, comuna: null };
+  if (editId) {
+    const { data: fa } = await db.from("Proveedores").select("Region,Ciudad,Comuna").eq("IdProveedor", id(editId)).maybeSingle();
+    if (fa) actual = { region: fa.Region, ciudad: fa.Ciudad, comuna: fa.Comuna };
+  }
+  const errT = await verificarTerritorio({ region: d.region, ciudad: d.ciudad, comuna: d.comuna }, actual);
+  if (errT) return { error: errT };
   const q = editId
     ? db.from("Proveedores").update(fila).eq("IdProveedor", id(editId)).select("IdProveedor").single()
     : db.from("Proveedores").insert(fila).select("IdProveedor").single();
   const { data, error } = await q;
-  if (error) return { error: error.code === "23505" ? "El RUT ya está registrado" : "No se pudo guardar el proveedor" };
+  if (error) return { error: error.code === "P0001" ? error.message : error.code === "23505" ? "El RUT ya está registrado" : "No se pudo guardar el proveedor" };
   revalidatePath("/proveedores");
   return { ok: true, id: data.IdProveedor, razonSocial: d.razonSocial };
 }
@@ -40,10 +49,17 @@ export async function guardarSucursal(_: unknown, fd: FormData): Promise<R> {
   };
   const idProv = id(fd.get("idProveedor"));
   const idSuc = fd.get("idSucursal");
+  let actual: Seleccion = { region: null, ciudad: null, comuna: null };
+  if (idSuc) {
+    const { data: fa } = await db.from("ProveedoresSucursales").select("Region,Ciudad,Comuna").eq("IdSucursal", id(idSuc)).eq("IdProveedor", idProv).maybeSingle();
+    if (fa) actual = { region: fa.Region, ciudad: fa.Ciudad, comuna: fa.Comuna };
+  }
+  const errT = await verificarTerritorio({ region: d.region, ciudad: d.ciudad, comuna: d.comuna }, actual);
+  if (errT) return { error: errT };
   const { error } = idSuc
     ? await db.from("ProveedoresSucursales").update(fila).eq("IdSucursal", id(idSuc)).eq("IdProveedor", idProv)
     : await db.from("ProveedoresSucursales").insert({ ...fila, IdProveedor: idProv });
-  if (error) return { error: "No se pudo guardar la sucursal" };
+  if (error) return { error: error.code === "P0001" ? error.message : "No se pudo guardar la sucursal" };
   revalidatePath(`/proveedores/${idProv}`);
   return { ok: true };
 }
