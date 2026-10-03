@@ -3,23 +3,15 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { db } from "@/lib/db/supabase";
 import { requerirAdmin } from "@/lib/auth/session";
-import { validarRut, normalizarRut } from "@/lib/validation/rut";
+import { normalizarRut } from "@/lib/validation/rut";
+import { crearUsuarioSchema } from "@/lib/validation/usuario";
 import { fijarClave } from "@/lib/services/claves";
 
 type R = { error?: string; ok?: boolean };
 
-const crearSchema = z.object({
-  rut: z.string().refine(validarRut, "RUT inválido"),
-  nombres: z.string().trim().min(1).max(100),
-  apellidos: z.string().trim().min(1).max(100),
-  correo: z.string().trim().toLowerCase().email().max(254),
-  password: z.string().max(128),
-  idRol: z.coerce.number().int().positive(),
-});
-
 export async function crearUsuario(_: unknown, fd: FormData): Promise<R> {
   const s = await requerirAdmin();
-  const p = crearSchema.safeParse(Object.fromEntries(fd));
+  const p = crearUsuarioSchema.safeParse(Object.fromEntries(fd));
   if (!p.success) return { error: p.error.issues[0].message };
   const d = p.data;
   const { data: u, error } = await db.from("Usuarios").insert({

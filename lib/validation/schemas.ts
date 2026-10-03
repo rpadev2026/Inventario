@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { validarRut } from "./rut";
 import { codigoCatalogo } from "./catalogo";
+import { esCorreoValido, MSG_CORREO } from "./correo";
 import { parseDecimal2 } from "../numeros";
 import { CODIGOS_PERMISO } from "../auth/permisos";
 
@@ -9,7 +10,7 @@ const opt = (max = 150) => txt(max).optional().transform((v) => v || null);
 const rut = z.string().refine(validarRut, "RUT inválido");
 const correoOpt = z.string().trim().toLowerCase().max(254).optional()
   .transform((v) => v || null)
-  .refine((v) => v === null || z.string().email().safeParse(v).success, "Correo inválido");
+  .refine((v) => v === null || esCorreoValido(v), MSG_CORREO);
 const estado = z.coerce.number().pipe(z.union([z.literal(0), z.literal(1)])).default(1);
 
 /** Jerarquía territorial: la comuna requiere ciudad y la ciudad requiere región (existencia/pertenencia se validan en la acción). */

@@ -3,9 +3,11 @@ import { createClient } from "@supabase/supabase-js";
 import argon2 from "argon2";
 import { validarRut, normalizarRut } from "../lib/validation/rut.ts";
 import { validarPolitica } from "../lib/validation/password.ts";
+import { esCorreoValido, MSG_CORREO } from "../lib/validation/correo.ts";
 
 const [rut, correo, clave] = process.argv.slice(2);
 if (!rut || !correo || !clave) throw new Error("Uso: seed-admin <rut> <correo> <clave>");
+if (!esCorreoValido(correo)) throw new Error(MSG_CORREO);
 if (!validarRut(rut)) throw new Error("RUT inválido");
 const err = validarPolitica(clave);
 if (err) throw new Error(err);
