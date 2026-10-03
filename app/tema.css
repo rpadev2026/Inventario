@@ -196,6 +196,13 @@ body { background: var(--bg); color: var(--text); font-family: var(--font-body);
   .table tbody tr:hover td { background: var(--surface-2); }
   .table .num { text-align: right; font-variant-numeric: tabular-nums; }
   .table tr[aria-current="true"] td { background: var(--primary-soft); }
+  /* Tabla con scroll propio: la fila de títulos queda fija al bajar por las filas. */
+  .table-wrap-sticky { max-height: calc(100dvh - 19rem); overflow: auto; }
+  .table-wrap-sticky .table thead th { position: sticky; top: 0; z-index: 2; }
+  /* Aviso breve del encabezado: visible y luego se difumina. */
+  .aviso { display: inline-flex; align-items: center; padding: .375rem .75rem; border-radius: var(--radius-sm); border: 1px solid var(--success-border); background: var(--success-bg); color: var(--success); font-size: .875rem; font-weight: 600; animation: aviso-difuminar 4.5s ease forwards; }
+  @keyframes aviso-difuminar { 0%, 65% { opacity: 1; } 100% { opacity: 0; } }
+  @media (prefers-reduced-motion: reduce) { .aviso { animation: none; } }
 
   /* ───────── Autenticación ───────── */
   .auth-wrap { min-height: 100dvh; display: grid; place-items: center; padding: 1rem; background: var(--bg); }
