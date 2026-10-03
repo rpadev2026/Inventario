@@ -17,13 +17,23 @@ import { FormProveedor, FormSucursal, FormVendedor, type Proveedor, type Sucursa
 type Params = Record<string, string | string[] | undefined>;
 const entero = (v: unknown) => (typeof v === "string" && /^\d+$/.test(v) && Number(v) > 0 ? Number(v) : undefined);
 const texto = (v: string | string[] | undefined) => (typeof v === "string" && v !== "" ? v : undefined);
-const AVISOS: Record<string, string> = { creado: "Proveedor creado correctamente", editado: "Cambios guardados correctamente" };
+const AVISOS: Record<string, string> = {
+  creado: "Proveedor creado correctamente", editado: "Cambios guardados correctamente",
+  "sucursal-creada": "Sucursal creada correctamente", "sucursal-editada": "Sucursal guardada correctamente",
+  "vendedor-creado": "Vendedor creado correctamente", "vendedor-editado": "Vendedor guardado correctamente",
+};
 const estadoBadge = (e: number) => <Badge tone={e === 1 ? "ok" : "neutral"}>{e === 1 ? "Vigente" : "No vigente"}</Badge>;
 
 /** URL de /proveedores con solo los parámetros indicados (los undefined se omiten). */
 function href(q: Record<string, string | undefined>) {
   const s = new URLSearchParams(Object.entries(q).filter(([, v]) => v !== undefined) as [string, string][]).toString();
   return s ? `/proveedores?${s}` : "/proveedores";
+}
+type Territorio = Awaited<ReturnType<typeof cargarTerritorio>>;
+/** Funciones que traducen código → nombre de región, ciudad (provincia) y comuna. */
+function nombresTerritorio(t: Territorio) {
+  const nombre = (lista: { Codigo: string; Nombre: string }[], c: string | null) => (c ? lista.find((x) => x.Codigo === c)?.Nombre ?? c : "");
+  return { region: (c: string | null) => nombre(t.regiones, c), ciudad: (c: string | null) => nombre(t.ciudades, c), comuna: (c: string | null) => nombre(t.comunas, c) };
 }
 const Dato = ({ titulo, children }: { titulo: string; children: React.ReactNode }) => (
   <div><div className="label-block">{titulo}</div><div>{children || "—"}</div></div>
@@ -67,35 +77,116 @@ export default async function ProveedoresPage({ searchParams }: { searchParams: 
     ? await db.from("Proveedores").select("*").eq("IdProveedor", idPanel).maybeSingle<Proveedor>()
     : { data: null };
 
-  // ===== Editar: datos del proveedor y administración de sus sucursales y vendedores, con Volver =====
+  // ===== Editar: datos del proveedor y listados de sus sucursales y vendedores, con Volver =====
   if (idEditar && sel) {
     const [territorio, { data: sucs }, { data: vens }] = await Promise.all([
       cargarTerritorio(),
       db.from("ProveedoresSucursales").select("*").eq("IdProveedor", sel.IdProveedor).order("IdSucursal"),
       db.from("ProveedoresVendedores").select("*").eq("IdProveedor", sel.IdProveedor).order("IdVendedor"),
     ]);
+    const sucursales = (sucs ?? []) as Sucursal[];
+    const vendedores = (vens ?? []) as Vendedor[];
+    const urlEdicion = (extra: Record<string, string | undefined> = {}) => href({ ...base, editar: String(sel.IdProveedor), ...extra });
+
+    // Sucursal: editar una existente o agregar una nueva, solo su formulario con Volver a la edición del proveedor.
+    const pSuc = texto(sp.sucursal);
+    if (pSuc) {
+      const nueva = pSuc === "nueva";
+      const suc = nueva ? undefined : sucursales.find((x) => String(x.IdSucursal) === pSuc);
+      if (nueva || suc) {
+        return (
+          <section className="space-y-4">
+            <div className="page-head">
+              <h1 className="page-title">{nueva ? "Agregar sucursal" : "Editar sucursal"}</h1>
+              <Link href={urlEdicion()} className="btn btn-secondary">Volver</Link>
+            </div>
+            <p className="text-muted">Proveedor: {sel.RazonSocial}</p>
+            <div className="card">
+              <FormSucursal key={suc?.IdSucursal ?? "nueva"} idProveedor={sel.IdProveedor} s={suc} territorio={territorio}
+                despuesDeGuardar={urlEdicion({ aviso: nueva ? "sucursal-creada" : "sucursal-editada" })} />
+            </div>
+          </section>
+        );
+      }
+    }
+    // Vendedor: editar uno existente o agregar uno nuevo.
+    const pVen = texto(sp.vendedor);
+    if (pVen) {
+      const nuevo = pVen === "nuevo";
+      const ven = nuevo ? undefined : vendedores.find((x) => String(x.IdVendedor) === pVen);
+      if (nuevo || ven) {
+        return (
+          <section className="space-y-4">
+            <div className="page-head">
+              <h1 className="page-title">{nuevo ? "Agregar vendedor" : "Editar vendedor"}</h1>
+              <Link href={urlEdicion()} className="btn btn-secondary">Volver</Link>
+            </div>
+            <p className="text-muted">Proveedor: {sel.RazonSocial}</p>
+            <div className="card">
+              <FormVendedor key={ven?.IdVendedor ?? "nuevo"} idProveedor={sel.IdProveedor} v={ven}
+                despuesDeGuardar={urlEdicion({ aviso: nuevo ? "vendedor-creado" : "vendedor-editado" })} />
+            </div>
+          </section>
+        );
+      }
+    }
+
+    const { region, ciudad, comuna } = nombresTerritorio(territorio);
+    const avisoEdicion = typeof sp.aviso === "string" ? AVISOS[sp.aviso] : undefined;
     return (
       <section className="space-y-6">
         <div className="page-head">
-          <h1 className="page-title">Editar proveedor</h1>
+          <div className="flex flex-wrap items-center gap-3">
+            <h1 className="page-title">Editar proveedor</h1>
+            {avisoEdicion && <Aviso texto={avisoEdicion} />}
+          </div>
           <Link href={volverListado} className="btn btn-secondary">Volver</Link>
         </div>
         <div className="card">
           <FormProveedor key={sel.IdProveedor} p={sel} territorio={territorio} despuesDeGuardar={href({ ...base, aviso: "editado" })} />
         </div>
 
-        <div className="card space-y-3">
-          <h2 className="section-title">Sucursales</h2>
-          {((sucs ?? []) as Sucursal[]).map((s) => <FormSucursal key={s.IdSucursal} idProveedor={sel.IdProveedor} s={s} territorio={territorio} />)}
-          <h3 className="section-title pt-2">Nueva sucursal</h3>
-          <FormSucursal idProveedor={sel.IdProveedor} territorio={territorio} />
+        <div className="space-y-3">
+          <div className="page-head">
+            <h2 className="section-title">Sucursales</h2>
+            <Link href={urlEdicion({ sucursal: "nueva" })} className="btn btn-primary"><Icon name="plus" size={18} />Agregar sucursal</Link>
+          </div>
+          <div className="table-wrap">
+            <table className="table">
+              <thead><tr><th>Dirección</th><th>Región</th><th>Ciudad</th><th>Comuna</th><th>Teléfono</th><th>Correo</th><th>Encargado</th><th>Estado</th><th>Acciones</th></tr></thead>
+              <tbody>
+                {sucursales.map((x) => (
+                  <tr key={x.IdSucursal}>
+                    <td>{x.Direccion}</td><td>{region(x.Region)}</td><td>{ciudad(x.Ciudad)}</td><td>{comuna(x.Comuna)}</td>
+                    <td>{x.Telefono}</td><td>{x.Correo}</td><td>{x.EncargadoSucursal}</td><td>{estadoBadge(x.IdEstado)}</td>
+                    <td><Link className="link link-sm" href={urlEdicion({ sucursal: String(x.IdSucursal) })} aria-label={`Editar sucursal ${x.Direccion}`}>Editar</Link></td>
+                  </tr>
+                ))}
+                {!sucursales.length && <tr><td colSpan={9} className="text-muted">Este proveedor no tiene sucursales.</td></tr>}
+              </tbody>
+            </table>
+          </div>
         </div>
 
-        <div className="card space-y-3">
-          <h2 className="section-title">Vendedores</h2>
-          {((vens ?? []) as Vendedor[]).map((v) => <FormVendedor key={v.IdVendedor} idProveedor={sel.IdProveedor} v={v} />)}
-          <h3 className="section-title pt-2">Nuevo vendedor</h3>
-          <FormVendedor idProveedor={sel.IdProveedor} />
+        <div className="space-y-3">
+          <div className="page-head">
+            <h2 className="section-title">Vendedores</h2>
+            <Link href={urlEdicion({ vendedor: "nuevo" })} className="btn btn-primary"><Icon name="plus" size={18} />Agregar vendedor</Link>
+          </div>
+          <div className="table-wrap">
+            <table className="table">
+              <thead><tr><th>RUT</th><th>Nombres</th><th>Apellidos</th><th>Teléfono</th><th>Correo</th><th>Estado</th><th>Acciones</th></tr></thead>
+              <tbody>
+                {vendedores.map((v) => (
+                  <tr key={v.IdVendedor}>
+                    <td>{v.Rut}</td><td>{v.Nombres}</td><td>{v.Apellidos}</td><td>{v.Telefono}</td><td>{v.Correo}</td><td>{estadoBadge(v.IdEstado)}</td>
+                    <td><Link className="link link-sm" href={urlEdicion({ vendedor: String(v.IdVendedor) })} aria-label={`Editar vendedor ${v.Nombres} ${v.Apellidos}`}>Editar</Link></td>
+                  </tr>
+                ))}
+                {!vendedores.length && <tr><td colSpan={7} className="text-muted">Este proveedor no tiene vendedores.</td></tr>}
+              </tbody>
+            </table>
+          </div>
         </div>
       </section>
     );
@@ -108,10 +199,7 @@ export default async function ProveedoresPage({ searchParams }: { searchParams: 
       db.from("ProveedoresSucursales").select("*").eq("IdProveedor", sel.IdProveedor).order("IdSucursal"),
       db.from("ProveedoresVendedores").select("*").eq("IdProveedor", sel.IdProveedor).order("IdVendedor"),
     ]);
-    const nombre = (lista: { Codigo: string; Nombre: string }[], c: string | null) => (c ? lista.find((x) => x.Codigo === c)?.Nombre ?? c : "");
-    const region = (c: string | null) => nombre(territorio.regiones, c);
-    const ciudad = (c: string | null) => nombre(territorio.ciudades, c);
-    const comuna = (c: string | null) => nombre(territorio.comunas, c);
+    const { region, ciudad, comuna } = nombresTerritorio(territorio);
     return (
       <section className="space-y-6">
         <div className="page-head">

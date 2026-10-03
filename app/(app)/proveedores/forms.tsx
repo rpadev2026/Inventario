@@ -3,6 +3,7 @@ import { useRouter } from "next/navigation";
 import { useAccion } from "@/lib/use-accion";
 import { rutaVolverSegura } from "@/lib/volver";
 import Field from "@/components/app/field";
+import CampoCorreo from "@/components/app/campo-correo";
 import SelectorTerritorio from "@/components/app/selector-territorio";
 import type { Territorio } from "@/lib/territorio-opciones";
 import { guardarProveedor, guardarSucursal, guardarVendedor } from "./actions";
@@ -55,7 +56,7 @@ export function FormProveedor({ p, volver, territorio, despuesDeGuardar }: {
         <Field label="RUT representante legal"><input name="rutRepresentante" defaultValue={p?.RutRepresentanteLegal ?? ""} className="input" autoComplete="off" /></Field>
         <Field label="Nombre representante legal" className="fld-2"><input name="nombreRepresentante" defaultValue={p?.NombreRepresentanteLegal ?? ""} className="input" /></Field>
         <Field label="Teléfono"><input name="telefono" type="tel" defaultValue={p?.Telefono ?? ""} className="input" inputMode="tel" /></Field>
-        <Field label="Correo" className="fld-2"><input name="correo" type="email" defaultValue={p?.Correo ?? ""} className="input" inputMode="email" /></Field>
+        <CampoCorreo className="fld-2" defaultValue={p?.Correo} />
         <EstadoSelect valor={p?.IdEstado} />
       </div>
       <div className="form-actions">
@@ -71,22 +72,30 @@ export type Sucursal = {
   Telefono: string | null; Correo: string | null; EncargadoSucursal: string | null; IdEstado: number;
 };
 
-export function FormSucursal({ idProveedor, s, territorio }: { idProveedor: number; s?: Sucursal; territorio: Territorio }) {
-  const { state, pending, onSubmit } = useAccion(guardarSucursal, { limpiarSiOk: !s });
+export function FormSucursal({ idProveedor, s, territorio, despuesDeGuardar }: {
+  idProveedor: number; s?: Sucursal; territorio: Territorio;
+  /** Al guardar bien se va a esta ruta (la edición del proveedor, con el aviso). */
+  despuesDeGuardar?: string;
+}) {
+  const router = useRouter();
+  const { state, pending, onSubmit } = useAccion(guardarSucursal, {
+    limpiarSiOk: !s,
+    onOk: () => { if (despuesDeGuardar) router.push(despuesDeGuardar); },
+  });
   return (
-    <form onSubmit={onSubmit} className="grid gap-4 divider-t pt-4">
+    <form onSubmit={onSubmit} className="grid gap-4">
       <input type="hidden" name="idProveedor" value={idProveedor} />
       {s && <input type="hidden" name="idSucursal" value={s.IdSucursal} />}
       <div className="form-grid form-grid-4">
         <Field label="Dirección" className="fld-2"><input name="direccion" defaultValue={s?.Direccion ?? ""} required className="input" /></Field>
         <SelectorTerritorio territorio={territorio} inicial={{ region: s?.Region ?? null, ciudad: s?.Ciudad ?? null, comuna: s?.Comuna ?? null }} />
         <Field label="Teléfono"><input name="telefono" type="tel" defaultValue={s?.Telefono ?? ""} className="input" inputMode="tel" /></Field>
-        <Field label="Correo"><input name="correo" type="email" defaultValue={s?.Correo ?? ""} className="input" inputMode="email" /></Field>
+        <CampoCorreo defaultValue={s?.Correo} />
         <Field label="Encargado"><input name="encargado" defaultValue={s?.EncargadoSucursal ?? ""} className="input" /></Field>
         <EstadoSelect valor={s?.IdEstado} />
       </div>
       <div className="form-actions">
-        <button disabled={pending} className={`btn ${s ? "btn-secondary" : "btn-primary"}`}>{s ? "Guardar sucursal" : "Agregar sucursal"}</button>
+        <button disabled={pending} className="btn btn-primary">{s ? "Guardar cambios" : "Agregar sucursal"}</button>
         <Estado s={state} />
       </div>
     </form>
@@ -97,10 +106,18 @@ export type Vendedor = {
   IdVendedor: number; Rut: string; Nombres: string; Apellidos: string; Telefono: string | null; Correo: string | null; IdEstado: number;
 };
 
-export function FormVendedor({ idProveedor, v }: { idProveedor: number; v?: Vendedor }) {
-  const { state, pending, onSubmit } = useAccion(guardarVendedor, { limpiarSiOk: !v });
+export function FormVendedor({ idProveedor, v, despuesDeGuardar }: {
+  idProveedor: number; v?: Vendedor;
+  /** Al guardar bien se va a esta ruta (la edición del proveedor, con el aviso). */
+  despuesDeGuardar?: string;
+}) {
+  const router = useRouter();
+  const { state, pending, onSubmit } = useAccion(guardarVendedor, {
+    limpiarSiOk: !v,
+    onOk: () => { if (despuesDeGuardar) router.push(despuesDeGuardar); },
+  });
   return (
-    <form onSubmit={onSubmit} className="grid gap-4 divider-t pt-4">
+    <form onSubmit={onSubmit} className="grid gap-4">
       <input type="hidden" name="idProveedor" value={idProveedor} />
       {v && <input type="hidden" name="idVendedor" value={v.IdVendedor} />}
       <div className="form-grid form-grid-4">
@@ -108,11 +125,11 @@ export function FormVendedor({ idProveedor, v }: { idProveedor: number; v?: Vend
         <Field label="Nombres"><input name="nombres" defaultValue={v?.Nombres} required className="input" /></Field>
         <Field label="Apellidos"><input name="apellidos" defaultValue={v?.Apellidos} required className="input" /></Field>
         <Field label="Teléfono"><input name="telefono" type="tel" defaultValue={v?.Telefono ?? ""} className="input" inputMode="tel" /></Field>
-        <Field label="Correo" className="fld-2"><input name="correo" type="email" defaultValue={v?.Correo ?? ""} className="input" inputMode="email" /></Field>
+        <CampoCorreo className="fld-2" defaultValue={v?.Correo} />
         <EstadoSelect valor={v?.IdEstado} />
       </div>
       <div className="form-actions">
-        <button disabled={pending} className={`btn ${v ? "btn-secondary" : "btn-primary"}`}>{v ? "Guardar vendedor" : "Agregar vendedor"}</button>
+        <button disabled={pending} className="btn btn-primary">{v ? "Guardar cambios" : "Agregar vendedor"}</button>
         <Estado s={state} />
       </div>
     </form>
