@@ -1,59 +1,130 @@
+import Link from "next/link";
 import { db } from "@/lib/db/supabase";
 import { requerirPaginaPermiso, esAdmin } from "@/lib/auth/session";
 import { mapaNombres } from "@/lib/catalogo-nombres";
-import FormBodega from "./form";
+import { paginar } from "@/lib/paginacion";
 import Badge from "@/components/app/badge";
+import Paginador from "@/components/app/paginador";
+import PanelNuevaBodega from "./panel-nueva";
+import EditarBodega from "./editar";
 
-export default async function BodegasPage({ searchParams }: { searchParams: Promise<{ b?: string }> }) {
+type Params = Record<string, string | string[] | undefined>;
+const entero = (v: unknown) => (typeof v === "string" && /^\d+$/.test(v) && Number(v) > 0 ? Number(v) : undefined);
+const texto = (v: string | string[] | undefined) => (typeof v === "string" ? v : undefined);
+const tono = { Crítico: "danger", Bajo: "warn", OK: "ok" } as const;
+const COLS_BODEGA = "IdBodega,NombreBodega,EsCentral,IdEstado";
+
+/** URL de /bodegas con solo los parámetros indicados (los undefined se omiten). */
+function href(q: Record<string, string | undefined>) {
+  const s = new URLSearchParams(Object.entries(q).filter(([, v]) => v !== undefined) as [string, string][]).toString();
+  return s ? `/bodegas?${s}` : "/bodegas";
+}
+
+export default async function BodegasPage({ searchParams }: { searchParams: Promise<Params> }) {
   const s = await requerirPaginaPermiso("bodegas.ver");
   const admin = esAdmin(s);
-  const sel = Number((await searchParams).b) || undefined;
-  const [{ data: bodegas }, { data: stock }, { data: prods }, unidades] = await Promise.all([
-    db.from("Bodegas").select("IdBodega,NombreBodega,EsCentral,IdEstado").order("EsCentral", { ascending: false }).order("NombreBodega"),
-    db.from("StockBodega").select("IdBodega,CodigoProducto,Cantidad"),
-    db.from("Productos").select("CodigoProducto,NombreProducto,UnidadMedida,StockMinimo,StockCritico"),
-    mapaNombres("UnidadesMedida"),
-  ]);
+  const sp = await searchParams;
+  const idEditar = admin ? entero(sp.editar) : undefined; // solo el Administrador ve el formulario de edición
+  const idVer = idEditar ? undefined : entero(sp.ver);
+
+  // Parámetros del listado que se conservan al abrir/cerrar los paneles.
+  const base = { pagina: texto(sp.pagina), tam: texto(sp.tam) };
+  const volverListado = href(base);
+
+  const idPanel = idEditar ?? idVer;
+  const { data: sel } = idPanel
+    ? await db.from("Bodegas").select(COLS_BODEGA).eq("IdBodega", idPanel).maybeSingle()
+    : { data: null };
+
+  // ===== Ver: solo la bodega y sus productos (con stock), paginados =====
+  if (idVer && sel) {
+    const [{ count }, unidades] = await Promise.all([
+      db.from("StockBodega").select("CodigoProducto", { count: "exact", head: true }).eq("IdBodega", sel.IdBodega),
+      mapaNombres("UnidadesMedida"),
+    ]);
+    const pgS = paginar({ pagina: sp.ppagina, tam: sp.ptam }, count ?? 0);
+    const { data } = await db.from("StockBodega")
+      .select("CodigoProducto,Cantidad,Productos!inner(NombreProducto,UnidadMedida,StockMinimo,StockCritico)")
+      .eq("IdBodega", sel.IdBodega).order("CodigoProducto").range(pgS.from, pgS.to).returns<any[]>();
+    const stock = (data ?? []).map((r) => {
+      const q = Number(r.Cantidad);
+      const nivel = q <= Number(r.Productos.StockCritico) ? "Crítico" : q <= Number(r.Productos.StockMinimo) ? "Bajo" : "OK";
+      return { codigo: r.CodigoProducto as string, q, nivel: nivel as keyof typeof tono, p: r.Productos };
+    });
+    return (
+      <section className="space-y-4">
+        <div className="page-head">
+          <h1 className="page-title">{sel.NombreBodega}</h1>
+          <Link href={volverListado} className="btn btn-secondary">Volver</Link>
+        </div>
+        <p className="flex flex-wrap items-center gap-2">
+          {sel.EsCentral ? <Badge tone="info">Central</Badge> : <span className="text-muted">Bodega secundaria</span>}
+          <Badge tone={sel.IdEstado === 1 ? "ok" : "neutral"}>{sel.IdEstado === 1 ? "Vigente" : "No vigente"}</Badge>
+        </p>
+        <h2 className="section-title">Productos</h2>
+        <div className="table-wrap">
+          <table className="table">
+            <thead><tr><th>Producto</th><th className="num">Stock</th><th className="num">Mín.</th><th className="num">Crít.</th><th>Nivel</th></tr></thead>
+            <tbody>
+              {stock.map((r) => (
+                <tr key={r.codigo}>
+                  <td>{r.codigo} — {r.p.NombreProducto}</td>
+                  <td className="num">{r.q} {unidades.get(r.p.UnidadMedida) ?? r.p.UnidadMedida}</td>
+                  <td className="num">{r.p.StockMinimo}</td><td className="num">{r.p.StockCritico}</td>
+                  <td><Badge tone={tono[r.nivel]}>{r.nivel}</Badge></td>
+                </tr>
+              ))}
+              {!stock.length && <tr><td colSpan={5} className="text-muted">Sin stock registrado.</td></tr>}
+            </tbody>
+          </table>
+        </div>
+        <Paginador pg={pgS} paramPagina="ppagina" paramTam="ptam" etiqueta="productos de la bodega" />
+      </section>
+    );
+  }
+
+  // ===== Listado de bodegas paginado (Central primero, luego por nombre) =====
+  const { count } = await db.from("Bodegas").select("IdBodega", { count: "exact", head: true });
+  const pgB = paginar({ pagina: sp.pagina, tam: sp.tam }, count ?? 0);
+  const { data: bodegas } = await db.from("Bodegas").select(COLS_BODEGA)
+    .order("EsCentral", { ascending: false }).order("NombreBodega").range(pgB.from, pgB.to);
   const lista = bodegas ?? [];
-  const actual = lista.find((b) => b.IdBodega === sel) ?? lista[0];
-  const pm = new Map((prods ?? []).map((p) => [p.CodigoProducto, p]));
-  const filas = (stock ?? []).filter((r) => r.IdBodega === actual?.IdBodega).map((r) => {
-    const p = pm.get(r.CodigoProducto)!;
-    const q = Number(r.Cantidad);
-    const nivel = q <= Number(p.StockCritico) ? "Crítico" : q <= Number(p.StockMinimo) ? "Bajo" : "OK";
-    return { ...r, p, q, nivel };
-  });
-  const tono = { Crítico: "danger", Bajo: "warn", OK: "ok" } as const;
+
   return (
-    <section className="space-y-4">
-      <h1 className="page-title">Bodegas</h1>
-      {admin && (
-        <div className="card grid gap-4">
-          <h2 className="section-title">Administrar bodegas</h2>
-          {lista.map((b) => <FormBodega key={b.IdBodega} b={b} />)}
-          <div className="divider-t pt-4"><FormBodega /></div>
+    <section className="space-y-6">
+      <PanelNuevaBodega puedeCrear={admin} />
+
+      <div className="space-y-3">
+        <div className="table-wrap">
+          <table className="table">
+            <thead><tr><th>Bodega</th><th>Tipo</th><th>Estado</th><th></th></tr></thead>
+            <tbody>
+              {lista.map((b) => (
+                <tr key={b.IdBodega} aria-current={b.IdBodega === idEditar ? "true" : undefined}>
+                  <td>{b.NombreBodega}</td>
+                  <td>{b.EsCentral ? <Badge tone="info">Central</Badge> : "Secundaria"}</td>
+                  <td><Badge tone={b.IdEstado === 1 ? "ok" : "neutral"}>{b.IdEstado === 1 ? "Vigente" : "No vigente"}</Badge></td>
+                  <td>
+                    <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
+                      <Link className="link link-sm" href={href({ ...base, ver: String(b.IdBodega) })} aria-label={`Ver productos de ${b.NombreBodega}`}>Ver</Link>
+                      {admin && <Link className="link link-sm" href={href({ ...base, editar: String(b.IdBodega) })} aria-label={`Editar ${b.NombreBodega}`}>Editar</Link>}
+                    </div>
+                  </td>
+                </tr>
+              ))}
+              {!lista.length && <tr><td colSpan={4} className="text-muted">Sin bodegas.</td></tr>}
+            </tbody>
+          </table>
+        </div>
+        <Paginador pg={pgB} etiqueta="bodegas" />
+      </div>
+
+      {idEditar && sel && (
+        <div className="card space-y-3" id="panel-editar">
+          <h2 className="section-title">Editar bodega</h2>
+          <EditarBodega key={sel.IdBodega} b={sel} volverHref={volverListado} />
         </div>
       )}
-      <nav className="flex flex-wrap gap-2" aria-label="Bodegas">
-        {lista.map((b) => (
-          <a key={b.IdBodega} href={`/bodegas?b=${b.IdBodega}`} aria-current={b.IdBodega === actual?.IdBodega ? "page" : undefined}
-            className={`pill ${b.IdBodega === actual?.IdBodega ? "pill-on" : ""}`}>{b.NombreBodega}</a>
-        ))}
-      </nav>
-      <div className="table-wrap">
-        <table className="table">
-          <thead><tr><th>Producto</th><th className="num">Stock</th><th className="num">Mín.</th><th className="num">Crít.</th><th>Nivel</th></tr></thead>
-          <tbody>
-            {filas.map((r) => (
-              <tr key={r.CodigoProducto}>
-                <td>{r.CodigoProducto} — {r.p.NombreProducto}</td>
-                <td className="num">{r.q} {unidades.get(r.p.UnidadMedida) ?? r.p.UnidadMedida}</td><td className="num">{r.p.StockMinimo}</td><td className="num">{r.p.StockCritico}</td><td><Badge tone={tono[r.nivel as keyof typeof tono]}>{r.nivel}</Badge></td>
-              </tr>
-            ))}
-            {!filas.length && <tr><td colSpan={5} className="text-muted">Sin stock registrado.</td></tr>}
-          </tbody>
-        </table>
-      </div>
     </section>
   );
 }

@@ -195,6 +195,7 @@ body { background: var(--bg); color: var(--text); font-family: var(--font-body);
   .table tbody tr:first-child td { border-top: 0; }
   .table tbody tr:hover td { background: var(--surface-2); }
   .table .num { text-align: right; font-variant-numeric: tabular-nums; }
+  .table tr[aria-current="true"] td { background: var(--primary-soft); }
 
   /* ───────── Autenticación ───────── */
   .auth-wrap { min-height: 100dvh; display: grid; place-items: center; padding: 1rem; background: var(--bg); }
