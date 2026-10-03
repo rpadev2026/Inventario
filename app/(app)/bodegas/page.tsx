@@ -64,17 +64,18 @@ export default async function BodegasPage({ searchParams }: { searchParams: Prom
         <h2 className="section-title">Productos</h2>
         <div className="table-wrap">
           <table className="table">
-            <thead><tr><th>Producto</th><th className="num">Stock</th><th className="num">Mín.</th><th className="num">Crít.</th><th>Nivel</th></tr></thead>
+            <thead><tr><th>Producto</th><th className="num">Stock</th><th>Unidad</th><th className="num">Mín.</th><th className="num">Crít.</th><th>Nivel</th></tr></thead>
             <tbody>
               {stock.map((r) => (
                 <tr key={r.codigo}>
                   <td>{r.codigo} — {r.p.NombreProducto}</td>
-                  <td className="num">{r.q} {unidades.get(r.p.UnidadMedida) ?? r.p.UnidadMedida}</td>
+                  <td className="num">{r.q}</td>
+                  <td>{unidades.get(r.p.UnidadMedida) ?? r.p.UnidadMedida}</td>
                   <td className="num">{r.p.StockMinimo}</td><td className="num">{r.p.StockCritico}</td>
                   <td><Badge tone={tono[r.nivel]}>{r.nivel}</Badge></td>
                 </tr>
               ))}
-              {!stock.length && <tr><td colSpan={5} className="text-muted">Sin stock registrado.</td></tr>}
+              {!stock.length && <tr><td colSpan={6} className="text-muted">Sin stock registrado.</td></tr>}
             </tbody>
           </table>
         </div>
