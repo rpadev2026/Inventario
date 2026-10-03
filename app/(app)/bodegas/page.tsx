@@ -6,10 +6,10 @@ import { paginar } from "@/lib/paginacion";
 import { filtrarBodegas, leerEstado, type BodegaFila } from "@/lib/bodegas-filtro";
 import Badge from "@/components/app/badge";
 import Aviso from "@/components/app/aviso";
-import Field from "@/components/app/field";
 import Icon from "@/components/app/icon";
 import Paginador from "@/components/app/paginador";
 import { CrearBodega, EditarBodega } from "./editar";
+import FiltrosBodegas from "./filtros";
 
 type Params = Record<string, string | string[] | undefined>;
 const entero = (v: unknown) => (typeof v === "string" && /^\d+$/.test(v) && Number(v) > 0 ? Number(v) : undefined);
@@ -139,21 +139,7 @@ export default async function BodegasPage({ searchParams }: { searchParams: Prom
       </div>
 
       <div className="space-y-3">
-        <form method="get" action="/bodegas" role="search" aria-label="Buscar bodegas" className="form-grid form-grid-4 items-end">
-          {base.tam && <input type="hidden" name="tam" value={base.tam} />}
-          <Field label="Nombre" className="fld-2">
-            <input name="q" type="search" defaultValue={q ?? ""} className="input" autoComplete="off" />
-          </Field>
-          <Field label="Estado">
-            <select name="estado" defaultValue={estado === undefined ? "" : String(estado)} className="input">
-              <option value="">Todos</option><option value="1">Vigente</option><option value="0">No vigente</option>
-            </select>
-          </Field>
-          <div className="form-actions">
-            <button className="btn btn-primary">Buscar</button>
-            {hayFiltro && <Link href={href({ tam: base.tam })} className="btn btn-secondary">Limpiar</Link>}
-          </div>
-        </form>
+        <FiltrosBodegas q={q} estado={estadoPedido} tam={base.tam} />
 
         <div className="table-wrap table-wrap-sticky">
           <table className="table">
