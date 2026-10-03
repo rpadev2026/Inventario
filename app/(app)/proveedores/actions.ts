@@ -92,7 +92,13 @@ export async function guardarVendedor(_: unknown, fd: FormData): Promise<R> {
   const { error } = idVen
     ? await db.from("ProveedoresVendedores").update(fila).eq("IdVendedor", id(idVen)).eq("IdProveedor", idProv)
     : await db.from("ProveedoresVendedores").insert({ ...fila, IdProveedor: idProv });
-  if (error) return { error: error.code === "23505" ? "Este RUT ya está registrado en este proveedor. Edite el vendedor existente (puede estar no vigente)." : "No se pudo guardar el vendedor" };
+  if (error) {
+    if (error.code !== "23505") return { error: "No se pudo guardar el vendedor" };
+    // La base también impide que un RUT quede vigente en dos proveedores (carrera entre dos envíos).
+    return { error: /un_vendedor_rut_vigente/.test(`${error.message} ${error.details}`)
+      ? "El RUT ya está vigente como vendedor de otro proveedor. Debe dejarlo no vigente allí para registrarlo aquí."
+      : "Este RUT ya está registrado en este proveedor. Edite el vendedor existente (puede estar no vigente)." };
+  }
   revalidatePath("/proveedores");
   return { ok: true };
 }

@@ -3,9 +3,10 @@ import { redirect } from "next/navigation";
 import { headers } from "next/headers";
 import { z } from "zod";
 import { autenticar } from "@/lib/auth/login";
+import { esCorreoValido } from "@/lib/validation/correo";
 import { crearSesion, cerrarSesion } from "@/lib/auth/session";
 
-const schema = z.object({ correo: z.string().email().max(254), password: z.string().min(1).max(128) });
+const schema = z.object({ correo: z.string().trim().max(254).refine(esCorreoValido), password: z.string().min(1).max(128) });
 
 // Límite de tasa simple por IP en memoria (por instancia). En producción multi-instancia usar un almacén compartido.
 const intentos = new Map<string, { n: number; t: number }>();

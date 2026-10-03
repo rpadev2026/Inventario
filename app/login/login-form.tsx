@@ -2,6 +2,7 @@
 import { useActionState } from "react";
 import { login } from "./actions";
 import Field from "@/components/app/field";
+import CampoCorreo from "@/components/app/campo-correo";
 import Icon from "@/components/app/icon";
 
 export default function LoginForm() {
@@ -16,9 +17,7 @@ export default function LoginForm() {
             <p className="text-muted text-sm">Ingresa con tu correo y clave para continuar.</p>
           </div>
         </div>
-        <Field label="Correo">
-          <input name="correo" type="email" required autoComplete="username" inputMode="email" className="input" aria-invalid={!!state?.error} />
-        </Field>
+        <CampoCorreo required autoComplete="username" marcado={!!state?.error} />
         <Field label="Clave">
           <input name="password" type="password" required autoComplete="current-password" className="input" aria-invalid={!!state?.error} />
         </Field>

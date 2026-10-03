@@ -1,6 +1,7 @@
 "use client";
 import { useAccion } from "@/lib/use-accion";
 import Field from "@/components/app/field";
+import CampoCorreo from "@/components/app/campo-correo";
 import { crearUsuario } from "./actions";
 
 export default function FormNuevoUsuario({ roles }: { roles: { IdRol: number; NombreRol: string }[] }) {
@@ -12,7 +13,7 @@ export default function FormNuevoUsuario({ roles }: { roles: { IdRol: number; No
         <Field label="RUT" hint="Ej: 12345678-5"><input name="rut" required className="input" autoComplete="off" /></Field>
         <Field label="Nombres"><input name="nombres" required className="input" /></Field>
         <Field label="Apellidos"><input name="apellidos" required className="input" /></Field>
-        <Field label="Correo"><input name="correo" type="email" required className="input" inputMode="email" /></Field>
+        <CampoCorreo required />
         <Field label="Clave temporal" hint="Mínimo 12 caracteres; deberá cambiarla al ingresar">
           <input name="password" type="password" required autoComplete="new-password" className="input" />
         </Field>

@@ -316,3 +316,41 @@ describe("territorio en proveedores", () => {
     expect(await conv("xyz", "abc", "def")).toEqual({ region: null, ciudad: null, comuna: null });
   });
 });
+
+describe("vendedores: un RUT solo puede estar vigente en un proveedor", () => {
+  let p2: number;
+  const ins = (prov: number, rut: string, estado = 1) =>
+    `insert into "ProveedoresVendedores"("IdProveedor","Rut","Nombres","Apellidos","IdEstado") values (${prov},'${rut}','N','A',${estado})`;
+  it("prepara un segundo proveedor y el primer vendedor vigente", async () => {
+    p2 = Number(await val(`insert into "Proveedores"("Rut","RazonSocial") values ('11111111-1','Prov Dos SA') returning "IdProveedor"`));
+    await db.query(ins(1, "12345678-5"));
+    expect(Number(await val(`select count(*) from "ProveedoresVendedores" where "Rut"='12345678-5'`))).toBe(1);
+  });
+  it("rechaza el mismo RUT vigente en otro proveedor", async () => {
+    await fails(ins(p2, "12345678-5"), /un_vendedor_rut_vigente/);
+  });
+  it("permite el mismo RUT en otro proveedor si queda no vigente", async () => {
+    await db.query(ins(p2, "12345678-5", 0));
+    expect(Number(await val(`select count(*) from "ProveedoresVendedores" where "Rut"='12345678-5'`))).toBe(2);
+  });
+  it("rechaza reactivarlo mientras siga vigente en el otro proveedor", async () => {
+    await fails(`update "ProveedoresVendedores" set "IdEstado"=1 where "IdProveedor"=${p2} and "Rut"='12345678-5'`, /un_vendedor_rut_vigente/);
+  });
+  it("al dejarlo no vigente en el primero, puede quedar vigente en el segundo, y ya no en el primero", async () => {
+    await db.query(`update "ProveedoresVendedores" set "IdEstado"=0 where "IdProveedor"=1 and "Rut"='12345678-5'`);
+    await db.query(`update "ProveedoresVendedores" set "IdEstado"=1 where "IdProveedor"=${p2} and "Rut"='12345678-5'`);
+    await fails(`update "ProveedoresVendedores" set "IdEstado"=1 where "IdProveedor"=1 and "Rut"='12345678-5'`, /un_vendedor_rut_vigente/);
+  });
+  it("editar otros datos del vendedor vigente no se bloquea a sí mismo", async () => {
+    await db.query(`update "ProveedoresVendedores" set "Nombres"='Editado' where "IdProveedor"=${p2} and "Rut"='12345678-5'`);
+    expect(await val(`select "Nombres" from "ProveedoresVendedores" where "IdProveedor"=${p2} and "Rut"='12345678-5'`)).toBe("Editado");
+  });
+  it("dentro de un mismo proveedor el RUT no se repite (ni siquiera no vigente)", async () => {
+    await fails(ins(p2, "12345678-5", 0), /duplicate|unique/i);
+  });
+  it("RUT distintos no interfieren", async () => {
+    await db.query(ins(1, "87654321-4"));
+    await db.query(ins(p2, "87654321-4", 0));
+    expect(Number(await val(`select count(*) from "ProveedoresVendedores" where "Rut"='87654321-4' and "IdEstado"=1`))).toBe(1);
+  });
+});
