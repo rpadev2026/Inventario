@@ -98,12 +98,11 @@ export default async function BodegasPage({ searchParams }: { searchParams: Prom
       <div className="space-y-3">
         <div className="table-wrap">
           <table className="table">
-            <thead><tr><th>Bodega</th><th>Tipo</th><th>Estado</th><th></th></tr></thead>
+            <thead><tr><th>Bodega</th><th>Estado</th><th></th></tr></thead>
             <tbody>
               {lista.map((b) => (
                 <tr key={b.IdBodega} aria-current={b.IdBodega === idEditar ? "true" : undefined}>
                   <td>{b.NombreBodega}</td>
-                  <td>{b.EsCentral ? <Badge tone="info">Central</Badge> : "Secundaria"}</td>
                   <td><Badge tone={b.IdEstado === 1 ? "ok" : "neutral"}>{b.IdEstado === 1 ? "Vigente" : "No vigente"}</Badge></td>
                   <td>
                     <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
@@ -113,7 +112,7 @@ export default async function BodegasPage({ searchParams }: { searchParams: Prom
                   </td>
                 </tr>
               ))}
-              {!lista.length && <tr><td colSpan={4} className="text-muted">Sin bodegas.</td></tr>}
+              {!lista.length && <tr><td colSpan={3} className="text-muted">Sin bodegas.</td></tr>}
             </tbody>
           </table>
         </div>
