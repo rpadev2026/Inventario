@@ -60,7 +60,7 @@ export async function guardarSucursal(_: unknown, fd: FormData): Promise<R> {
     ? await db.from("ProveedoresSucursales").update(fila).eq("IdSucursal", id(idSuc)).eq("IdProveedor", idProv)
     : await db.from("ProveedoresSucursales").insert({ ...fila, IdProveedor: idProv });
   if (error) return { error: error.code === "P0001" ? error.message : "No se pudo guardar la sucursal" };
-  revalidatePath(`/proveedores/${idProv}`);
+  revalidatePath("/proveedores");
   return { ok: true };
 }
 
@@ -79,6 +79,6 @@ export async function guardarVendedor(_: unknown, fd: FormData): Promise<R> {
     ? await db.from("ProveedoresVendedores").update(fila).eq("IdVendedor", id(idVen)).eq("IdProveedor", idProv)
     : await db.from("ProveedoresVendedores").insert({ ...fila, IdProveedor: idProv });
   if (error) return { error: error.code === "23505" ? "El vendedor ya existe para este proveedor" : "No se pudo guardar el vendedor" };
-  revalidatePath(`/proveedores/${idProv}`);
+  revalidatePath("/proveedores");
   return { ok: true };
 }
