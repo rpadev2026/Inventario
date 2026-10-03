@@ -11,9 +11,15 @@ export type Producto = {
   StockMinimo: number; StockCritico: number; IdEstado: number;
 };
 
-type Props = { p?: Producto; unidades: ItemCatalogo[]; formatos: ItemCatalogo[]; volver?: string };
+type Props = {
+  p?: Producto; unidades: ItemCatalogo[]; formatos: ItemCatalogo[];
+  /** Ruta de origen (p. ej. la factura): al crear, vuelve ahí con el producto elegido. */
+  volver?: string;
+  /** Si no hay ruta de origen, al guardar bien se va a esta ruta (el listado, con el aviso). */
+  despuesDeGuardar?: string;
+};
 
-export default function FormProducto({ p, unidades, formatos, volver }: Props) {
+export default function FormProducto({ p, unidades, formatos, volver, despuesDeGuardar }: Props) {
   const router = useRouter();
   const { state, pending, onSubmit } = useAccion(guardarProducto, {
     limpiarSiOk: !p,
@@ -21,6 +27,7 @@ export default function FormProducto({ p, unidades, formatos, volver }: Props) {
       // Solo al crear: vuelve a la pantalla de origen (ruta interna segura) con el nuevo producto elegido.
       const ruta = rutaVolverSegura(volver);
       if (!p && r.codigo && ruta) router.push(`${ruta}?producto=${encodeURIComponent(r.codigo)}`);
+      else if (despuesDeGuardar) router.push(despuesDeGuardar);
     },
   });
   return (

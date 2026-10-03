@@ -7,9 +7,10 @@ import { filtrarBodegas, leerEstado, type BodegaFila } from "@/lib/bodegas-filtr
 import Badge from "@/components/app/badge";
 import Aviso from "@/components/app/aviso";
 import Icon from "@/components/app/icon";
+import FiltrosListado from "@/components/app/filtros-listado";
 import Paginador from "@/components/app/paginador";
 import { CrearBodega, EditarBodega } from "./editar";
-import FiltrosBodegas from "./filtros";
+
 
 type Params = Record<string, string | string[] | undefined>;
 const entero = (v: unknown) => (typeof v === "string" && /^\d+$/.test(v) && Number(v) > 0 ? Number(v) : undefined);
@@ -139,7 +140,7 @@ export default async function BodegasPage({ searchParams }: { searchParams: Prom
       </div>
 
       <div className="space-y-3">
-        <FiltrosBodegas q={q} estado={estadoPedido} tam={base.tam} />
+        <FiltrosListado ruta="/bodegas" etiqueta="Buscar bodegas" q={q} estado={estadoPedido} tam={base.tam} />
 
         <div className="table-wrap table-wrap-sticky">
           <table className="table">
