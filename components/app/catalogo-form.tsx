@@ -1,4 +1,5 @@
 "use client";
+import { useRouter } from "next/navigation";
 import { useAccion } from "@/lib/use-accion";
 import Field from "@/components/app/field";
 import type { PropsFormCatalogo } from "@/lib/services/catalogo";
@@ -7,14 +8,20 @@ export type ItemCatalogo = { Codigo: string; Nombre: string; IdEstado: number; [
 export type OpcionPadre = { codigo: string; etiqueta: string; vigente: boolean };
 type Accion = (prev: unknown, fd: FormData) => Promise<{ error?: string; ok?: boolean }>;
 
-export function FormCatalogo({ item, accion, cfg, opcionesPadre }: {
+export function FormCatalogo({ item, accion, cfg, opcionesPadre, despuesDeGuardar }: {
   item?: ItemCatalogo; accion: Accion; cfg?: PropsFormCatalogo; opcionesPadre?: OpcionPadre[];
+  /** Al guardar bien se va a esta ruta (el listado, con el aviso). */
+  despuesDeGuardar?: string;
 }) {
+  const router = useRouter();
   const padre = cfg?.padre;
   // Al crear solo se ofrecen padres vigentes; al editar se muestran todos para reflejar el padre real.
   const padres = (opcionesPadre ?? []).filter((o) => item || o.vigente);
   const padreActual = padre && item ? String(item[padre.columna] ?? "") : "";
-  const { state, pending, onSubmit } = useAccion(accion, { limpiarSiOk: !item });
+  const { state, pending, onSubmit } = useAccion(accion, {
+    limpiarSiOk: !item,
+    onOk: () => { if (despuesDeGuardar) router.push(despuesDeGuardar); },
+  });
   return (
     <form onSubmit={onSubmit} className="grid gap-4">
       <input type="hidden" name="modo" value={item ? "editar" : "crear"} />
@@ -46,7 +53,6 @@ export function FormCatalogo({ item, accion, cfg, opcionesPadre }: {
       <div className="form-actions">
         <button disabled={pending} className="btn btn-primary">{item ? "Guardar cambios" : "Crear"}</button>
         {state?.error && <span role="alert" className="msg msg-error">{state.error}</span>}
-        {state?.ok && <span role="status" className="msg msg-ok">Guardado</span>}
       </div>
     </form>
   );

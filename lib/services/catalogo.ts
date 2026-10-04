@@ -1,6 +1,7 @@
 import { revalidatePath } from "next/cache";
 import { db } from "../db/supabase";
 import { catalogoSchema } from "../validation/catalogo";
+import { textoUso } from "../uso";
 
 export type CatalogoCfg = {
   tabla: "FormasPago" | "UnidadesMedida" | "Formatos" | "Regiones" | "Provincias" | "Comunas";
@@ -10,25 +11,44 @@ export type CatalogoCfg = {
   patronCodigo?: RegExp;
   ayudaCodigo?: string;
   padre?: { columna: "CodigoRegion" | "CodigoProvincia"; tabla: "Regiones" | "Provincias"; etiqueta: "Región" | "Ciudad (provincia)" };
+  /** Dónde se usa cada registro (para mostrarlo en «Ver» antes de desactivarlo). */
+  uso?: UsoCfg[];
 };
 
+/** Una tabla que referencia al catálogo por código; `conEstado` agrega cuántos de esos registros están vigentes. */
+export type UsoCfg = { etiqueta: string; tabla: string; columna: string; singular: string; plural: string; conEstado?: boolean };
+
 export const CATALOGOS: Record<"formasPago" | "unidades" | "formatos" | "regiones" | "ciudades" | "comunas", CatalogoCfg> = {
-  formasPago: { tabla: "FormasPago", id: "IdFormaPago", titulo: "Formas de pago", ruta: "/mantenedores/formas-pago" },
-  unidades: { tabla: "UnidadesMedida", id: "IdUnidadMedida", titulo: "Unidades de medida", ruta: "/mantenedores/unidades-medida" },
-  formatos: { tabla: "Formatos", id: "IdFormato", titulo: "Formatos", ruta: "/mantenedores/formatos" },
+  formasPago: { tabla: "FormasPago", id: "IdFormaPago", titulo: "Formas de pago", ruta: "/mantenedores/formas-pago", uso: [{ etiqueta: "Facturas de compra", tabla: "Compras", columna: "FormaPago", singular: "factura", plural: "facturas" }] },
+  unidades: { tabla: "UnidadesMedida", id: "IdUnidadMedida", titulo: "Unidades de medida", ruta: "/mantenedores/unidades-medida", uso: [{ etiqueta: "Productos", tabla: "Productos", columna: "UnidadMedida", singular: "producto", plural: "productos", conEstado: true }] },
+  formatos: { tabla: "Formatos", id: "IdFormato", titulo: "Formatos", ruta: "/mantenedores/formatos", uso: [{ etiqueta: "Productos", tabla: "Productos", columna: "Formato", singular: "producto", plural: "productos", conEstado: true }] },
   regiones: {
     tabla: "Regiones", id: "IdRegion", titulo: "Regiones", ruta: "/mantenedores/regiones",
     patronCodigo: /^\d{2}$/, ayudaCodigo: "2 dígitos, código CUT",
+    uso: [
+      { etiqueta: "Ciudades de la región", tabla: "Provincias", columna: "CodigoRegion", singular: "ciudad", plural: "ciudades", conEstado: true },
+      { etiqueta: "Proveedores", tabla: "Proveedores", columna: "Region", singular: "proveedor", plural: "proveedores" },
+      { etiqueta: "Sucursales de proveedores", tabla: "ProveedoresSucursales", columna: "Region", singular: "sucursal", plural: "sucursales" },
+    ],
   },
   ciudades: {
     tabla: "Provincias", id: "IdProvincia", titulo: "Ciudades (provincias)", ruta: "/mantenedores/ciudades",
     patronCodigo: /^\d{3}$/, ayudaCodigo: "3 dígitos, código CUT",
     padre: { columna: "CodigoRegion", tabla: "Regiones", etiqueta: "Región" },
+    uso: [
+      { etiqueta: "Comunas de la ciudad", tabla: "Comunas", columna: "CodigoProvincia", singular: "comuna", plural: "comunas", conEstado: true },
+      { etiqueta: "Proveedores", tabla: "Proveedores", columna: "Ciudad", singular: "proveedor", plural: "proveedores" },
+      { etiqueta: "Sucursales de proveedores", tabla: "ProveedoresSucursales", columna: "Ciudad", singular: "sucursal", plural: "sucursales" },
+    ],
   },
   comunas: {
     tabla: "Comunas", id: "IdComuna", titulo: "Comunas", ruta: "/mantenedores/comunas",
     patronCodigo: /^\d{5}$/, ayudaCodigo: "5 dígitos, código CUT",
     padre: { columna: "CodigoProvincia", tabla: "Provincias", etiqueta: "Ciudad (provincia)" },
+    uso: [
+      { etiqueta: "Proveedores", tabla: "Proveedores", columna: "Comuna", singular: "proveedor", plural: "proveedores" },
+      { etiqueta: "Sucursales de proveedores", tabla: "ProveedoresSucursales", columna: "Comuna", singular: "sucursal", plural: "sucursales" },
+    ],
   },
 };
 
@@ -92,4 +112,13 @@ export async function guardarCatalogo(
   }
   revalidatePath(cfg.ruta);
   return { ok: true };
+}
+
+/** Cuántos registros usan un valor del catálogo (por cada tabla que lo referencia), ya redactado para mostrarlo. */
+export async function cargarUso(cfg: CatalogoCfg, codigo: string): Promise<{ etiqueta: string; texto: string }[]> {
+  return Promise.all((cfg.uso ?? []).map(async (u) => {
+    const base = () => db.from(u.tabla).select("*", { count: "exact", head: true }).eq(u.columna, codigo);
+    const [{ count: total }, vigentes] = await Promise.all([base(), u.conEstado ? base().eq("IdEstado", 1) : Promise.resolve(null)]);
+    return { etiqueta: u.etiqueta, texto: textoUso(total ?? 0, u.singular, u.plural, vigentes ? vigentes.count ?? 0 : undefined) };
+  }));
 }
