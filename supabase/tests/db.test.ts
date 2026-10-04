@@ -354,3 +354,29 @@ describe("vendedores: un RUT solo puede estar vigente en un proveedor", () => {
     expect(Number(await val(`select count(*) from "ProveedoresVendedores" where "Rut"='87654321-4' and "IdEstado"=1`))).toBe(1);
   });
 });
+
+describe("roles base inactivos (migración 0012)", () => {
+  const idRol = async (n: string) => Number(await val(`select "IdRol" from "Roles" where "NombreRol"='${n}'`));
+  const estado = async (id: number) => Number(await val(`select "IdEstado" from "Roles" where "IdRol"=${id}`));
+  it("un rol base que ya está inactivo se puede guardar (permisos) sin error y se puede reactivar", async () => {
+    const id = await idRol("Solicitante");
+    await db.query(`update "Roles" set "IdEstado"=0 where "IdRol"=${id}`); // desactivación puntual hecha fuera de la aplicación
+    await db.query(`select guardar_rol(1,${id},'Solicitante',null,0::smallint,array['bodegas.ver','solicitudes.ver_propias'])`);
+    expect(await estado(id)).toBe(0);
+    expect((await db.query<any>(`select "Permiso" from "RolesPermisos" where "IdRol"=${id} order by 1`)).rows.map((r) => r.Permiso)).toEqual(["bodegas.ver", "solicitudes.ver_propias"]);
+    await db.query(`select guardar_rol(1,${id},'Solicitante',null,1::smallint,array['bodegas.ver','solicitudes.crear','solicitudes.ver_propias'])`);
+    expect(await estado(id)).toBe(1);
+  });
+  it("sigue prohibido desactivar un rol base vigente y renombrar un rol base", async () => {
+    const id = await idRol("Solicitante");
+    await fails(`select guardar_rol(1,${id},'Solicitante',null,0::smallint,array[]::text[])`, /roles base/);
+    await fails(`select guardar_rol(1,${id},'Otro nombre',null,1::smallint,array[]::text[])`, /roles base/);
+    expect(await estado(id)).toBe(1);
+  });
+  it("un rol base inactivo tampoco se puede renombrar", async () => {
+    const id = await idRol("Solicitante");
+    await db.query(`update "Roles" set "IdEstado"=0 where "IdRol"=${id}`);
+    await fails(`select guardar_rol(1,${id},'Otro nombre',null,0::smallint,array[]::text[])`, /roles base/);
+    await db.query(`update "Roles" set "IdEstado"=1 where "IdRol"=${id}`);
+  });
+});

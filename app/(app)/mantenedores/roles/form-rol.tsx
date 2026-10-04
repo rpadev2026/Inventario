@@ -1,4 +1,5 @@
 "use client";
+import { useRouter } from "next/navigation";
 import { useAccion } from "@/lib/use-accion";
 import Field from "@/components/app/field";
 import { PERMISOS } from "@/lib/auth/permisos";
@@ -8,16 +9,26 @@ type Accion = (prev: unknown, fd: FormData) => Promise<{ error?: string; ok?: bo
 
 const MODULOS = [...new Set(PERMISOS.map((p) => p.modulo))];
 
-export default function FormRol({ rol, permisos = [], accion }: { rol?: RolItem; permisos?: string[]; accion: Accion }) {
-  const { state, pending, onSubmit } = useAccion(accion, { limpiarSiOk: !rol });
+export default function FormRol({ rol, permisos = [], accion, despuesDeGuardar }: {
+  rol?: RolItem; permisos?: string[]; accion: Accion;
+  /** Al guardar bien se va a esta ruta (el listado, con el aviso). */
+  despuesDeGuardar?: string;
+}) {
+  const router = useRouter();
+  const { state, pending, onSubmit } = useAccion(accion, {
+    limpiarSiOk: !rol,
+    onOk: () => { if (despuesDeGuardar) router.push(despuesDeGuardar); },
+  });
   const base = !!rol?.EsBase;
   const esAdmin = rol?.NombreRol === "Administrador";
+  // Un rol base vigente no se puede renombrar ni desactivar; si ya está inactivo, su estado se puede cambiar para reactivarlo.
+  const estadoBloqueado = base && rol?.IdEstado === 1;
   return (
     <form onSubmit={onSubmit} className="grid gap-4">
       {rol && <input type="hidden" name="id" value={rol.IdRol} />}
-      {/* Los campos deshabilitados no se envían: los roles base conservan nombre y estado vigentes. */}
+      {/* Los campos deshabilitados no se envían: los roles base conservan su nombre (y su estado, si está bloqueado). */}
       {base && <input type="hidden" name="nombre" value={rol.NombreRol} />}
-      {base && <input type="hidden" name="estado" value={rol.IdEstado} />}
+      {estadoBloqueado && <input type="hidden" name="estado" value={rol.IdEstado} />}
       <div className="form-grid form-grid-3">
         <Field label="Nombre">
           <input name={base ? undefined : "nombre"} defaultValue={rol?.NombreRol} disabled={base} required maxLength={60} className="input" />
@@ -26,13 +37,17 @@ export default function FormRol({ rol, permisos = [], accion }: { rol?: RolItem;
           <input name="detalle" defaultValue={rol?.DetalleRol ?? ""} maxLength={200} className="input" />
         </Field>
         <Field label="Estado">
-          <select name={base ? undefined : "estado"} defaultValue={rol?.IdEstado ?? 1} disabled={base} className="input">
+          <select name={estadoBloqueado ? undefined : "estado"} defaultValue={rol?.IdEstado ?? 1} disabled={estadoBloqueado} className="input">
             <option value={1}>Vigente</option>
             <option value={0}>No vigente</option>
           </select>
         </Field>
       </div>
-      {base && <p className="text-muted">Rol base: no se puede renombrar ni desactivar.</p>}
+      {base && (
+        <p className="text-muted">
+          {estadoBloqueado ? "Rol base: no se puede renombrar ni desactivar." : "Rol base inactivo: no se puede renombrar, pero puede reactivarlo cambiando el estado a «Vigente»."}
+        </p>
+      )}
       {esAdmin ? (
         <p className="text-muted">Tiene todos los permisos.</p>
       ) : (
@@ -57,7 +72,6 @@ export default function FormRol({ rol, permisos = [], accion }: { rol?: RolItem;
       <div className="form-actions">
         <button disabled={pending} className="btn btn-primary">{rol ? "Guardar cambios" : "Crear rol"}</button>
         {state?.error && <span role="alert" className="msg msg-error">{state.error}</span>}
-        {state?.ok && <span role="status" className="msg msg-ok">Guardado</span>}
       </div>
     </form>
   );
