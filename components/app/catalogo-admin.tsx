@@ -155,7 +155,10 @@ export async function PaginaCatalogo({ cfg, accion, searchParams }: { cfg: Catal
           <h1 className="page-title">{cfg.titulo}</h1>
           {aviso && <Aviso texto={aviso} />}
         </div>
-        <Link href={href({ ...base, crear: "1" })} className="btn btn-primary"><Icon name="plus" size={18} />Crear</Link>
+        <div className="flex flex-wrap items-center gap-3">
+          <Link href="/mantenedores" className="btn btn-secondary">Volver</Link>
+          <Link href={href({ ...base, crear: "1" })} className="btn btn-primary"><Icon name="plus" size={18} />Crear</Link>
+        </div>
       </div>
 
       <div className="space-y-3">

@@ -142,7 +142,10 @@ export default async function RolesPage({ searchParams }: { searchParams: Promis
           <h1 className="page-title">Roles y permisos</h1>
           {aviso && <Aviso texto={aviso} />}
         </div>
-        <Link href={href({ ...base, crear: "1" })} className="btn btn-primary"><Icon name="plus" size={18} />Crear rol</Link>
+        <div className="flex flex-wrap items-center gap-3">
+          <Link href="/mantenedores" className="btn btn-secondary">Volver</Link>
+          <Link href={href({ ...base, crear: "1" })} className="btn btn-primary"><Icon name="plus" size={18} />Crear rol</Link>
+        </div>
       </div>
 
       <div className="space-y-3">
