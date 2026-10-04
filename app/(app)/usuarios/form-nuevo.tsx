@@ -1,14 +1,21 @@
 "use client";
+import { useRouter } from "next/navigation";
 import { useAccion } from "@/lib/use-accion";
 import Field from "@/components/app/field";
 import CampoCorreo from "@/components/app/campo-correo";
 import { crearUsuario } from "./actions";
 
-export default function FormNuevoUsuario({ roles }: { roles: { IdRol: number; NombreRol: string }[] }) {
-  const { state, pending, onSubmit } = useAccion(crearUsuario);
+type Props = {
+  roles: { IdRol: number; NombreRol: string }[];
+  /** Al crear bien se va a esta ruta (el listado, con el aviso). */
+  despuesDeGuardar?: string;
+};
+
+export default function FormNuevoUsuario({ roles, despuesDeGuardar }: Props) {
+  const router = useRouter();
+  const { state, pending, onSubmit } = useAccion(crearUsuario, { onOk: () => { if (despuesDeGuardar) router.push(despuesDeGuardar); } });
   return (
-    <form onSubmit={onSubmit} className="card grid gap-4">
-      <h2 className="section-title">Nuevo usuario</h2>
+    <form onSubmit={onSubmit} className="grid gap-4">
       <div className="form-grid form-grid-3">
         <Field label="RUT" hint="Ej: 12345678-5"><input name="rut" required className="input" autoComplete="off" /></Field>
         <Field label="Nombres"><input name="nombres" required className="input" /></Field>
@@ -24,7 +31,6 @@ export default function FormNuevoUsuario({ roles }: { roles: { IdRol: number; No
       <div className="form-actions">
         <button disabled={pending} className="btn btn-primary">{pending ? "Creando…" : "Crear usuario"}</button>
         {state?.error && <span role="alert" className="msg msg-error">{state.error}</span>}
-        {state?.ok && <span role="status" className="msg msg-ok">Usuario creado. Deberá cambiar su clave al ingresar.</span>}
       </div>
     </form>
   );
