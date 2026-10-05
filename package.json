@@ -12,6 +12,7 @@
     "gen:territorio": "node scripts/generar-territorio.ts"
   },
   "dependencies": {
+    "@paper-design/shaders-react": "0.0.81",
     "@supabase/supabase-js": "^2.117.2",
     "argon2": "^0.45.1",
     "jose": "^6.2.12",
