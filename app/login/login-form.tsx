@@ -15,8 +15,8 @@ export default function LoginForm() {
         <div className="grid gap-3">
           <span className="brand-mark" style={{ width: "2.5rem", height: "2.5rem" }}><Icon name="warehouse" size={22} /></span>
           <div>
-            <h1 className="page-title">Inventario del Restaurant</h1>
-            <p className="text-muted text-sm">Ingresa con tu correo y clave para continuar.</p>
+            <h1 className="page-title">Sistema de Inventario</h1>
+            {/* <p className="text-muted text-sm">Ingresa con tu correo y clave para continuar.</p> */}
           </div>
         </div>
         <CampoCorreo required autoComplete="username" marcado={!!state?.error} />

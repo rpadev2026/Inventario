@@ -23,7 +23,7 @@ export default async function ComprasPage() {
       </div>
       <div className="table-wrap">
         <table className="table">
-          <thead><tr><th>Folio</th><th>Proveedor</th><th>Fecha factura</th><th>Recepción</th><th>Pago</th><th className="num">Total</th><th>Estado</th><th></th></tr></thead>
+          <thead><tr><th>Folio</th><th>Proveedor</th><th>Fecha factura</th><th>Recepción</th><th>Forma de Pago</th><th className="num">Total</th><th>Estado</th><th>Acciones</th></tr></thead>
           <tbody>
             {(data ?? []).map((c) => (
               <tr key={c.IdCompra}>
