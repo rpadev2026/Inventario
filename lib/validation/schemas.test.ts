@@ -3,13 +3,13 @@ import { facturaSchema, productoSchema, proveedorSchema, rolSchema, sucursalSche
 import { catalogoSchema } from "./catalogo";
 
 const base = { idProveedor: 1, folio: 10, fechaFactura: "2026-10-01", fechaRecepcion: "2026-10-02", formaPago: "Contado",
-  neto: 1000, iva: 190, total: 1190, detalle: [{ codigo: "A1", precio: 500, cantidad: 2 }] };
+  neto: 1000, iva: 190, total: 1190, detalle: [{ producto: 1, precio: 500, cantidad: 2 }] };
 
 describe("factura", () => {
   it("acepta factura consistente", () => expect(facturaSchema.safeParse(base).success).toBe(true));
   it("rechaza total inconsistente", () => expect(facturaSchema.safeParse({ ...base, total: 5000 }).success).toBe(false));
   it("rechaza sin detalle", () => expect(facturaSchema.safeParse({ ...base, detalle: [] }).success).toBe(false));
-  it("rechaza cantidad 0", () => expect(facturaSchema.safeParse({ ...base, detalle: [{ codigo: "A", precio: 1, cantidad: 0 }] }).success).toBe(false));
+  it("rechaza cantidad 0", () => expect(facturaSchema.safeParse({ ...base, detalle: [{ producto: 1, precio: 1, cantidad: 0 }] }).success).toBe(false));
   it("rechaza recepción anterior a la factura con el mensaje exacto", () => {
     const r = facturaSchema.safeParse({ ...base, fechaFactura: "2026-10-02", fechaRecepcion: "2026-10-01" });
     expect(r.success).toBe(false);
@@ -29,17 +29,17 @@ describe("factura", () => {
   it.each([0, -3, 1.5])("rechaza folio numérico %s", (folio) =>
     expect(facturaSchema.safeParse({ ...base, folio }).success).toBe(false));
   it("precio '10,50' pasa y se convierte", () => {
-    const r = facturaSchema.safeParse({ ...base, detalle: [{ codigo: "A", precio: "10,50", cantidad: 1 }] });
+    const r = facturaSchema.safeParse({ ...base, detalle: [{ producto: 1, precio: "10,50", cantidad: 1 }] });
     expect(r.success && r.data.detalle[0].precio).toBe(10.5);
   });
   it("precio '10,555' falla con mensaje", () => {
-    const r = facturaSchema.safeParse({ ...base, detalle: [{ codigo: "A", precio: "10,555", cantidad: 1 }] });
+    const r = facturaSchema.safeParse({ ...base, detalle: [{ producto: 1, precio: "10,555", cantidad: 1 }] });
     expect(r.success).toBe(false);
     if (!r.success) expect(r.error.issues[0].message).toBe("Precio: máximo 2 decimales");
   });
   it("rechaza precio numérico con más de 2 decimales y negativo", () => {
-    expect(facturaSchema.safeParse({ ...base, detalle: [{ codigo: "A", precio: 1.234, cantidad: 1 }] }).success).toBe(false);
-    expect(facturaSchema.safeParse({ ...base, detalle: [{ codigo: "A", precio: -1, cantidad: 1 }] }).success).toBe(false);
+    expect(facturaSchema.safeParse({ ...base, detalle: [{ producto: 1, precio: 1.234, cantidad: 1 }] }).success).toBe(false);
+    expect(facturaSchema.safeParse({ ...base, detalle: [{ producto: 1, precio: -1, cantidad: 1 }] }).success).toBe(false);
   });
   it("formaPago 'contado' se normaliza a CONTADO", () => {
     const r = facturaSchema.safeParse({ ...base, formaPago: "contado" });
@@ -47,7 +47,7 @@ describe("factura", () => {
   });
 });
 describe("producto", () => {
-  const p = { codigo: "HAR-01", nombre: "Harina", unidad: "KG", formato: "BOLSA", stockMinimo: 10, stockCritico: 5 };
+  const p = { codigo: "HAR-01", nombre: "Harina", unidad: "KG", formato: "BOLSA", precioCompra: "1500", stockMinimo: 10, stockCritico: 5 };
   it("acepta", () => expect(productoSchema.safeParse(p).success).toBe(true));
   it("rechaza crítico > mínimo", () => expect(productoSchema.safeParse({ ...p, stockCritico: 20 }).success).toBe(false));
   it("normaliza unidad a mayúsculas", () => {
@@ -55,6 +55,36 @@ describe("producto", () => {
     expect(r.success && r.data.unidad).toBe("KG");
   });
   it("rechaza unidad inválida", () => expect(productoSchema.safeParse({ ...p, unidad: "Tonelada x" }).success).toBe(false));
+  it("código vacío o con espacios queda como no informado", () => {
+    for (const codigo of ["", "   "]) {
+      const r = productoSchema.safeParse({ ...p, codigo });
+      expect(r.success && r.data.codigo).toBeUndefined();
+    }
+  });
+  it("sin código también se acepta", () => {
+    const { codigo: _c, ...sin } = p;
+    expect(productoSchema.safeParse(sin).success).toBe(true);
+  });
+  it("rechaza código con caracteres no permitidos", () => expect(productoSchema.safeParse({ ...p, codigo: "a b" }).success).toBe(false));
+  it("precio de compra: '1500' y '10,50' pasan; '10,555', negativo y vacío fallan con mensaje", () => {
+    const r = productoSchema.safeParse({ ...p, precioCompra: "10,50" });
+    expect(r.success && r.data.precioCompra).toBe(10.5);
+    for (const precioCompra of ["10,555", "-1", ""]) {
+      const x = productoSchema.safeParse({ ...p, precioCompra });
+      expect(x.success).toBe(false);
+      if (!x.success) expect(x.error.issues[0].message).toBe("Precio: máximo 2 decimales");
+    }
+  });
+  it("rechaza un precio de compra que no cabe en numeric(12,2)", () =>
+    expect(productoSchema.safeParse({ ...p, precioCompra: "10000000000" }).success).toBe(false));
+});
+describe("factura: producto por id", () => {
+  it.each([0, -1, "abc", 1.5])("rechaza producto %s", (producto) =>
+    expect(facturaSchema.safeParse({ ...base, detalle: [{ producto, precio: 1, cantidad: 1 }] }).success).toBe(false));
+  it("acepta producto en texto numérico y lo convierte", () => {
+    const r = facturaSchema.safeParse({ ...base, detalle: [{ producto: "3", precio: 1, cantidad: 1 }] });
+    expect(r.success && r.data.detalle[0].producto).toBe(3);
+  });
 });
 describe("proveedor", () => {
   it("rechaza RUT inválido", () => expect(proveedorSchema.safeParse({ rut: "1-1", razonSocial: "X" }).success).toBe(false));
