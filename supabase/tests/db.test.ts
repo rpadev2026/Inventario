@@ -28,7 +28,7 @@ beforeAll(async () => {
   `);
 });
 
-const FACT = (folio = 1, det = `'[{"producto":1,"precio":1000,"cantidad":50}]'`, neto = 50000, iva = 9500, total = 59500) =>
+const FACT = (folio = 1, det = `'[{"producto":1,"precio":1000,"cantidad":50}]'`, neto = 42017, iva = 7983, total = 50000) =>
   `select registrar_factura(1,1,${folio},'2026-10-01','2026-10-02','CONTADO',${neto},${iva},${total},${det}::jsonb)`;
 
 describe("registrar_factura", () => {
@@ -47,8 +47,12 @@ describe("registrar_factura", () => {
     await fails(FACT(1));
     expect(Number(await val(`select count(*) from "BodegaCentral"`))).toBe(antes);
   });
-  it("rechaza detalle que no cuadra con neto", async () => { await fails(FACT(3, undefined, 99999, 18999, 118998), /neto/i); });
-  it("rechaza total inconsistente", async () => { await fails(FACT(4, undefined, 50000, 9500, 70000)); });
+  it("rechaza detalle que no cuadra con el total (el precio ya incluye IVA)", async () => { await fails(FACT(3, undefined, 84034, 15966, 100000), /total/i); });
+  it("rechaza un detalle tratado como neto: total = neto + IVA no cuadra con la suma", async () => { await fails(FACT(4, undefined, 50000, 9500, 59500), /total/i); });
+  it("acepta una diferencia de $1 por redondeo", async () => {
+    const id = Number(await val(`insert into "Productos"("Codigo","Nombre","UnidadMedida","Formato","PrecioCompra") values ('DIF','Dif redondeo','KG','CAJA',1) returning "IdProducto"`));
+    await db.query(FACT(6, `'[{"producto":${id},"precio":1000,"cantidad":50}]'`, 42018, 7983, 50001));
+  });
   it("rechaza producto inexistente y no deja la cabecera", async () => {
     await fails(FACT(5, `'[{"producto":999,"precio":1,"cantidad":1}]'`, 1, 0, 1), /Producto/);
     expect(Number(await val(`select count(*) from "Compras" where "Folio"=5`))).toBe(0);
@@ -116,7 +120,7 @@ describe("flujo de solicitudes", () => {
 
 describe("anular_factura", () => {
   it("revierte stock cuando está disponible", async () => {
-    await db.query(`select registrar_factura(1,1,50,'2026-10-01','2026-10-02','CONTADO',1000,190,1190,'[{"producto":2,"precio":100,"cantidad":10}]'::jsonb)`);
+    await db.query(`select registrar_factura(1,1,50,'2026-10-01','2026-10-02','CONTADO',840,160,1000,'[{"producto":2,"precio":100,"cantidad":10}]'::jsonb)`);
     const id = Number(await val(`select "IdCompra" from "Compras" where "Folio"=50`));
     await fails(`select anular_factura(1, ${id}, 'x')`, /motivo/);
     await db.query(`select anular_factura(1, ${id}, 'Error de digitación')`);
@@ -136,7 +140,7 @@ describe("anular_factura", () => {
 
 describe("maestros y reglas de factura", () => {
   const FP = (fr: string, fp: string, folio: number) =>
-    `select registrar_factura(1,1,${folio},'2026-10-02','${fr}','${fp}',1000,190,1190,'[{"producto":2,"precio":100,"cantidad":10}]'::jsonb)`;
+    `select registrar_factura(1,1,${folio},'2026-10-02','${fr}','${fp}',840,160,1000,'[{"producto":2,"precio":100,"cantidad":10}]'::jsonb)`;
   it("rechaza fecha de recepción anterior a la de factura", async () => {
     await fails(FP("2026-10-01", "CONTADO", 70), /fecha de recepción/i);
     await db.query(FP("2026-10-02", "CONTADO", 70));
@@ -438,5 +442,39 @@ describe("productos: costo base (migración 0013)", () => {
     await db.query(`update "Productos" set "IdEstado"=0 where "IdProducto"=${sinCodigo}`);
     await fails(`select crear_solicitud(2, 2, '[{"producto":${sinCodigo},"cantidad":1}]'::jsonb)`, /Producto Sin codigo A no existe o no vigente/);
     await fails(`select crear_solicitud(2, 2, '[{"producto":999999,"cantidad":1}]'::jsonb)`, /Producto 999999 no existe o no vigente/);
+  });
+});
+
+describe("historial de precios de compra (migración 0015)", () => {
+  const hist = async (id: number) =>
+    (await db.query<any>(`select "PrecioAnterior" a, "PrecioNuevo" n, "IdUsuario" u from "HistorialPreciosProducto" where "IdProducto"=${id} order by "IdHistorial"`)).rows;
+  let id: number;
+  it("al crear el producto registra el precio inicial (sin precio anterior)", async () => {
+    id = Number(await val(`insert into "Productos"("Codigo","Nombre","UnidadMedida","Formato","PrecioCompra","IdUsuarioCreacion","IdUsuarioModificacion")
+      values ('HP1','Hist precio','KG','CAJA',1000,1,1) returning "IdProducto"`));
+    expect(await hist(id)).toEqual([{ a: null, n: "1000.00", u: 1 }]);
+  });
+  it("al cambiar el precio registra anterior, nuevo y quién lo cambió", async () => {
+    await db.query(`update "Productos" set "PrecioCompra"=1500, "IdUsuarioModificacion"=2 where "IdProducto"=${id}`);
+    await db.query(`update "Productos" set "PrecioCompra"=1250.5, "IdUsuarioModificacion"=3 where "IdProducto"=${id}`);
+    expect((await hist(id)).slice(1)).toEqual([{ a: "1000.00", n: "1500.00", u: 2 }, { a: "1500.00", n: "1250.50", u: 3 }]);
+  });
+  it("no registra si cambia otro campo o el precio queda igual", async () => {
+    const antes = (await hist(id)).length;
+    await db.query(`update "Productos" set "Nombre"='Hist precio 2', "StockMinimo"=3 where "IdProducto"=${id}`);
+    await db.query(`update "Productos" set "PrecioCompra"=1250.50 where "IdProducto"=${id}`);
+    expect((await hist(id)).length).toBe(antes);
+  });
+  it("cambiar la unidad de medida sin tocar el precio tampoco lo registra", async () => {
+    const antes = (await hist(id)).length;
+    await db.query(`update "Productos" set "UnidadMedida"='UN' where "IdProducto"=${id}`);
+    expect((await hist(id)).length).toBe(antes);
+  });
+  it("la tabla tiene RLS y no es accesible para anon/authenticated", async () => {
+    for (const rol of ["anon", "authenticated"]) {
+      await db.exec(`set role ${rol}`);
+      await fails(`select * from "HistorialPreciosProducto"`, /permission denied/);
+      await db.exec("reset role");
+    }
   });
 });

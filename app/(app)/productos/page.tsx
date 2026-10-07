@@ -95,6 +95,17 @@ export default async function ProductosPage({ searchParams }: { searchParams: Pr
     const pgS = paginar({ pagina: sp.ppagina, tam: sp.ptam }, count ?? 0);
     const { data } = await db.from("StockBodega").select("IdBodega,Cantidad,Bodegas!inner(NombreBodega)")
       .eq("IdProducto", sel.IdProducto).order("IdBodega").range(pgS.from, pgS.to).returns<any[]>();
+    // Historial de cambios del precio de compra (el más reciente primero), paginado aparte del stock.
+    const { count: nHist } = await db.from("HistorialPreciosProducto").select("IdHistorial", { count: "exact", head: true }).eq("IdProducto", sel.IdProducto);
+    const pgH = paginar({ pagina: sp.hpagina, tam: sp.htam }, nHist ?? 0);
+    const { data: dataH } = await db.from("HistorialPreciosProducto")
+      .select("IdHistorial,PrecioAnterior,PrecioNuevo,FechaRegistro,Usuarios!HistorialPreciosProducto_IdUsuario_fkey(Nombres,Apellidos)")
+      .eq("IdProducto", sel.IdProducto).order("IdHistorial", { ascending: false }).range(pgH.from, pgH.to).returns<any[]>();
+    const historial = (dataH ?? []).map((h) => ({
+      id: h.IdHistorial as number, anterior: h.PrecioAnterior === null ? null : Number(h.PrecioAnterior), nuevo: Number(h.PrecioNuevo),
+      fecha: new Date(h.FechaRegistro).toLocaleString("es-CL", { dateStyle: "short", timeStyle: "short" }),
+      usuario: h.Usuarios ? `${h.Usuarios.Nombres} ${h.Usuarios.Apellidos}` : "—",
+    }));
     const stock = (data ?? []).map((r) => {
       const cant = Number(r.Cantidad);
       const nivel = cant <= Number(sel.StockCritico) ? "Crítico" : cant <= Number(sel.StockMinimo) ? "Bajo" : "OK";
@@ -137,6 +148,24 @@ export default async function ProductosPage({ searchParams }: { searchParams: Pr
           </table>
         </div>
         <Paginador pg={pgS} paramPagina="ppagina" paramTam="ptam" etiqueta="stock por bodega" />
+        <h2 className="section-title">Historial de precios de compra</h2>
+        <div className="table-wrap">
+          <table className="table">
+            <thead><tr><th>Fecha</th><th className="num">Precio anterior</th><th className="num">Precio nuevo</th><th>Usuario</th></tr></thead>
+            <tbody>
+              {historial.map((h) => (
+                <tr key={h.id}>
+                  <td>{h.fecha}</td>
+                  <td className="num">{h.anterior === null ? "—" : clp.format(h.anterior)}</td>
+                  <td className="num">{clp.format(h.nuevo)}</td>
+                  <td>{h.usuario}</td>
+                </tr>
+              ))}
+              {!historial.length && <tr><td colSpan={4} className="text-muted">Sin cambios de precio registrados.</td></tr>}
+            </tbody>
+          </table>
+        </div>
+        <Paginador pg={pgH} paramPagina="hpagina" paramTam="htam" etiqueta="historial de precios" />
       </section>
     );
   }

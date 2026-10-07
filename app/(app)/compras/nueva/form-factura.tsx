@@ -8,6 +8,7 @@ import Combobox from "@/components/app/combobox";
 import Icon from "@/components/app/icon";
 import { aplicarPreProducto, guardarBorrador, leerBorrador, limpiarBorrador, type Borrador } from "@/lib/borrador-factura";
 import { etiquetaProducto } from "@/lib/producto-etiqueta";
+import { calcularTotales } from "@/lib/factura-calculo";
 import { filtrarDecimal, filtrarDecimal2, parseCantidad, parseDecimal2, soloDigitos } from "@/lib/numeros";
 
 type Prov = { id: number; rut: string; nombre: string };
@@ -15,7 +16,6 @@ type Prod = { id: number; codigo: string | null; nombre: string };
 type FormaPago = { codigo: string; nombre: string };
 type Linea = Borrador["lineas"][number];
 
-const IVA = 0.19;
 const MSG_RECEPCION = "La fecha de recepción no puede ser anterior a la fecha de factura";
 const lineaVacia = (): Linea => ({ producto: "", precio: "", cantidad: "" });
 const clp = (n: number) => n.toLocaleString("es-CL", { style: "currency", currency: "CLP", maximumFractionDigits: 0 });
@@ -64,9 +64,8 @@ export default function FormFactura(props: {
     setLineas(ls);
   }, [props.preProveedor, props.preProducto, props.proveedores, props.productos]);
 
-  const neto = lineas.reduce((a, l) => a + Math.round((parseDecimal2(l.precio) ?? 0) * (parseCantidad(l.cantidad) ?? 0) * 100) / 100, 0);
-  const iva = Math.round(neto * IVA);
-  const total = Math.round(neto) + iva;
+  // El precio de cada línea ya incluye IVA: el total es la suma y el neto/IVA se calculan hacia atrás.
+  const { total, neto, iva } = calcularTotales(lineas.map((l) => ({ precio: parseDecimal2(l.precio) ?? 0, cantidad: parseCantidad(l.cantidad) ?? 0 })));
 
   const recepcionAnterior = fechaFactura !== "" && fechaRecepcion !== "" && fechaRecepcion < fechaFactura;
 
@@ -93,7 +92,7 @@ export default function FormFactura(props: {
     start(async () => {
       const r = await registrarFactura({
         idProveedor: idProv, folio, fechaFactura, fechaRecepcion, formaPago,
-        neto: Math.round(neto), iva, total,
+        neto, iva, total,
         detalle: lineas.map((l) => ({ producto: l.producto, precio: l.precio, cantidad: parseCantidad(l.cantidad) })),
       });
       if (r.error) setError(r.error);
@@ -140,7 +139,7 @@ export default function FormFactura(props: {
         {lineas.map((l, i) => (
           <div key={i} className="line-grid line-grid-4">
             <Combobox label="Producto" required opciones={opcionesProd} valor={l.producto} onCambio={(v) => setLinea(i, "producto", v)} placeholder="Busque por código o nombre" />
-            <Field label="Precio unitario">
+            <Field label="Precio unitario (IVA incl.)">
               <input type="text" inputMode="decimal" autoComplete="off" value={l.precio} onChange={(e) => setLinea(i, "precio", filtrarDecimal2(e.target.value))} required className="input" />
             </Field>
             <Field label="Cantidad">
@@ -153,7 +152,7 @@ export default function FormFactura(props: {
       </div>
 
       <dl className="ml-auto grid w-full max-w-xs gap-1 rounded-lg p-4 text-sm" style={{ background: "var(--surface-2)" }} aria-live="polite">
-        <div className="flex justify-between"><dt className="text-muted">Neto</dt><dd className="num">{clp(Math.round(neto))}</dd></div>
+        <div className="flex justify-between"><dt className="text-muted">Neto</dt><dd className="num">{clp(neto)}</dd></div>
         <div className="flex justify-between"><dt className="text-muted">IVA 19%</dt><dd>{clp(iva)}</dd></div>
         <div className="flex justify-between border-t pt-2 text-base font-semibold" style={{ borderColor: "var(--border-strong)" }}><dt>Total</dt><dd>{clp(total)}</dd></div>
       </dl>
