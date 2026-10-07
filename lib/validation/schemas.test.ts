@@ -72,6 +72,10 @@ describe("producto", () => {
     const r = productoSchema.safeParse({ ...p, precioCompra: "1500" });
     expect(r.success && "precioCompra" in r.data).toBe(false);
   });
+  it("el código y el nombre se convierten a mayúscula (con acentos y ñ)", () => {
+    const r = productoSchema.safeParse({ ...p, codigo: "p01", nombre: "  piña y papas " });
+    expect(r.success && [r.data.codigo, r.data.nombre]).toEqual(["P01", "PIÑA Y PAPAS"]);
+  });
   it("código vacío o con espacios queda como no informado", () => {
     for (const codigo of ["", "   "]) {
       const r = productoSchema.safeParse({ ...p, codigo });
