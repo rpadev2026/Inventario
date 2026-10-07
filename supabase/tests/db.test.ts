@@ -22,13 +22,13 @@ beforeAll(async () => {
     insert into "Usuarios"("Rut","Nombres","Apellidos","Correo") values
       ('1-9','Ana','Compras','ana@x.cl'),('2-7','Beto','Solicita','beto@x.cl'),('3-5','Cami','Bodega','cami@x.cl');
     insert into "Proveedores"("Rut","RazonSocial","Giro") values ('76086428-5','Prov SA','Alimentos');
-    insert into "Productos"("Codigo","Nombre","UnidadMedida","Formato","PrecioCompra","StockMinimo","StockCritico") values
-      ('HAR','Harina','KG','BOLSA',2000,10,5),('ACE','Aceite','L','BOTELLA',1500,4,2);
+    insert into "Productos"("Codigo","Nombre","UnidadBase","Formato","StockMinimo","StockCritico") values
+      ('HAR','Harina','G','BOLSA',10000,5000),('ACE','Aceite','ML','BOTELLA',4000,2000);
     insert into "Bodegas"("NombreBodega") values ('Cocina');
   `);
 });
 
-const FACT = (folio = 1, det = `'[{"producto":1,"precio":1000,"cantidad":50}]'`, neto = 42017, iva = 7983, total = 50000) =>
+const FACT = (folio = 1, det = `'[{"producto":1,"unidad":"KG","precio":1000,"cantidad":50}]'`, neto = 42017, iva = 7983, total = 50000) =>
   `select registrar_factura(1,1,${folio},'2026-10-01','2026-10-02','CONTADO',${neto},${iva},${total},${det}::jsonb)`;
 
 describe("registrar_factura", () => {
@@ -36,11 +36,11 @@ describe("registrar_factura", () => {
     await db.query(FACT(1));
     expect(Number(await val(`select count(*) from "ComprasDetalle"`))).toBe(1);
     expect(Number(await val(`select count(*) from "BodegaCentral"`))).toBe(1);
-    expect(Number(await val(`select "Cantidad" from "StockBodega" sb join "Bodegas" b using("IdBodega") where b."EsCentral" and "IdProducto"=1`))).toBe(50);
+    expect(Number(await val(`select "Cantidad" from "StockBodega" sb join "Bodegas" b using("IdBodega") where b."EsCentral" and "IdProducto"=1`))).toBe(50000);
   });
   it("acumula stock en una segunda factura", async () => {
     await db.query(FACT(2));
-    expect(Number(await val(`select "Cantidad" from "StockBodega" where "IdProducto"=1 and "IdBodega"=1`))).toBe(100);
+    expect(Number(await val(`select "Cantidad" from "StockBodega" where "IdProducto"=1 and "IdBodega"=1`))).toBe(100000);
   });
   it("rechaza folio duplicado sin dejar datos a medias", async () => {
     const antes = Number(await val(`select count(*) from "BodegaCentral"`));
@@ -50,11 +50,11 @@ describe("registrar_factura", () => {
   it("rechaza detalle que no cuadra con el total (el precio ya incluye IVA)", async () => { await fails(FACT(3, undefined, 84034, 15966, 100000), /total/i); });
   it("rechaza un detalle tratado como neto: total = neto + IVA no cuadra con la suma", async () => { await fails(FACT(4, undefined, 50000, 9500, 59500), /total/i); });
   it("acepta una diferencia de $1 por redondeo", async () => {
-    const id = Number(await val(`insert into "Productos"("Codigo","Nombre","UnidadMedida","Formato","PrecioCompra") values ('DIF','Dif redondeo','KG','CAJA',1) returning "IdProducto"`));
-    await db.query(FACT(6, `'[{"producto":${id},"precio":1000,"cantidad":50}]'`, 42018, 7983, 50001));
+    const id = Number(await val(`insert into "Productos"("Codigo","Nombre","UnidadBase","Formato") values ('DIF','Dif redondeo','G','CAJA') returning "IdProducto"`));
+    await db.query(FACT(6, `'[{"producto":${id},"unidad":"KG","precio":1000,"cantidad":50}]'`, 42018, 7983, 50001));
   });
   it("rechaza producto inexistente y no deja la cabecera", async () => {
-    await fails(FACT(5, `'[{"producto":999,"precio":1,"cantidad":1}]'`, 1, 0, 1), /Producto/);
+    await fails(FACT(5, `'[{"producto":999,"unidad":"KG","precio":1,"cantidad":1}]'`, 1, 0, 1), /Producto/);
     expect(Number(await val(`select count(*) from "Compras" where "Folio"=5`))).toBe(0);
   });
 });
@@ -100,7 +100,7 @@ describe("flujo de solicitudes", () => {
   it("recepción parcial -> estado 4, mueve stock y registra movimiento", async () => {
     const r = await val(`select recepcionar_solicitud(2, ${sol}, '[{"producto":1,"cantidad":8}]'::jsonb)`);
     expect(Number(r)).toBe(4);
-    expect(Number(await val(`select "Cantidad" from "StockBodega" where "IdBodega"=1 and "IdProducto"=1`))).toBe(92);
+    expect(Number(await val(`select "Cantidad" from "StockBodega" where "IdBodega"=1 and "IdProducto"=1`))).toBe(99992);
     expect(Number(await val(`select "Cantidad" from "StockBodega" where "IdBodega"=2 and "IdProducto"=1`))).toBe(8);
     expect(Number(await val(`select count(*) from "MovimientosBodega" where "IdSolicitud"=${sol}`))).toBe(1);
   });
@@ -120,7 +120,7 @@ describe("flujo de solicitudes", () => {
 
 describe("anular_factura", () => {
   it("revierte stock cuando está disponible", async () => {
-    await db.query(`select registrar_factura(1,1,50,'2026-10-01','2026-10-02','CONTADO',840,160,1000,'[{"producto":2,"precio":100,"cantidad":10}]'::jsonb)`);
+    await db.query(`select registrar_factura(1,1,50,'2026-10-01','2026-10-02','CONTADO',840,160,1000,'[{"producto":2,"unidad":"L","precio":100,"cantidad":10}]'::jsonb)`);
     const id = Number(await val(`select "IdCompra" from "Compras" where "Folio"=50`));
     await fails(`select anular_factura(1, ${id}, 'x')`, /motivo/);
     await db.query(`select anular_factura(1, ${id}, 'Error de digitación')`);
@@ -140,7 +140,7 @@ describe("anular_factura", () => {
 
 describe("maestros y reglas de factura", () => {
   const FP = (fr: string, fp: string, folio: number) =>
-    `select registrar_factura(1,1,${folio},'2026-10-02','${fr}','${fp}',840,160,1000,'[{"producto":2,"precio":100,"cantidad":10}]'::jsonb)`;
+    `select registrar_factura(1,1,${folio},'2026-10-02','${fr}','${fp}',840,160,1000,'[{"producto":2,"unidad":"L","precio":100,"cantidad":10}]'::jsonb)`;
   it("rechaza fecha de recepción anterior a la de factura", async () => {
     await fails(FP("2026-10-01", "CONTADO", 70), /fecha de recepción/i);
     await db.query(FP("2026-10-02", "CONTADO", 70));
@@ -153,9 +153,9 @@ describe("maestros y reglas de factura", () => {
     try { await fails(FP("2026-10-02", "CONTADO", 72), /forma de pago/i); }
     finally { await db.query(`update "FormasPago" set "IdEstado"=1 where "Codigo"='CONTADO'`); }
   });
-  it("rechaza producto con unidad/formato inexistente", async () => {
-    await fails(`insert into "Productos"("Codigo","Nombre","UnidadMedida","Formato","PrecioCompra") values ('T1','T','Tonelada','CAJA',1)`, /foreign key|violates/i);
-    await fails(`insert into "Productos"("Codigo","Nombre","UnidadMedida","Formato","PrecioCompra") values ('T2','T','KG','Tonelada',1)`, /foreign key|violates/i);
+  it("rechaza producto con unidad base/formato inexistente", async () => {
+    await fails(`insert into "Productos"("Codigo","Nombre","UnidadBase","Formato") values ('T1','T','Tonelada','CAJA')`, /foreign key|violates/i);
+    await fails(`insert into "Productos"("Codigo","Nombre","UnidadBase","Formato") values ('T2','T','G','Tonelada')`, /foreign key|violates/i);
   });
   it("siembra formas, unidades y formatos iniciales", async () => {
     const cods = async (t: string) => (await db.query<any>(`select "Codigo" from "${t}" order by "Codigo"`)).rows.map((r) => r.Codigo);
@@ -177,7 +177,7 @@ describe("integridad y permisos", () => {
     await fails(`insert into "Bodegas"("NombreBodega","EsCentral") values ('Otra', true)`);
   });
   it("stock crítico no puede superar al mínimo", async () => {
-    await fails(`insert into "Productos"("Codigo","Nombre","UnidadMedida","Formato","PrecioCompra","StockMinimo","StockCritico") values ('Z','Z','KG','CAJA',1,1,5)`);
+    await fails(`insert into "Productos"("Codigo","Nombre","UnidadBase","Formato","StockMinimo","StockCritico") values ('Z','Z','G','CAJA',1,5)`);
   });
   it("anon/authenticated no tienen acceso a tablas ni funciones", async () => {
     for (const rol of ["anon", "authenticated"]) {
@@ -385,92 +385,124 @@ describe("roles base inactivos (migración 0012)", () => {
   });
 });
 
-describe("productos: costo base (migración 0013)", () => {
-  const ins = (cod: string, nom: string, um: string, precio: number, extra = "") =>
-    `insert into "Productos"("Codigo","Nombre","UnidadMedida","Formato","PrecioCompra"${extra ? "," + extra.split("|")[0] : ""}) values (${cod === "null" ? "null" : `'${cod}'`},'${nom}','${um}','CAJA',${precio}${extra ? "," + extra.split("|")[1] : ""}) returning "IdProducto"`;
-  const fila = async (id: number) => (await db.query<any>(`select "UnidadBase","CostoUnitarioBase" from "Productos" where "IdProducto"=${id}`)).rows[0];
+describe("precio desde la factura (migración 0016)", () => {
+  const nuevo = async (nombre: string, base: string, extra = "") =>
+    Number(await val(`insert into "Productos"("Nombre","UnidadBase","Formato"${extra ? ",\"Codigo\"" : ""}) values ('${nombre}','${base}','CAJA'${extra ? `,'${extra}'` : ""}) returning "IdProducto"`));
+  type L = { producto: number; unidad: string; precio: number; cantidad: number };
+  const fac = (folio: number, lineas: L[]) => {
+    const total = Math.round(lineas.reduce((a, l) => a + Math.round(l.precio * l.cantidad * 100) / 100, 0));
+    const neto = Math.round(total / 1.19);
+    return `select registrar_factura(1,1,${folio},'2026-10-01','2026-10-02','CONTADO',${neto},${total - neto},${total},'${JSON.stringify(lineas)}'::jsonb)`;
+  };
+  const costo = async (id: number) => (await db.query<any>(`select "CostoUnitarioBase" c from "Productos" where "IdProducto"=${id}`)).rows[0].c;
+  const hist = async (id: number) =>
+    (await db.query<any>(`select "Origen" o, "Anulada" a, "CostoBaseAnterior" ant, "CostoBaseNuevo" n from "HistorialPreciosProducto" where "IdProducto"=${id} order by "IdHistorial"`)).rows;
+  const stock = async (id: number) => Number(await val(`select coalesce(sum("Cantidad"),0) from "StockBodega" where "IdProducto"=${id} and "IdBodega"=1`));
+  const idCompra = async (folio: number) => Number(await val(`select "IdCompra" from "Compras" where "Folio"=${folio}`));
+  let p: number;
 
-  it("calcula UnidadBase y CostoUnitarioBase por unidad", async () => {
-    expect(await fila(1)).toEqual({ UnidadBase: "G", CostoUnitarioBase: "2.000000" });
-    expect(await fila(2)).toEqual({ UnidadBase: "ML", CostoUnitarioBase: "1.500000" });
-    const un = Number(await val(ins("UN1", "Huevo", "UN", 350)));
-    expect(await fila(un)).toEqual({ UnidadBase: "UN", CostoUnitarioBase: "350.000000" });
+  it("producto sin compras tiene costo null y sin historial", async () => {
+    p = await nuevo("Papa t1", "G");
+    expect(await costo(p)).toBeNull();
+    expect(await hist(p)).toEqual([]);
   });
-  it("recalcula al cambiar precio o unidad", async () => {
-    await db.query(`update "Productos" set "PrecioCompra"=3000 where "IdProducto"=1`);
-    expect((await fila(1)).CostoUnitarioBase).toBe("3.000000");
-    await db.query(`update "Productos" set "UnidadMedida"='UN' where "IdProducto"=1`);
-    expect(await fila(1)).toEqual({ UnidadBase: "UN", CostoUnitarioBase: "3000.000000" });
-    await db.query(`update "Productos" set "UnidadMedida"='KG', "PrecioCompra"=2000 where "IdProducto"=1`);
+  it("guarda la línea tal cual y suma el stock convertido a unidad base", async () => {
+    await db.query(fac(1001, [{ producto: p, unidad: "KG", precio: 2000, cantidad: 5 }]));
+    const d = (await db.query<any>(`select "Precio" pr, "UnidadMedida" u, "Cantidad" c from "ComprasDetalle" where "IdProducto"=${p}`)).rows;
+    expect(d).toEqual([{ pr: "2000.00", u: "KG", c: "5.000" }]);
+    expect(Number(await val(`select "Cantidad" from "BodegaCentral" where "IdProducto"=${p}`))).toBe(5000);
+    expect(await stock(p)).toBe(5000);
   });
-  it("sobrescribe UnidadBase y CostoUnitarioBase enviados a mano", async () => {
-    const id = Number(await val(ins("MAN", "Manual", "KG", 1000, `"UnidadBase","CostoUnitarioBase"|'KG',999`)));
-    expect(await fila(id)).toEqual({ UnidadBase: "G", CostoUnitarioBase: "1.000000" });
+  it("calcula el costo con IVA por unidad base y registra el historial", async () => {
+    expect(await costo(p)).toBe("2.000000");
+    expect(await hist(p)).toEqual([{ o: "Compra", a: false, ant: null, n: "2.000000" }]);
+    expect(Number(await val(`select "IdCompra" from "HistorialPreciosProducto" where "IdProducto"=${p}`))).toBe(await idCompra(1001));
   });
-  it("Codigo es opcional pero único; Nombre es único", async () => {
-    await db.query(ins("null", "Sin codigo A", "KG", 1));
-    await db.query(ins("null", "Sin codigo B", "KG", 1));
-    await fails(ins("HAR", "Otro", "KG", 1), /Productos_Codigo_key/);
-    await fails(ins("OTRO", "Harina", "KG", 1), /Productos_Nombre_key/);
+  it("no registra historial si el costo no cambia", async () => {
+    await db.query(fac(1002, [{ producto: p, unidad: "G", precio: 2, cantidad: 100 }]));
+    expect((await hist(p)).length).toBe(1);
+    expect(await stock(p)).toBe(5100);
   });
-  it("rechaza PrecioCompra negativo", async () => {
-    await fails(ins("NEG", "Negativo", "KG", -1));
+  it("rige la última línea y suma el stock convertido de ambas", async () => {
+    const q = await nuevo("Papa t4", "G");
+    await db.query(fac(1003, [{ producto: q, unidad: "KG", precio: 3000, cantidad: 1 }, { producto: q, unidad: "G", precio: 4, cantidad: 500 }]));
+    expect(await costo(q)).toBe("4.000000");
+    expect((await hist(q)).map((h) => h.n)).toEqual(["3.000000", "4.000000"]);
+    expect(await stock(q)).toBe(1500);
   });
-  it("rechaza cambiar Factor o UnidadBase de una unidad en uso, y lo permite si no se usa", async () => {
-    await fails(`update "UnidadesMedida" set "Factor"=500 where "Codigo"='KG'`, /hay productos que usan esta unidad/);
+  it("rechaza unidad incompatible, no vigente o inexistente sin dejar datos", async () => {
+    const r = await nuevo("Papa t5", "G");
+    const antes = [await val(`select count(*) from "Compras"`), await val(`select count(*) from "ComprasDetalle"`), await val(`select count(*) from "BodegaCentral"`)].map(Number);
+    await fails(fac(1004, [{ producto: r, unidad: "L", precio: 1, cantidad: 1 }]), /no es compatible/);
+    await fails(fac(1005, [{ producto: r, unidad: "NOPE", precio: 1, cantidad: 1 }]), /Unidad de medida/);
+    await db.query(`update "UnidadesMedida" set "IdEstado"=0 where "Codigo"='KG'`);
+    try { await fails(fac(1006, [{ producto: r, unidad: "KG", precio: 1, cantidad: 1 }]), /Unidad de medida/); }
+    finally { await db.query(`update "UnidadesMedida" set "IdEstado"=1 where "Codigo"='KG'`); }
+    const despues = [await val(`select count(*) from "Compras"`), await val(`select count(*) from "ComprasDetalle"`), await val(`select count(*) from "BodegaCentral"`)].map(Number);
+    expect(despues).toEqual(antes);
+  });
+  it("rechaza una cantidad que convertida a unidad base queda en 0", async () => {
+    const r = await nuevo("Papa t6", "G");
+    await db.query(`insert into "UnidadesMedida"("Codigo","Nombre","UnidadBase","Factor") values ('MG_E','Miligramo E','G',0.001)`);
+    await fails(fac(1007, [{ producto: r, unidad: "MG_E", precio: 1, cantidad: 0.0001 }]), /demasiado pequeña/);
+    expect(Number(await val(`select count(*) from "Compras" where "Folio"=1007`))).toBe(0);
+  });
+  it("anular revierte el costo a la última línea no anulada (B anulada con C posterior igual no cambia nada)", async () => {
+    const s = await nuevo("Papa t7", "G");
+    await db.query(fac(1010, [{ producto: s, unidad: "KG", precio: 2000, cantidad: 1 }])); // A: 2
+    await db.query(fac(1011, [{ producto: s, unidad: "KG", precio: 3000, cantidad: 1 }])); // B: 3
+    await db.query(fac(1012, [{ producto: s, unidad: "KG", precio: 3000, cantidad: 1 }])); // C: 3 (sin cambio)
+    expect(await costo(s)).toBe("3.000000");
+    expect((await hist(s)).map((h) => h.n)).toEqual(["2.000000", "3.000000"]);
+    expect(await stock(s)).toBe(3000);
+
+    await db.query(`select anular_factura(1, ${await idCompra(1011)}, 'Error de digitación')`);
+    expect(await costo(s)).toBe("3.000000"); // C rige
+    expect(await stock(s)).toBe(2000);
+    expect((await hist(s)).map((h) => [h.o, h.a])).toEqual([["Compra", false], ["Compra", true]]);
+
+    await db.query(`select anular_factura(1, ${await idCompra(1012)}, 'Error de digitación')`);
+    expect(await costo(s)).toBe("2.000000"); // vuelve a A
+    expect((await hist(s)).slice(-1)).toEqual([{ o: "Anulación", a: false, ant: "3.000000", n: "2.000000" }]);
+
+    await db.query(`select anular_factura(1, ${await idCompra(1010)}, 'Error de digitación')`);
+    expect(await costo(s)).toBeNull(); // sin compras vigentes
+    expect((await hist(s)).slice(-1)).toEqual([{ o: "Anulación", a: false, ant: "2.000000", n: null }]);
+    expect(await stock(s)).toBe(0);
+  });
+  it("la unidad base debe ser base y no se edita con stock o facturas", async () => {
+    await fails(`insert into "Productos"("Nombre","UnidadBase","Formato") values ('Mala base','KG','CAJA')`, /unidad base \(factor 1\)/);
+    const t = await nuevo("Cambio base", "G");
+    await db.query(`update "Productos" set "UnidadBase"='ML' where "IdProducto"=${t}`); // sin movimientos: se puede
+    await fails(`update "Productos" set "UnidadBase"='ML' where "IdProducto"=${p}`, /ya tiene stock o facturas/);
+  });
+  it("no se puede cambiar el factor de una unidad usada por productos o facturas; sin uso sí", async () => {
+    await fails(`update "UnidadesMedida" set "Factor"=500 where "Codigo"='KG'`, /hay productos o facturas que usan esta unidad/);
+    await fails(`update "UnidadesMedida" set "Factor"=2 where "Codigo"='G'`);
     await db.query(`insert into "UnidadesMedida"("Codigo","Nombre","UnidadBase","Factor") values ('CAJ12','Caja 12','UN',12)`);
     await db.query(`update "UnidadesMedida" set "Factor"=24 where "Codigo"='CAJ12'`);
     expect(Number(await val(`select "Factor" from "UnidadesMedida" where "Codigo"='CAJ12'`))).toBe(24);
   });
-  it("la unidad base debe ser una unidad base de factor 1", async () => {
-    await fails(`insert into "UnidadesMedida"("Codigo","Nombre","UnidadBase","Factor") values ('X1','X','KG',2)`, /unidad base/i);
-    await fails(`insert into "UnidadesMedida"("Codigo","Nombre","UnidadBase","Factor") values ('X2','X','X2',5)`, /check/i);
+  it("Codigo es opcional pero único; Nombre es único", async () => {
+    await nuevo("Sin codigo A", "G");
+    await nuevo("Sin codigo B", "G");
+    await db.query(`insert into "Productos"("Codigo","Nombre","UnidadBase","Formato") values ('UNI','Con codigo','G','CAJA')`);
+    await fails(`insert into "Productos"("Codigo","Nombre","UnidadBase","Formato") values ('UNI','Otro','G','CAJA')`, /Productos_Codigo_key/);
+    await fails(`insert into "Productos"("Codigo","Nombre","UnidadBase","Formato") values ('OTRO','Con codigo','G','CAJA')`, /Productos_Nombre_key/);
   });
-  it("las RPC rechazan producto inexistente o no vigente sin dejar cabecera", async () => {
-    const id = Number(await val(ins("OFF", "Inactivo", "KG", 1)));
-    await db.query(`update "Productos" set "IdEstado"=0 where "IdProducto"=${id}`);
-    for (const pid of [999, id]) {
-      await fails(`select registrar_factura(1,1,900,'2026-10-01','2026-10-01','CONTADO',1,0,1,'[{"producto":${pid},"precio":1,"cantidad":1}]'::jsonb)`, /Producto/);
-      await fails(`select crear_solicitud(2, 2, '[{"producto":${pid},"cantidad":1}]'::jsonb)`, /Producto/);
-    }
-    expect(Number(await val(`select count(*) from "Compras" where "Folio"=900`))).toBe(0);
-  });
-  it("los mensajes de producto muestran código y nombre, no el id interno", async () => {
-    const id = Number(await val(`select "IdProducto" from "Productos" where "Nombre"='Inactivo'`));
-    await fails(`select crear_solicitud(2, 2, '[{"producto":${id},"cantidad":1}]'::jsonb)`, /Producto OFF — Inactivo no existe o no vigente/);
+  it("las RPC rechazan producto inexistente, no vigente o no numérico con el producto reconocible", async () => {
+    await db.query(`insert into "Productos"("Codigo","Nombre","UnidadBase","Formato","IdEstado") values ('OFF','Inactivo','G','CAJA',0)`);
+    const off = Number(await val(`select "IdProducto" from "Productos" where "Codigo"='OFF'`));
     const sinCodigo = Number(await val(`select "IdProducto" from "Productos" where "Nombre"='Sin codigo A'`));
     await db.query(`update "Productos" set "IdEstado"=0 where "IdProducto"=${sinCodigo}`);
+    await fails(`select crear_solicitud(2, 2, '[{"producto":${off},"cantidad":1}]'::jsonb)`, /Producto OFF — Inactivo no existe o no vigente/);
     await fails(`select crear_solicitud(2, 2, '[{"producto":${sinCodigo},"cantidad":1}]'::jsonb)`, /Producto Sin codigo A no existe o no vigente/);
     await fails(`select crear_solicitud(2, 2, '[{"producto":999999,"cantidad":1}]'::jsonb)`, /Producto 999999 no existe o no vigente/);
+    await fails(`select crear_solicitud(2, 2, '[{"producto":"abc","cantidad":1}]'::jsonb)`, /Producto no válido/);
+    await fails(fac(1020, [{ producto: off, unidad: "KG", precio: 1, cantidad: 1 }]), /Producto OFF — Inactivo/);
+    expect(Number(await val(`select count(*) from "Compras" where "Folio"=1020`))).toBe(0);
   });
-});
-
-describe("historial de precios de compra (migración 0015)", () => {
-  const hist = async (id: number) =>
-    (await db.query<any>(`select "PrecioAnterior" a, "PrecioNuevo" n, "IdUsuario" u from "HistorialPreciosProducto" where "IdProducto"=${id} order by "IdHistorial"`)).rows;
-  let id: number;
-  it("al crear el producto registra el precio inicial (sin precio anterior)", async () => {
-    id = Number(await val(`insert into "Productos"("Codigo","Nombre","UnidadMedida","Formato","PrecioCompra","IdUsuarioCreacion","IdUsuarioModificacion")
-      values ('HP1','Hist precio','KG','CAJA',1000,1,1) returning "IdProducto"`));
-    expect(await hist(id)).toEqual([{ a: null, n: "1000.00", u: 1 }]);
-  });
-  it("al cambiar el precio registra anterior, nuevo y quién lo cambió", async () => {
-    await db.query(`update "Productos" set "PrecioCompra"=1500, "IdUsuarioModificacion"=2 where "IdProducto"=${id}`);
-    await db.query(`update "Productos" set "PrecioCompra"=1250.5, "IdUsuarioModificacion"=3 where "IdProducto"=${id}`);
-    expect((await hist(id)).slice(1)).toEqual([{ a: "1000.00", n: "1500.00", u: 2 }, { a: "1500.00", n: "1250.50", u: 3 }]);
-  });
-  it("no registra si cambia otro campo o el precio queda igual", async () => {
-    const antes = (await hist(id)).length;
-    await db.query(`update "Productos" set "Nombre"='Hist precio 2', "StockMinimo"=3 where "IdProducto"=${id}`);
-    await db.query(`update "Productos" set "PrecioCompra"=1250.50 where "IdProducto"=${id}`);
-    expect((await hist(id)).length).toBe(antes);
-  });
-  it("cambiar la unidad de medida sin tocar el precio tampoco lo registra", async () => {
-    const antes = (await hist(id)).length;
-    await db.query(`update "Productos" set "UnidadMedida"='UN' where "IdProducto"=${id}`);
-    expect((await hist(id)).length).toBe(antes);
-  });
-  it("la tabla tiene RLS y no es accesible para anon/authenticated", async () => {
+  it("el historial no es accesible para anon/authenticated", async () => {
     for (const rol of ["anon", "authenticated"]) {
       await db.exec(`set role ${rol}`);
       await fails(`select * from "HistorialPreciosProducto"`, /permission denied/);
