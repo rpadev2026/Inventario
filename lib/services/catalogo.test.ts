@@ -169,3 +169,49 @@ describe("propsFormCatalogo (frontera servidor -> cliente)", () => {
     expect(propsFormCatalogo(CATALOGOS.comunas).padre).toEqual({ columna: "CodigoProvincia", etiqueta: "Ciudad (provincia)" });
   });
 });
+
+describe("unidades de medida: unidad base y factor", () => {
+  const cfgU = CATALOGOS.unidades;
+  const base = { codigo: "caj12", nombre: "Caja 12", estado: "1" };
+
+  it("exige unidad base y factor", () => {
+    expect(validarEntradaCatalogo(cfgU, fd(base)).error).toBeDefined();
+    expect(validarEntradaCatalogo(cfgU, fd({ ...base, unidadBase: "UN" })).error).toBeDefined();
+  });
+  it.each(["0", "", "abc", "-2", "1,1234567"])("rechaza factor %j", (factor) => {
+    expect(validarEntradaCatalogo(cfgU, fd({ ...base, unidadBase: "UN", factor })).error).toBe("Factor: número mayor que 0 (hasta 6 decimales)");
+  });
+  it("acepta factor con coma o punto y lo convierte", () => {
+    expect(validarEntradaCatalogo(cfgU, fd({ ...base, unidadBase: "un", factor: "1,5" })).datos).toMatchObject({ unidadBase: "UN", factor: 1.5 });
+    expect(validarEntradaCatalogo(cfgU, fd({ ...base, unidadBase: "UN", factor: "1000" })).datos?.factor).toBe(1000);
+  });
+  it("unidad base vacía = la misma unidad, y entonces el factor debe ser 1", () => {
+    expect(validarEntradaCatalogo(cfgU, fd({ ...base, unidadBase: "", factor: "1" })).datos).toMatchObject({ codigo: "CAJ12", unidadBase: "CAJ12", factor: 1 });
+    expect(validarEntradaCatalogo(cfgU, fd({ ...base, unidadBase: "", factor: "12" })).error).toBe("Una unidad base debe tener factor 1");
+    expect(validarEntradaCatalogo(cfgU, fd({ ...base, unidadBase: "CAJ12", factor: "12" })).error).toBe("Una unidad base debe tener factor 1");
+  });
+  it("prepararFila incluye UnidadBase y Factor al crear y al editar (sin Codigo al editar)", () => {
+    const d = { codigo: "CAJ12", nombre: "Caja 12", estado: 1, unidadBase: "UN", factor: 12 };
+    expect(prepararFila(cfgU, d, 7, false)).toMatchObject({ Codigo: "CAJ12", UnidadBase: "UN", Factor: 12, IdUsuarioCreacion: 7 });
+    const ed = prepararFila(cfgU, d, 7, true);
+    expect(ed).toMatchObject({ UnidadBase: "UN", Factor: 12 });
+    expect(ed).not.toHaveProperty("Codigo");
+  });
+  it("los demás catálogos no piden ni guardan unidad base", () => {
+    const ok = validarEntradaCatalogo(CATALOGOS.formatos, fd({ codigo: "x", nombre: "X", estado: "1" }));
+    expect(ok.error).toBeUndefined();
+    expect(prepararFila(CATALOGOS.formatos, ok.datos!, 1, false)).not.toHaveProperty("UnidadBase");
+  });
+  it("propsFormCatalogo marca base solo en unidades", () => {
+    expect(propsFormCatalogo(cfgU).base).toBe(true);
+    expect(propsFormCatalogo(CATALOGOS.formatos).base).toBeUndefined();
+  });
+  it("«Dónde se usa» cuenta también las unidades que la usan como base", () => {
+    expect(cfgU.uso).toContainEqual(expect.objectContaining({ tabla: "UnidadesMedida", columna: "UnidadBase" }));
+  });
+  it("el mensaje del trigger (P0001) llega al usuario al guardar", async () => {
+    errorSimulado = { code: "P0001", message: "No se puede cambiar la unidad base ni el factor: hay productos que usan esta unidad" };
+    const r = await guardarCatalogo(cfgU, 1, fd({ modo: "editar", codigo: "KG", nombre: "Kilo", estado: "1", unidadBase: "G", factor: "500" }));
+    expect(r.error).toMatch(/hay productos que usan esta unidad/);
+  });
+});

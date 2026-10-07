@@ -63,13 +63,21 @@ export async function PaginaCatalogo({ cfg, accion, searchParams }: { cfg: Catal
 
   const col = cfg.padre?.columna;
   const [{ data }, opcionesPadre] = await Promise.all([
-    db.from(cfg.tabla).select(col ? `Codigo, Nombre, IdEstado, ${col}` : "Codigo, Nombre, IdEstado"),
+    db.from(cfg.tabla).select(`Codigo, Nombre, IdEstado${col ? `, ${col}` : ""}${cfg.base ? ", UnidadBase, Factor" : ""}`),
     cfg.padre ? cargarOpcionesPadre(cfg.padre.tabla) : Promise.resolve([] as OpcionPadre[]),
   ]);
   const etiquetaPadre = new Map(opcionesPadre.map((o) => [o.codigo, o.etiqueta]));
   const crudos = (data ?? []) as unknown as ItemCatalogo[]; // tal como están en la base (para los formularios)
+  // Unidades de medida: las que son base (se pueden elegir como unidad base de otra) y su nombre para mostrarlo.
+  const opcionesBase: OpcionPadre[] = cfg.base
+    ? crudos.filter((i) => i.UnidadBase === i.Codigo)
+      .map((i) => ({ codigo: i.Codigo, etiqueta: `${i.Nombre} (${i.Codigo})${i.IdEstado === 1 ? "" : " — no vigente"}`, vigente: i.IdEstado === 1 }))
+    : [];
+  const nombreUnidad = new Map(crudos.map((i) => [i.Codigo, i.Nombre]));
   const items = crudos.map((i) => ({ // con la etiqueta del padre ya resuelta (para el listado y la vista)
     Codigo: i.Codigo, Nombre: i.Nombre, IdEstado: i.IdEstado,
+    unidadBase: cfg.base ? nombreUnidad.get(String(i.UnidadBase)) ?? String(i.UnidadBase) : undefined,
+    factor: cfg.base ? String(i.Factor) : undefined,
     padre: cfg.padre ? etiquetaPadre.get(String(i[cfg.padre.columna])) ?? String(i[cfg.padre.columna] ?? "") : undefined,
   }));
 
@@ -82,7 +90,7 @@ export async function PaginaCatalogo({ cfg, accion, searchParams }: { cfg: Catal
           <Link href={volverListado} className="btn btn-secondary">Volver</Link>
         </div>
         <div className="card">
-          <FormCatalogo accion={accion} cfg={formCfg} opcionesPadre={opcionesPadre} despuesDeGuardar={href({ tam: base.tam, aviso: "creado" })} />
+          <FormCatalogo accion={accion} cfg={formCfg} opcionesPadre={opcionesPadre} opcionesBase={opcionesBase} despuesDeGuardar={href({ tam: base.tam, aviso: "creado" })} />
         </div>
       </section>
     );
@@ -98,7 +106,7 @@ export async function PaginaCatalogo({ cfg, accion, searchParams }: { cfg: Catal
           <Link href={volverListado} className="btn btn-secondary">Volver</Link>
         </div>
         <div className="card">
-          <FormCatalogo key={enEdicion.Codigo} item={enEdicion} accion={accion} cfg={formCfg} opcionesPadre={opcionesPadre}
+          <FormCatalogo key={enEdicion.Codigo} item={enEdicion} accion={accion} cfg={formCfg} opcionesPadre={opcionesPadre} opcionesBase={opcionesBase}
             despuesDeGuardar={href({ ...base, aviso: "editado" })} />
         </div>
       </section>
@@ -120,6 +128,8 @@ export async function PaginaCatalogo({ cfg, accion, searchParams }: { cfg: Catal
             {cfg.padre && <Dato titulo={cfg.padre.etiqueta}>{enVista.padre}</Dato>}
             <Dato titulo="Código">{enVista.Codigo}</Dato>
             <Dato titulo="Nombre">{enVista.Nombre}</Dato>
+            {cfg.base && <Dato titulo="Unidad base">{enVista.unidadBase}</Dato>}
+            {cfg.base && <Dato titulo="Factor">{enVista.factor}</Dato>}
             <Dato titulo="Estado">{estadoBadge(enVista.IdEstado)}</Dato>
           </div>
         </div>
