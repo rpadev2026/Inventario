@@ -501,13 +501,13 @@ describe("precio desde la factura (migración 0016)", () => {
   it("las RPC rechazan producto inexistente, no vigente o no numérico con el producto reconocible", async () => {
     await db.query(`insert into "Productos"("Codigo","Nombre","UnidadBase","Formato","IdEstado") values ('OFF','Inactivo','G','CAJA',0)`);
     const off = Number(await val(`select "IdProducto" from "Productos" where "Codigo"='OFF'`));
-    const sinCodigo = Number(await val(`select "IdProducto" from "Productos" where "Nombre"='Sin codigo A'`));
+    const sinCodigo = Number(await val(`select "IdProducto" from "Productos" where "Nombre"='SIN CODIGO A'`));
     await db.query(`update "Productos" set "IdEstado"=0 where "IdProducto"=${sinCodigo}`);
-    await fails(`select crear_solicitud(2, 2, '[{"producto":${off},"cantidad":1}]'::jsonb)`, /Producto OFF — Inactivo no existe o no vigente/);
-    await fails(`select crear_solicitud(2, 2, '[{"producto":${sinCodigo},"cantidad":1}]'::jsonb)`, /Producto Sin codigo A no existe o no vigente/);
+    await fails(`select crear_solicitud(2, 2, '[{"producto":${off},"cantidad":1}]'::jsonb)`, /Producto OFF — INACTIVO no existe o no vigente/);
+    await fails(`select crear_solicitud(2, 2, '[{"producto":${sinCodigo},"cantidad":1}]'::jsonb)`, /Producto SIN CODIGO A no existe o no vigente/);
     await fails(`select crear_solicitud(2, 2, '[{"producto":999999,"cantidad":1}]'::jsonb)`, /Producto 999999 no existe o no vigente/);
     await fails(`select crear_solicitud(2, 2, '[{"producto":"abc","cantidad":1}]'::jsonb)`, /Producto no válido/);
-    await fails(fac(1020, [{ producto: off, unidad: "KG", precio: 1, cantidad: 1 }]), /Producto OFF — Inactivo/);
+    await fails(fac(1020, [{ producto: off, unidad: "KG", precio: 1, cantidad: 1 }]), /Producto OFF — INACTIVO/);
     expect(Number(await val(`select count(*) from "Compras" where "Folio"=1020`))).toBe(0);
   });
   it("el historial no es accesible para anon/authenticated", async () => {
@@ -516,5 +516,32 @@ describe("precio desde la factura (migración 0016)", () => {
       await fails(`select * from "HistorialPreciosProducto"`, /permission denied/);
       await db.exec("reset role");
     }
+  });
+});
+
+describe("código y nombre de producto en mayúscula (migración 0018)", () => {
+  const ins = (cod: string | null, nom: string) =>
+    `insert into "Productos"("Codigo","Nombre","UnidadBase","Formato") values (${cod === null ? "null" : `'${cod}'`},'${nom}','G','CAJA') returning "IdProducto"`;
+  const fila = async (id: number) => (await db.query<any>(`select "Codigo" c, "Nombre" n from "Productos" where "IdProducto"=${id}`)).rows[0];
+  let id: number;
+  it("al crear guarda código y nombre en mayúscula", async () => {
+    id = Number(await val(ins("p-min", "papas fritas")));
+    expect(await fila(id)).toEqual({ c: "P-MIN", n: "PAPAS FRITAS" });
+  });
+  it("al editar también", async () => {
+    await db.query(`update "Productos" set "Codigo"='q-1', "Nombre"='papas nuevas' where "IdProducto"=${id}`);
+    expect(await fila(id)).toEqual({ c: "Q-1", n: "PAPAS NUEVAS" });
+  });
+  it("quita espacios en los extremos y un código vacío queda null", async () => {
+    const a = Number(await val(ins("   ", "  sal fina  ")));
+    expect(await fila(a)).toEqual({ c: null, n: "SAL FINA" });
+  });
+  it("conserva los acentos y la ñ en mayúscula", async () => {
+    const a = Number(await val(ins(null, "piña en almíbar")));
+    expect((await fila(a)).n).toBe("PIÑA EN ALMÍBAR");
+  });
+  it("código y nombre que solo difieren en mayúsculas son duplicados", async () => {
+    await fails(ins("q-1", "otro nombre"), /Productos_Codigo_key/);
+    await fails(ins("otro-cod", "Papas Nuevas"), /Productos_Nombre_key/);
   });
 });

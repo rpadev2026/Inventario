@@ -81,7 +81,7 @@ describe("e2e-cleanup.sql", () => {
   it("borra también los productos E2E sin código (nombre terminado en ' E2E')", async () => {
     await db.exec(`insert into "Productos"("Codigo","Nombre","UnidadBase","Formato") values (null,'Sal E2E','G','CAJA'),(null,'Sal Real','G','CAJA')`);
     await db.exec(cleanup);
-    expect((await db.query<any>(`select "Nombre" from "Productos" order by 1`)).rows.map((r) => r.Nombre)).toEqual(["Real", "Sal Real"]);
+    expect((await db.query<any>(`select "Nombre" from "Productos" order by 1`)).rows.map((r) => r.Nombre)).toEqual(["REAL", "SAL REAL"]);
   });
 
   it("borra el historial de las facturas y productos E2E y conserva el de los reales", async () => {

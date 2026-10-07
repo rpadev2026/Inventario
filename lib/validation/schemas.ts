@@ -65,9 +65,9 @@ const unidadOpcional = z.string().trim().toUpperCase().optional().transform((v) 
 export const productoSchema = z.object({
   id: z.coerce.number().int().positive().optional(),
   // El código es opcional: vacío o solo espacios = no informado (se guarda null).
-  codigo: z.string().trim().max(40).optional().transform((v) => v || undefined)
+  codigo: z.string().trim().max(40).optional().transform((v) => (v ? v.toUpperCase() : undefined))
     .pipe(z.string().regex(/^[A-Za-z0-9._-]+$/, "Código: solo letras, números, . _ -").optional()),
-  nombre: txt().min(1, "Nombre requerido"),
+  nombre: txt().min(1, "Nombre requerido").transform((v) => v.toUpperCase()),
   unidadBase: codigoCatalogo, formato: codigoCatalogo,
   // El stock se escribe en cualquier unidad de la familia; la acción lo convierte a unidad base y compara.
   stockMinimo: z.coerce.number().min(0), unidadMinimo: unidadOpcional,
