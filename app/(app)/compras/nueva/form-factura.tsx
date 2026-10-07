@@ -9,7 +9,7 @@ import Icon from "@/components/app/icon";
 import { aplicarPreProducto, guardarBorrador, leerBorrador, limpiarBorrador, type Borrador } from "@/lib/borrador-factura";
 import { etiquetaProducto } from "@/lib/producto-etiqueta";
 import { calcularTotales } from "@/lib/factura-calculo";
-import { unidadesDeFamilia, type UnidadInfo } from "@/lib/unidades";
+import { unidadDeLinea, unidadesDeFamilia, type UnidadInfo } from "@/lib/unidades";
 import { filtrarDecimal, filtrarDecimal2, parseCantidad, parseDecimal2, soloDigitos } from "@/lib/numeros";
 
 type Prov = { id: number; rut: string; nombre: string };
@@ -74,7 +74,7 @@ export default function FormFactura(props: {
     setLineas((ls) => ls.map((l, j) => (j === i ? { ...l, [k]: v } : l)));
   // Unidad de la línea: la elegida o, mientras no se elija, la unidad base del producto.
   const baseDe = (producto: string) => props.productos.find((p) => String(p.id) === producto)?.unidadBase ?? "";
-  const unidadDe = (l: Linea) => l.unidad || baseDe(l.producto);
+  const unidadDe = (l: Linea) => unidadDeLinea(props.unidades, baseDe(l.producto), l.unidad);
   const cambiarProducto = (i: number, producto: string) =>
     setLineas((ls) => ls.map((l, j) => (j === i ? { ...l, producto, unidad: "" } : l)));
 

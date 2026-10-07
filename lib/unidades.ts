@@ -17,3 +17,15 @@ export function convertirABase(valor: number, unidad: string, base: string, unid
   if (!u || u.UnidadBase !== base) return null;
   return Math.round(valor * u.Factor * 1000) / 1000;
 }
+
+/**
+ * Unidad que muestra y envía una línea de factura: la elegida si es de la familia; si no, la unidad base del producto
+ * (si está vigente) o la primera vigente de la familia. Siempre es una de las opciones que ofrece el selector.
+ */
+export function unidadDeLinea(unidades: UnidadInfo[], base: string, elegida: string): string {
+  if (!base) return "";
+  const familia = unidadesDeFamilia(unidades, base, elegida);
+  if (elegida && familia.some((u) => u.Codigo === elegida)) return elegida;
+  if (familia.some((u) => u.Codigo === base)) return base;
+  return familia[0]?.Codigo ?? "";
+}

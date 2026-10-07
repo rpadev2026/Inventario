@@ -27,7 +27,7 @@ export default function FormProducto({ p, unidades, formatos, unidadBaseBloquead
   const router = useRouter();
   const bases = unidadesBase(unidades);
   const [base, setBase] = useState(p?.UnidadBase ?? bases[0]?.Codigo ?? "");
-  const familia = unidadesDeFamilia(unidades, base);
+  const familia = unidadesDeFamilia(unidades, base, base); // incluye la base aunque esté no vigente
   const { state, pending, onSubmit } = useAccion(guardarProducto, {
     limpiarSiOk: !p,
     onOk: (r) => {

@@ -483,6 +483,14 @@ describe("precio desde la factura (migración 0016)", () => {
     await db.query(`update "UnidadesMedida" set "Factor"=24 where "Codigo"='CAJ12'`);
     expect(Number(await val(`select "Factor" from "UnidadesMedida" where "Codigo"='CAJ12'`))).toBe(24);
   });
+  it("no se puede desactivar una unidad que es base de productos o unidades vigentes", async () => {
+    await fails(`update "UnidadesMedida" set "IdEstado"=0 where "Codigo"='G'`, /productos o unidades vigentes que usan esta unidad como base/);
+    // una unidad sin uso sí se desactiva; Kilo no es base de nada
+    await db.query(`insert into "UnidadesMedida"("Codigo","Nombre","UnidadBase","Factor") values ('XB_E','Base sin uso','XB_E',1)`);
+    await db.query(`update "UnidadesMedida" set "IdEstado"=0 where "Codigo"='XB_E'`);
+    await db.query(`update "UnidadesMedida" set "IdEstado"=0 where "Codigo"='KG'`);
+    await db.query(`update "UnidadesMedida" set "IdEstado"=1 where "Codigo"='KG'`);
+  });
   it("Codigo es opcional pero único; Nombre es único", async () => {
     await nuevo("Sin codigo A", "G");
     await nuevo("Sin codigo B", "G");
