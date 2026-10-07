@@ -214,6 +214,11 @@ describe("unidades de medida: unidad base y factor", () => {
     expect(propsFormCatalogo(cfgU).base).toBe(true);
     expect(propsFormCatalogo(CATALOGOS.formatos).base).toBeUndefined();
   });
+  it("«Dónde se usa» cuenta productos por unidad base y líneas de factura", () => {
+    expect(cfgU.uso).toContainEqual(expect.objectContaining({ tabla: "Productos", columna: "UnidadBase" }));
+    expect(cfgU.uso).toContainEqual(expect.objectContaining({ tabla: "ComprasDetalle", columna: "UnidadMedida", singular: "línea", plural: "líneas" }));
+    expect(cfgU.uso).not.toContainEqual(expect.objectContaining({ tabla: "Productos", columna: "UnidadMedida" }));
+  });
   it("«Dónde se usa» cuenta también las unidades que la usan como base", () => {
     expect(cfgU.uso).toContainEqual(expect.objectContaining({ tabla: "UnidadesMedida", columna: "UnidadBase" }));
   });

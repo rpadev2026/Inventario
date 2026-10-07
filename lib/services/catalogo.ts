@@ -23,7 +23,8 @@ export type UsoCfg = { etiqueta: string; tabla: string; columna: string; singula
 export const CATALOGOS: Record<"formasPago" | "unidades" | "formatos" | "regiones" | "ciudades" | "comunas", CatalogoCfg> = {
   formasPago: { tabla: "FormasPago", id: "IdFormaPago", titulo: "Formas de pago", ruta: "/mantenedores/formas-pago", uso: [{ etiqueta: "Facturas de compra", tabla: "Compras", columna: "FormaPago", singular: "factura", plural: "facturas" }] },
   unidades: { tabla: "UnidadesMedida", id: "IdUnidadMedida", titulo: "Unidades de medida", ruta: "/mantenedores/unidades-medida", base: true, uso: [
-    { etiqueta: "Productos", tabla: "Productos", columna: "UnidadMedida", singular: "producto", plural: "productos", conEstado: true },
+    { etiqueta: "Productos", tabla: "Productos", columna: "UnidadBase", singular: "producto", plural: "productos", conEstado: true },
+    { etiqueta: "Líneas de factura", tabla: "ComprasDetalle", columna: "UnidadMedida", singular: "línea", plural: "líneas" },
     { etiqueta: "Unidades que la usan como base", tabla: "UnidadesMedida", columna: "UnidadBase", singular: "unidad", plural: "unidades" },
   ] },
   formatos: { tabla: "Formatos", id: "IdFormato", titulo: "Formatos", ruta: "/mantenedores/formatos", uso: [{ etiqueta: "Productos", tabla: "Productos", columna: "Formato", singular: "producto", plural: "productos", conEstado: true }] },

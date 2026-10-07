@@ -1,8 +1,8 @@
 import { normalizar } from "./buscar";
 
 export type ProductoFila = {
-  IdProducto: number; Codigo: string | null; Nombre: string; UnidadMedida: string; Formato: string;
-  PrecioCompra: number; UnidadBase: string; CostoUnitarioBase: number;
+  IdProducto: number; Codigo: string | null; Nombre: string; UnidadBase: string; Formato: string;
+  CostoUnitarioBase: number | null;
   StockMinimo: number; StockCritico: number; IdEstado: number;
 };
 
