@@ -19,6 +19,11 @@ export function filtrarDecimal(s: string, decimales: number): string {
   return ent + sep + dec;
 }
 
+/** Para precios en pesos: el punto se descarta (separador de miles, «1.500» = 1500) y la coma es el decimal. */
+export function filtrarDecimalComa(s: string, decimales: number): string {
+  return filtrarDecimal(s.replace(/\./g, ""), decimales);
+}
+
 /** Para usar al teclear el precio: hasta 2 decimales. */
 export function filtrarDecimal2(s: string): string {
   return filtrarDecimal(s, 2);

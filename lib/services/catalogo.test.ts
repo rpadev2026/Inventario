@@ -185,6 +185,14 @@ describe("unidades de medida: unidad base y factor", () => {
     expect(validarEntradaCatalogo(cfgU, fd({ ...base, unidadBase: "un", factor: "1,5" })).datos).toMatchObject({ unidadBase: "UN", factor: 1.5 });
     expect(validarEntradaCatalogo(cfgU, fd({ ...base, unidadBase: "UN", factor: "1000" })).datos?.factor).toBe(1000);
   });
+  it.each(["1.000", "1.500.000", "12.345"])("rechaza el factor %j: el punto como separador de miles se confunde con un decimal", (factor) => {
+    expect(validarEntradaCatalogo(cfgU, fd({ ...base, unidadBase: "UN", factor })).error).toBe("Factor: escriba 1000, sin separador de miles (decimales con coma)");
+  });
+  it("sigue aceptando decimales con punto de 1 a 2 dígitos y con coma de hasta 6", () => {
+    expect(validarEntradaCatalogo(cfgU, fd({ ...base, unidadBase: "UN", factor: "1.5" })).datos?.factor).toBe(1.5);
+    expect(validarEntradaCatalogo(cfgU, fd({ ...base, unidadBase: "UN", factor: "0,001" })).datos?.factor).toBe(0.001);
+    expect(validarEntradaCatalogo(cfgU, fd({ ...base, unidadBase: "UN", factor: "1,500" })).datos?.factor).toBe(1.5);
+  });
   it("unidad base vacía = la misma unidad, y entonces el factor debe ser 1", () => {
     expect(validarEntradaCatalogo(cfgU, fd({ ...base, unidadBase: "", factor: "1" })).datos).toMatchObject({ codigo: "CAJ12", unidadBase: "CAJ12", factor: 1 });
     expect(validarEntradaCatalogo(cfgU, fd({ ...base, unidadBase: "", factor: "12" })).error).toBe("Una unidad base debe tener factor 1");

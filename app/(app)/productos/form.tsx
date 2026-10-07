@@ -6,7 +6,7 @@ import Field from "@/components/app/field";
 import { guardarProducto } from "./actions";
 import { useState } from "react";
 import { opcionesCatalogo, type ItemCatalogo } from "@/lib/catalogo-opciones";
-import { filtrarDecimal2 } from "@/lib/numeros";
+import { filtrarDecimalComa } from "@/lib/numeros";
 
 export type Producto = {
   IdProducto: number; Codigo: string | null; Nombre: string; UnidadMedida: string; Formato: string;
@@ -43,8 +43,8 @@ export default function FormProducto({ p, unidades, formatos, volver, despuesDeG
         <Field label="Nombre" className="fld-3"><input name="nombre" defaultValue={p?.Nombre} required className="input" /></Field>
         <Field label="Unidad de medida"><select name="unidad" defaultValue={p?.UnidadMedida} className="input">{opcionesCatalogo(unidades, p?.UnidadMedida).map((o) => <option key={o.codigo} value={o.codigo}>{o.etiqueta}</option>)}</select></Field>
         <Field label="Formato"><select name="formato" defaultValue={p?.Formato} className="input">{opcionesCatalogo(formatos, p?.Formato).map((o) => <option key={o.codigo} value={o.codigo}>{o.etiqueta}</option>)}</select></Field>
-        <Field label="Precio de compra" hint="Por unidad de medida (hasta 2 decimales)">
-          <input name="precioCompra" value={precio} onChange={(e) => setPrecio(filtrarDecimal2(e.target.value))} type="text" inputMode="decimal" autoComplete="off" required className="input" />
+        <Field label="Precio de compra" hint="Por unidad de medida; decimales con coma, sin puntos (1500,50)">
+          <input name="precioCompra" value={precio} onChange={(e) => setPrecio(filtrarDecimalComa(e.target.value, 2))} type="text" inputMode="decimal" autoComplete="off" required className="input" />
         </Field>
         <Field label="Stock mínimo"><input name="stockMinimo" type="number" step="0.001" min="0" inputMode="decimal" defaultValue={p?.StockMinimo ?? 0} className="input" /></Field>
         <Field label="Stock crítico" hint="No puede superar al mínimo"><input name="stockCritico" type="number" step="0.001" min="0" inputMode="decimal" defaultValue={p?.StockCritico ?? 0} className="input" /></Field>

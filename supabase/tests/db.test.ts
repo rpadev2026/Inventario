@@ -431,4 +431,12 @@ describe("productos: costo base (migración 0013)", () => {
     }
     expect(Number(await val(`select count(*) from "Compras" where "Folio"=900`))).toBe(0);
   });
+  it("los mensajes de producto muestran código y nombre, no el id interno", async () => {
+    const id = Number(await val(`select "IdProducto" from "Productos" where "Nombre"='Inactivo'`));
+    await fails(`select crear_solicitud(2, 2, '[{"producto":${id},"cantidad":1}]'::jsonb)`, /Producto OFF — Inactivo no existe o no vigente/);
+    const sinCodigo = Number(await val(`select "IdProducto" from "Productos" where "Nombre"='Sin codigo A'`));
+    await db.query(`update "Productos" set "IdEstado"=0 where "IdProducto"=${sinCodigo}`);
+    await fails(`select crear_solicitud(2, 2, '[{"producto":${sinCodigo},"cantidad":1}]'::jsonb)`, /Producto Sin codigo A no existe o no vigente/);
+    await fails(`select crear_solicitud(2, 2, '[{"producto":999999,"cantidad":1}]'::jsonb)`, /Producto 999999 no existe o no vigente/);
+  });
 });

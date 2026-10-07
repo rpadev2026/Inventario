@@ -12,10 +12,14 @@ export const catalogoSchema = z.object({
 });
 
 export const MSG_FACTOR = "Factor: número mayor que 0 (hasta 6 decimales)";
+export const MSG_FACTOR_MILES = "Factor: escriba 1000, sin separador de miles (decimales con coma)";
 /** Unidades de medida: unidad base (vacía = la misma unidad) y factor de conversión a ella. */
 export const catalogoUnidadSchema = catalogoSchema.extend({
   unidadBase: z.string().trim().toUpperCase().max(30),
-  factor: z.string().trim().regex(/^\d+([.,]\d{1,6})?$/, MSG_FACTOR)
+  factor: z.string().trim()
+    // «1.000» en Chile es mil, pero se leería como 1: se rechaza para no guardar un factor equivocado.
+    .refine((v) => !/^\d{1,3}(\.\d{3})+$/.test(v), MSG_FACTOR_MILES)
+    .regex(/^\d+([.,]\d{1,6})?$/, MSG_FACTOR)
     .transform((v) => Number(v.replace(",", ".")))
     .refine((n) => n > 0, MSG_FACTOR),
 });
