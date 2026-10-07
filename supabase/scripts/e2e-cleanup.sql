@@ -67,12 +67,13 @@ begin
   delete from "StockBodega" where "IdProducto" = any(prod_ids) or "IdBodega" = any(b_ids);
   delete from "BodegaCentral" where "IdProveedor" = any(p_ids) or "IdProducto" = any(prod_ids);
   delete from "ComprasDetalle" where "IdProveedor" = any(p_ids) or "IdProducto" = any(prod_ids);
+  delete from "HistorialPreciosProducto"
+    where "IdProducto" = any(prod_ids) or "IdCompra" in (select "IdCompra" from "Compras" where "IdProveedor" = any(p_ids));
   delete from "Compras" where "IdProveedor" = any(p_ids);
 
   delete from "ProveedoresSucursales" where "IdProveedor" = any(p_ids);
   delete from "ProveedoresVendedores" where "IdProveedor" = any(p_ids);
   delete from "Proveedores" where "IdProveedor" = any(p_ids);
-  delete from "HistorialPreciosProducto" where "IdProducto" = any(prod_ids);
   delete from "Productos" where "IdProducto" = any(prod_ids);
   delete from "Bodegas" where "IdBodega" = any(b_ids);
 

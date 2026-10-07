@@ -3,8 +3,8 @@ import { filtrarProductos, type ProductoFila } from "./productos-filtro";
 
 let n = 0;
 const P = (Codigo: string | null, Nombre: string, IdEstado = 1): ProductoFila => ({
-  IdProducto: ++n, Codigo, Nombre, UnidadMedida: "KG", Formato: "CAJA", PrecioCompra: 1000, UnidadBase: "G",
-  CostoUnitarioBase: 1, StockMinimo: 10, StockCritico: 5, IdEstado,
+  IdProducto: ++n, Codigo, Nombre, UnidadBase: "G", Formato: "CAJA",
+  CostoUnitarioBase: n % 2 ? null : 1, StockMinimo: 10, StockCritico: 5, IdEstado,
 });
 const datos = [
   P("HAR-01", "Harina de trigo"), P("ACE-02", "Aceite de oliva"), P("AZU-03", "Azúcar flor", 0),

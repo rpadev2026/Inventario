@@ -9,19 +9,20 @@ import Icon from "@/components/app/icon";
 import { aplicarPreProducto, guardarBorrador, leerBorrador, limpiarBorrador, type Borrador } from "@/lib/borrador-factura";
 import { etiquetaProducto } from "@/lib/producto-etiqueta";
 import { calcularTotales } from "@/lib/factura-calculo";
+import { unidadDeLinea, unidadesDeFamilia, type UnidadInfo } from "@/lib/unidades";
 import { filtrarDecimal, filtrarDecimal2, parseCantidad, parseDecimal2, soloDigitos } from "@/lib/numeros";
 
 type Prov = { id: number; rut: string; nombre: string };
-type Prod = { id: number; codigo: string | null; nombre: string };
+type Prod = { id: number; codigo: string | null; nombre: string; unidadBase: string };
 type FormaPago = { codigo: string; nombre: string };
 type Linea = Borrador["lineas"][number];
 
 const MSG_RECEPCION = "La fecha de recepción no puede ser anterior a la fecha de factura";
-const lineaVacia = (): Linea => ({ producto: "", precio: "", cantidad: "" });
+const lineaVacia = (): Linea => ({ producto: "", unidad: "", precio: "", cantidad: "" });
 const clp = (n: number) => n.toLocaleString("es-CL", { style: "currency", currency: "CLP", maximumFractionDigits: 0 });
 
 export default function FormFactura(props: {
-  proveedores: Prov[]; productos: Prod[]; formasPago: FormaPago[]; preProveedor?: string; preProducto?: string;
+  proveedores: Prov[]; productos: Prod[]; unidades: UnidadInfo[]; formasPago: FormaPago[]; preProveedor?: string; preProducto?: string;
 }) {
   const router = useRouter();
   const [idProv, setIdProv] = useState("");
@@ -71,6 +72,11 @@ export default function FormFactura(props: {
 
   const setLinea = (i: number, k: keyof Linea, v: string) =>
     setLineas((ls) => ls.map((l, j) => (j === i ? { ...l, [k]: v } : l)));
+  // Unidad de la línea: la elegida o, mientras no se elija, la unidad base del producto.
+  const baseDe = (producto: string) => props.productos.find((p) => String(p.id) === producto)?.unidadBase ?? "";
+  const unidadDe = (l: Linea) => unidadDeLinea(props.unidades, baseDe(l.producto), l.unidad);
+  const cambiarProducto = (i: number, producto: string) =>
+    setLineas((ls) => ls.map((l, j) => (j === i ? { ...l, producto, unidad: "" } : l)));
 
   function cambiarFechaFactura(v: string) {
     setFechaFactura(v);
@@ -86,6 +92,7 @@ export default function FormFactura(props: {
     setError(null);
     if (recepcionAnterior) return;
     for (const [i, l] of lineas.entries()) {
+      if (!unidadDe(l)) return setError(`Línea ${i + 1}: elija el producto y su unidad de medida`);
       if (parseDecimal2(l.precio) === null) return setError(`Línea ${i + 1}: el precio debe ser un número con hasta 2 decimales`);
       if (parseCantidad(l.cantidad) === null) return setError(`Línea ${i + 1}: la cantidad debe ser un número mayor que 0 (hasta 3 decimales)`);
     }
@@ -93,7 +100,7 @@ export default function FormFactura(props: {
       const r = await registrarFactura({
         idProveedor: idProv, folio, fechaFactura, fechaRecepcion, formaPago,
         neto, iva, total,
-        detalle: lineas.map((l) => ({ producto: l.producto, precio: l.precio, cantidad: parseCantidad(l.cantidad) })),
+        detalle: lineas.map((l) => ({ producto: l.producto, unidad: unidadDe(l), precio: l.precio, cantidad: parseCantidad(l.cantidad) })),
       });
       if (r.error) setError(r.error);
       else {
@@ -137,8 +144,14 @@ export default function FormFactura(props: {
           <Link href="/productos?volver=/compras/nueva" onClick={guardarAntesDeSalir} className="link link-sm">+ Crear producto nuevo</Link>
         </div>
         {lineas.map((l, i) => (
-          <div key={i} className="line-grid line-grid-4">
-            <Combobox label="Producto" required opciones={opcionesProd} valor={l.producto} onCambio={(v) => setLinea(i, "producto", v)} placeholder="Busque por código o nombre" />
+          <div key={i} className="line-grid line-grid-5">
+            <Combobox label="Producto" required opciones={opcionesProd} valor={l.producto} onCambio={(v) => cambiarProducto(i, v)} placeholder="Busque por código o nombre" />
+            <Field label="Unidad de medida">
+              <select value={unidadDe(l)} onChange={(e) => setLinea(i, "unidad", e.target.value)} disabled={!l.producto} required className="input">
+                {!l.producto && <option value="">—</option>}
+                {unidadesDeFamilia(props.unidades, baseDe(l.producto), l.unidad).map((u) => <option key={u.Codigo} value={u.Codigo}>{u.Nombre}</option>)}
+              </select>
+            </Field>
             <Field label="Precio unitario (IVA incl.)">
               <input type="text" inputMode="decimal" autoComplete="off" value={l.precio} onChange={(e) => setLinea(i, "precio", filtrarDecimal2(e.target.value))} required className="input" />
             </Field>

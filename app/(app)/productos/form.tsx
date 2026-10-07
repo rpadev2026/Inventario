@@ -1,30 +1,33 @@
 "use client";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAccion } from "@/lib/use-accion";
 import { rutaVolverSegura } from "@/lib/volver";
 import Field from "@/components/app/field";
 import { guardarProducto } from "./actions";
-import { useState } from "react";
 import { opcionesCatalogo, type ItemCatalogo } from "@/lib/catalogo-opciones";
-import { filtrarDecimalComa } from "@/lib/numeros";
+import { unidadesBase, unidadesDeFamilia, type UnidadInfo } from "@/lib/unidades";
 
 export type Producto = {
-  IdProducto: number; Codigo: string | null; Nombre: string; UnidadMedida: string; Formato: string;
-  PrecioCompra: number; UnidadBase: string; CostoUnitarioBase: number;
-  StockMinimo: number; StockCritico: number; IdEstado: number;
+  IdProducto: number; Codigo: string | null; Nombre: string; UnidadBase: string; Formato: string;
+  CostoUnitarioBase: number | null; StockMinimo: number; StockCritico: number; IdEstado: number;
 };
 
 type Props = {
-  p?: Producto; unidades: ItemCatalogo[]; formatos: ItemCatalogo[];
+  p?: Producto; unidades: UnidadInfo[]; formatos: ItemCatalogo[];
+  /** El producto ya tiene stock o facturas: su unidad base no se puede cambiar. */
+  unidadBaseBloqueada?: boolean;
   /** Ruta de origen (p. ej. la factura): al crear, vuelve ahí con el producto elegido. */
   volver?: string;
   /** Si no hay ruta de origen, al guardar bien se va a esta ruta (el listado, con el aviso). */
   despuesDeGuardar?: string;
 };
 
-export default function FormProducto({ p, unidades, formatos, volver, despuesDeGuardar }: Props) {
+export default function FormProducto({ p, unidades, formatos, unidadBaseBloqueada, volver, despuesDeGuardar }: Props) {
   const router = useRouter();
-  const [precio, setPrecio] = useState(p ? String(p.PrecioCompra).replace(".", ",") : "");
+  const bases = unidadesBase(unidades);
+  const [base, setBase] = useState(p?.UnidadBase ?? bases[0]?.Codigo ?? "");
+  const familia = unidadesDeFamilia(unidades, base, base); // incluye la base aunque esté no vigente
   const { state, pending, onSubmit } = useAccion(guardarProducto, {
     limpiarSiOk: !p,
     onOk: (r) => {
@@ -34,6 +37,20 @@ export default function FormProducto({ p, unidades, formatos, volver, despuesDeG
       else if (despuesDeGuardar) router.push(despuesDeGuardar);
     },
   });
+  // Opciones de la unidad base: las unidades base vigentes (y la actual del producto aunque esté inactiva).
+  const opcionesBase = bases.some((u) => u.Codigo === p?.UnidadBase) || !p ? bases : [...bases, ...unidades.filter((u) => u.Codigo === p.UnidadBase)];
+
+  const campoStock = (nombre: "stockMinimo" | "stockCritico", unidad: "unidadMinimo" | "unidadCritico", etiqueta: string, valor: number | undefined, ayuda?: string) => (
+    <Field label={etiqueta} hint={ayuda}>
+      <div className="flex gap-2">
+        <input name={nombre} type="number" step="0.001" min="0" inputMode="decimal" defaultValue={valor ?? 0} className="input" />
+        <select key={base} name={unidad} defaultValue={base} aria-label={`Unidad de ${etiqueta.toLowerCase()}`} className="input">
+          {familia.map((u) => <option key={u.Codigo} value={u.Codigo}>{u.Nombre}</option>)}
+        </select>
+      </div>
+    </Field>
+  );
+
   return (
     <form onSubmit={onSubmit} className="grid gap-4">
       <input type="hidden" name="modo" value={p ? "editar" : "crear"} />
@@ -41,13 +58,15 @@ export default function FormProducto({ p, unidades, formatos, volver, despuesDeG
       <div className="form-grid form-grid-4">
         <Field label="Código" hint="Opcional"><input name="codigo" defaultValue={p?.Codigo ?? ""} maxLength={40} className="input" /></Field>
         <Field label="Nombre" className="fld-3"><input name="nombre" defaultValue={p?.Nombre} required className="input" /></Field>
-        <Field label="Unidad de medida"><select name="unidad" defaultValue={p?.UnidadMedida} className="input">{opcionesCatalogo(unidades, p?.UnidadMedida).map((o) => <option key={o.codigo} value={o.codigo}>{o.etiqueta}</option>)}</select></Field>
-        <Field label="Formato"><select name="formato" defaultValue={p?.Formato} className="input">{opcionesCatalogo(formatos, p?.Formato).map((o) => <option key={o.codigo} value={o.codigo}>{o.etiqueta}</option>)}</select></Field>
-        <Field label="Precio de compra" hint="Por unidad de medida; decimales con coma, sin puntos (1500,50)">
-          <input name="precioCompra" value={precio} onChange={(e) => setPrecio(filtrarDecimalComa(e.target.value, 2))} type="text" inputMode="decimal" autoComplete="off" required className="input" />
+        <Field label="Unidad base" hint={unidadBaseBloqueada ? "No se puede cambiar: el producto ya tiene stock o facturas" : "Unidad en que se lleva su stock y su costo"}>
+          <select name="unidadBase" value={base} onChange={(e) => setBase(e.target.value)} disabled={unidadBaseBloqueada} required className="input">
+            {opcionesBase.map((u) => <option key={u.Codigo} value={u.Codigo}>{u.Nombre}</option>)}
+          </select>
+          {unidadBaseBloqueada && <input type="hidden" name="unidadBase" value={base} />}
         </Field>
-        <Field label="Stock mínimo"><input name="stockMinimo" type="number" step="0.001" min="0" inputMode="decimal" defaultValue={p?.StockMinimo ?? 0} className="input" /></Field>
-        <Field label="Stock crítico" hint="No puede superar al mínimo"><input name="stockCritico" type="number" step="0.001" min="0" inputMode="decimal" defaultValue={p?.StockCritico ?? 0} className="input" /></Field>
+        <Field label="Formato"><select name="formato" defaultValue={p?.Formato} className="input">{opcionesCatalogo(formatos, p?.Formato).map((o) => <option key={o.codigo} value={o.codigo}>{o.etiqueta}</option>)}</select></Field>
+        {campoStock("stockMinimo", "unidadMinimo", "Stock mínimo", p?.StockMinimo)}
+        {campoStock("stockCritico", "unidadCritico", "Stock crítico", p?.StockCritico, "No puede superar al mínimo")}
         <Field label="Estado"><select name="estado" defaultValue={p?.IdEstado ?? 1} className="input"><option value={1}>Vigente</option><option value={0}>No vigente</option></select></Field>
       </div>
       <div className="form-actions">

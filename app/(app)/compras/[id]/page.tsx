@@ -29,7 +29,7 @@ export default async function FacturaPage({ params }: { params: Promise<{ id: st
 
   const [{ data: det }, formas, unidades, formatos] = await Promise.all([
     db.from("ComprasDetalle")
-      .select("IdDetalle,IdProducto,Precio,Cantidad,Total,Productos!inner(Codigo,Nombre,UnidadMedida,Formato)")
+      .select("IdDetalle,IdProducto,UnidadMedida,Precio,Cantidad,Total,Productos!inner(Codigo,Nombre,Formato)")
       .eq("IdProveedor", c.IdProveedor).eq("Folio", c.Folio).order("IdDetalle").returns<any[]>(),
     mapaNombres("FormasPago"), mapaNombres("UnidadesMedida"), mapaNombres("Formatos"),
   ]);
@@ -79,7 +79,7 @@ export default async function FacturaPage({ params }: { params: Promise<{ id: st
                   <td>{l.Productos.Codigo ?? "—"}</td>
                   <td>{l.Productos.Nombre}</td>
                   <td>{formatos.get(l.Productos.Formato) ?? l.Productos.Formato}</td>
-                  <td>{unidades.get(l.Productos.UnidadMedida) ?? l.Productos.UnidadMedida}</td>
+                  <td>{unidades.get(l.UnidadMedida) ?? l.UnidadMedida}</td>
                   <td className="num">{cant.format(Number(l.Cantidad))}</td>
                   <td className="num">{clp.format(Number(l.Precio))}</td>
                   <td className="num">{clp.format(Number(l.Total))}</td>

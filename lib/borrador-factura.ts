@@ -4,7 +4,7 @@ export type Borrador = {
   fechaFactura: string;
   fechaRecepcion: string;
   formaPago: string;
-  lineas: { producto: string; precio: string; cantidad: string }[];
+  lineas: { producto: string; unidad: string; precio: string; cantidad: string }[];
 };
 
 const CLAVE = "borrador-factura";
@@ -21,7 +21,7 @@ function esBorrador(x: unknown): x is Borrador {
   return o.lineas.every((l) => {
     if (typeof l !== "object" || l === null || Array.isArray(l)) return false;
     const r = l as Record<string, unknown>;
-    return esTexto(r.producto) && esTexto(r.precio) && esTexto(r.cantidad);
+    return esTexto(r.producto) && esTexto(r.unidad) && esTexto(r.precio) && esTexto(r.cantidad);
   });
 }
 
@@ -45,7 +45,7 @@ export function leerBorrador(): Borrador | null {
       fechaFactura: dato.fechaFactura,
       fechaRecepcion: dato.fechaRecepcion,
       formaPago: dato.formaPago,
-      lineas: dato.lineas.map((l) => ({ producto: l.producto, precio: l.precio, cantidad: l.cantidad })),
+      lineas: dato.lineas.map((l) => ({ producto: l.producto, unidad: l.unidad, precio: l.precio, cantidad: l.cantidad })),
     };
   } catch {
     return null;
@@ -65,6 +65,6 @@ type LineaBorrador = Borrador["lineas"][number];
 /** Pone `producto` (IdProducto) en la primera línea sin producto; si todas tienen, agrega una línea nueva. No muta la entrada. */
 export function aplicarPreProducto(lineas: LineaBorrador[], producto: string): LineaBorrador[] {
   const i = lineas.findIndex((l) => l.producto === "");
-  if (i === -1) return [...lineas, { producto, precio: "", cantidad: "" }];
+  if (i === -1) return [...lineas, { producto, unidad: "", precio: "", cantidad: "" }];
   return lineas.map((l, j) => (j === i ? { ...l, producto } : l));
 }

@@ -59,17 +59,21 @@ const precio = z.union([z.number(), z.string()]).transform((v, ctx) => {
   return n;
 });
 
-const PRECIO_COMPRA_MAX = 9_999_999_999.99; // numeric(12,2)
+/** Unidad opcional de un campo de stock («5» + «Kilo»): vacía = la unidad base del producto. */
+const unidadOpcional = z.string().trim().toUpperCase().optional().transform((v) => v || undefined).pipe(codigoCatalogo.optional());
+
 export const productoSchema = z.object({
   id: z.coerce.number().int().positive().optional(),
   // El código es opcional: vacío o solo espacios = no informado (se guarda null).
   codigo: z.string().trim().max(40).optional().transform((v) => v || undefined)
     .pipe(z.string().regex(/^[A-Za-z0-9._-]+$/, "Código: solo letras, números, . _ -").optional()),
   nombre: txt().min(1, "Nombre requerido"),
-  unidad: codigoCatalogo, formato: codigoCatalogo,
-  precioCompra: precio.refine((n) => n <= PRECIO_COMPRA_MAX, "Precio de compra demasiado alto"),
-  stockMinimo: z.coerce.number().min(0), stockCritico: z.coerce.number().min(0), estado,
-}).refine((p) => p.stockCritico <= p.stockMinimo, { message: "El stock crítico no puede superar al mínimo", path: ["stockCritico"] });
+  unidadBase: codigoCatalogo, formato: codigoCatalogo,
+  // El stock se escribe en cualquier unidad de la familia; la acción lo convierte a unidad base y compara.
+  stockMinimo: z.coerce.number().min(0), unidadMinimo: unidadOpcional,
+  stockCritico: z.coerce.number().min(0), unidadCritico: unidadOpcional,
+  estado,
+});
 
 export const facturaSchema = z.object({
   idProveedor: z.coerce.number().int().positive(),
@@ -78,7 +82,7 @@ export const facturaSchema = z.object({
   formaPago: codigoCatalogo,
   neto: z.coerce.number().min(0), iva: z.coerce.number().min(0), total: z.coerce.number().min(0),
   detalle: z.array(z.object({
-    producto: z.coerce.number().int().positive(), precio, cantidad: z.coerce.number().positive(),
+    producto: z.coerce.number().int().positive(), unidad: codigoCatalogo, precio, cantidad: z.coerce.number().positive(),
   })).min(1, "Agregue al menos un producto").max(200),
 }).refine((f) => Math.abs(f.neto + f.iva - f.total) <= 1, { message: "Neto + IVA debe igualar el Total", path: ["total"] })
   // El precio de cada línea ya incluye IVA: el detalle debe sumar el total.

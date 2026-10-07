@@ -185,7 +185,7 @@ body { background: var(--bg); color: var(--text); font-family: var(--font-body);
   /* Línea de detalle (producto + cantidades): apilada en celular, en fila desde 640 px */
   .line-grid { display: grid; gap: .5rem; align-items: end; grid-template-columns: 1fr auto; padding-bottom: .75rem; border-bottom: 1px dashed var(--border-strong); }
   .line-grid > :first-child { grid-column: 1 / -1; }
-  @media (min-width: 640px) { .line-grid { padding-bottom: 0; border-bottom: 0; } .line-grid-3 { grid-template-columns: minmax(0, 1fr) 8rem auto; } .line-grid-4 { grid-template-columns: minmax(0, 1fr) 8rem 8rem auto; } .line-grid > :first-child { grid-column: auto; } }
+  @media (min-width: 640px) { .line-grid { padding-bottom: 0; border-bottom: 0; } .line-grid-3 { grid-template-columns: minmax(0, 1fr) 8rem auto; } .line-grid-4 { grid-template-columns: minmax(0, 1fr) 8rem 8rem auto; } .line-grid-5 { grid-template-columns: minmax(0, 1fr) 9rem 8rem 8rem auto; } .line-grid > :first-child { grid-column: auto; } }
 
   /* ───────── Tablas (con desplazamiento horizontal en pantallas estrechas) ───────── */
   .table-wrap { overflow-x: auto; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); }

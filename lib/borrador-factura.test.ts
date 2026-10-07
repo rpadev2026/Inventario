@@ -6,7 +6,7 @@ let almacen: Map<string, string>;
 
 const valido: Borrador = {
   idProv: "3", folio: "123", fechaFactura: "2026-10-01", fechaRecepcion: "2026-10-02", formaPago: "CONTADO",
-  lineas: [{ producto: "7", precio: "1,5", cantidad: "10" }],
+  lineas: [{ producto: "7", unidad: "KG", precio: "1,5", cantidad: "10" }],
 };
 
 beforeEach(() => {
@@ -51,17 +51,17 @@ describe("borrador de factura", () => {
 
 describe("aplicarPreProducto", () => {
   it("usa la primera línea sin producto", () => {
-    const ls = [{ producto: "A", precio: "1", cantidad: "2" }, { producto: "", precio: "5", cantidad: "" }];
+    const ls = [{ producto: "A", unidad: "KG", precio: "1", cantidad: "2" }, { producto: "", unidad: "KG", precio: "5", cantidad: "" }];
     expect(aplicarPreProducto(ls, "E2E-1")).toEqual([
-      { producto: "A", precio: "1", cantidad: "2" },
-      { producto: "E2E-1", precio: "5", cantidad: "" },
+      { producto: "A", unidad: "KG", precio: "1", cantidad: "2" },
+      { producto: "E2E-1", unidad: "KG", precio: "5", cantidad: "" },
     ]);
     expect(ls[1].producto).toBe("");
   });
   it("agrega una línea nueva si todas tienen producto", () => {
-    expect(aplicarPreProducto([{ producto: "A", precio: "1", cantidad: "2" }], "B")).toEqual([
-      { producto: "A", precio: "1", cantidad: "2" },
-      { producto: "B", precio: "", cantidad: "" },
+    expect(aplicarPreProducto([{ producto: "A", unidad: "KG", precio: "1", cantidad: "2" }], "B")).toEqual([
+      { producto: "A", unidad: "KG", precio: "1", cantidad: "2" },
+      { producto: "B", unidad: "", precio: "", cantidad: "" },
     ]);
   });
 });
@@ -69,6 +69,13 @@ describe("aplicarPreProducto", () => {
 describe("borrador con el formato viejo (codigo)", () => {
   it("se ignora sin romper", () => {
     almacen.set(CLAVE, JSON.stringify({ ...valido, lineas: [{ codigo: "HAR-001", precio: "1", cantidad: "2" }] }));
+    expect(leerBorrador()).toBeNull();
+  });
+});
+
+describe("borrador sin unidad (formato anterior a la unidad por línea)", () => {
+  it("se ignora sin romper", () => {
+    almacen.set(CLAVE, JSON.stringify({ ...valido, lineas: [{ producto: "7", precio: "1", cantidad: "2" }] }));
     expect(leerBorrador()).toBeNull();
   });
 });

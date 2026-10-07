@@ -3,7 +3,8 @@ import { db } from "@/lib/db/supabase";
 import { requerirPaginaPermiso } from "@/lib/auth/session";
 import { tienePermiso } from "@/lib/auth/permisos";
 import { rutaVolverSegura } from "@/lib/volver";
-import { cargarCatalogo } from "@/lib/catalogo-nombres";
+import { cargarCatalogo, cargarUnidades } from "@/lib/catalogo-nombres";
+import { productoTieneMovimientos } from "@/lib/services/productos";
 import { paginar } from "@/lib/paginacion";
 import { leerEstado } from "@/lib/filtro-estado";
 import { filtrarProductos, type ProductoFila } from "@/lib/productos-filtro";
@@ -18,12 +19,13 @@ type Params = Record<string, string | string[] | undefined>;
 const texto = (v: string | string[] | undefined) => (typeof v === "string" && v !== "" ? v : undefined);
 const tono = { Crítico: "danger", Bajo: "warn", OK: "ok" } as const;
 const AVISOS: Record<string, string> = { creado: "Producto creado correctamente", editado: "Cambios guardados correctamente" };
-const COLS = "IdProducto,Codigo,Nombre,UnidadMedida,Formato,PrecioCompra,UnidadBase,CostoUnitarioBase,StockMinimo,StockCritico,IdEstado";
+const COLS = "IdProducto,Codigo,Nombre,UnidadBase,Formato,CostoUnitarioBase,StockMinimo,StockCritico,IdEstado";
 const idValido = (v: string | undefined) => (v && /^[1-9]\d{0,14}$/.test(v) ? Number(v) : undefined);
 const clpEntero = new Intl.NumberFormat("es-CL", { style: "currency", currency: "CLP", maximumFractionDigits: 0 });
 const clpDecimal = new Intl.NumberFormat("es-CL", { style: "currency", currency: "CLP", minimumFractionDigits: 2, maximumFractionDigits: 2 });
 /** Precio en pesos: sin decimales si es entero («$2.500»), con dos si no («$3.500,50»). */
 const clp = { format: (n: number) => (Number.isInteger(n) ? clpEntero : clpDecimal).format(n) };
+const fecha = (iso: string) => new Date(iso).toLocaleString("es-CL", { dateStyle: "short", timeStyle: "short" });
 const clpBase = new Intl.NumberFormat("es-CL", { style: "currency", currency: "CLP", maximumFractionDigits: 6 });
 
 /** URL de /productos con solo los parámetros indicados (los undefined se omiten). */
@@ -53,8 +55,9 @@ export default async function ProductosPage({ searchParams }: { searchParams: Pr
   const base = { pagina: texto(sp.pagina), tam: texto(sp.tam), q, estado: estadoPedido };
   const volverListado = href(base);
 
-  const [unidades, formatos] = await Promise.all([cargarCatalogo("UnidadesMedida"), cargarCatalogo("Formatos")]);
+  const [unidades, formatos] = await Promise.all([cargarUnidades(), cargarCatalogo("Formatos")]);
   const nombreUnidad = new Map(unidades.map((i) => [i.Codigo, i.Nombre]));
+  const puedeVerCompras = tienePermiso(sesion.permisos, "compras.ver");
   const nombreFormato = new Map(formatos.map((i) => [i.Codigo, i.Nombre]));
 
   // ===== Crear: solo el formulario, con Volver (a la factura si se vino de ella) =====
@@ -79,6 +82,7 @@ export default async function ProductosPage({ searchParams }: { searchParams: Pr
 
   // ===== Editar: solo el formulario del producto, con Volver =====
   if (idEditar && sel) {
+    const bloqueada = await productoTieneMovimientos(sel.IdProducto);
     return (
       <section className="space-y-4">
         <div className="page-head">
@@ -86,7 +90,7 @@ export default async function ProductosPage({ searchParams }: { searchParams: Pr
           <Link href={volverListado} className="btn btn-secondary">Volver</Link>
         </div>
         <div className="card">
-          <FormProducto key={sel.IdProducto} p={sel} unidades={unidades} formatos={formatos} despuesDeGuardar={href({ ...base, aviso: "editado" })} />
+          <FormProducto key={sel.IdProducto} p={sel} unidades={unidades} formatos={formatos} unidadBaseBloqueada={bloqueada} despuesDeGuardar={href({ ...base, aviso: "editado" })} />
         </div>
       </section>
     );
@@ -98,15 +102,18 @@ export default async function ProductosPage({ searchParams }: { searchParams: Pr
     const pgS = paginar({ pagina: sp.ppagina, tam: sp.ptam }, count ?? 0);
     const { data } = await db.from("StockBodega").select("IdBodega,Cantidad,Bodegas!inner(NombreBodega)")
       .eq("IdProducto", sel.IdProducto).order("IdBodega").range(pgS.from, pgS.to).returns<any[]>();
-    // Historial de cambios del precio de compra (el más reciente primero), paginado aparte del stock.
+    // Historial del costo (el más reciente primero), paginado aparte del stock.
     const { count: nHist } = await db.from("HistorialPreciosProducto").select("IdHistorial", { count: "exact", head: true }).eq("IdProducto", sel.IdProducto);
     const pgH = paginar({ pagina: sp.hpagina, tam: sp.htam }, nHist ?? 0);
     const { data: dataH } = await db.from("HistorialPreciosProducto")
-      .select("IdHistorial,PrecioAnterior,PrecioNuevo,FechaRegistro,Usuarios!HistorialPreciosProducto_IdUsuario_fkey(Nombres,Apellidos)")
+      .select("IdHistorial,IdCompra,Origen,Anulada,Precio,UnidadMedida,CostoBaseAnterior,CostoBaseNuevo,FechaRegistro,Compras(Folio),Usuarios!HistorialPreciosProducto_IdUsuario_fkey(Nombres,Apellidos)")
       .eq("IdProducto", sel.IdProducto).order("IdHistorial", { ascending: false }).range(pgH.from, pgH.to).returns<any[]>();
     const historial = (dataH ?? []).map((h) => ({
-      id: h.IdHistorial as number, anterior: h.PrecioAnterior === null ? null : Number(h.PrecioAnterior), nuevo: Number(h.PrecioNuevo),
-      fecha: new Date(h.FechaRegistro).toLocaleString("es-CL", { dateStyle: "short", timeStyle: "short" }),
+      id: h.IdHistorial as number, idCompra: h.IdCompra as number, folio: h.Compras?.Folio as number | undefined,
+      origen: h.Origen as string, anulada: !!h.Anulada,
+      precio: h.Precio === null ? null : `${clp.format(Number(h.Precio))} por ${nombreUnidad.get(h.UnidadMedida) ?? h.UnidadMedida}`,
+      anterior: h.CostoBaseAnterior === null ? null : Number(h.CostoBaseAnterior), nuevo: h.CostoBaseNuevo === null ? null : Number(h.CostoBaseNuevo),
+      fecha: fecha(h.FechaRegistro),
       usuario: h.Usuarios ? `${h.Usuarios.Nombres} ${h.Usuarios.Apellidos}` : "—",
     }));
     const stock = (data ?? []).map((r) => {
@@ -123,12 +130,10 @@ export default async function ProductosPage({ searchParams }: { searchParams: Pr
         <div className="card">
           <div className="form-grid form-grid-4">
             <Dato titulo="Código">{sel.Codigo}</Dato>
-            <Dato titulo="Unidad de medida">{nombreUnidad.get(sel.UnidadMedida) ?? sel.UnidadMedida}</Dato>
+            <Dato titulo="Unidad base">{nombreUnidad.get(sel.UnidadBase) ?? sel.UnidadBase}</Dato>
             <Dato titulo="Formato">{nombreFormato.get(sel.Formato) ?? sel.Formato}</Dato>
             <Dato titulo="Estado"><Badge tone={sel.IdEstado === 1 ? "ok" : "neutral"}>{sel.IdEstado === 1 ? "Vigente" : "No vigente"}</Badge></Dato>
-            <Dato titulo="Precio de compra">{`${clp.format(Number(sel.PrecioCompra))} por ${nombreUnidad.get(sel.UnidadMedida) ?? sel.UnidadMedida}`}</Dato>
-            <Dato titulo="Unidad base">{nombreUnidad.get(sel.UnidadBase) ?? sel.UnidadBase}</Dato>
-            <Dato titulo="Costo unitario base">{`${clpBase.format(Number(sel.CostoUnitarioBase))} por ${nombreUnidad.get(sel.UnidadBase) ?? sel.UnidadBase}`}</Dato>
+            <Dato titulo="Costo unitario base (con IVA)">{sel.CostoUnitarioBase === null ? "" : `${clpBase.format(Number(sel.CostoUnitarioBase))} por ${nombreUnidad.get(sel.UnidadBase) ?? sel.UnidadBase}`}</Dato>
             <Dato titulo="Stock mínimo">{String(sel.StockMinimo)}</Dato>
             <Dato titulo="Stock crítico">{String(sel.StockCritico)}</Dato>
           </div>
@@ -142,7 +147,7 @@ export default async function ProductosPage({ searchParams }: { searchParams: Pr
                 <tr key={r.id}>
                   <td>{r.bodega}</td>
                   <td className="num">{r.cant}</td>
-                  <td>{nombreUnidad.get(sel.UnidadMedida) ?? sel.UnidadMedida}</td>
+                  <td>{nombreUnidad.get(sel.UnidadBase) ?? sel.UnidadBase}</td>
                   <td><Badge tone={tono[r.nivel]}>{r.nivel}</Badge></td>
                 </tr>
               ))}
@@ -151,24 +156,32 @@ export default async function ProductosPage({ searchParams }: { searchParams: Pr
           </table>
         </div>
         <Paginador pg={pgS} paramPagina="ppagina" paramTam="ptam" etiqueta="stock por bodega" />
-        <h2 className="section-title">Historial de precios de compra</h2>
+        <h2 className="section-title">Historial del costo de compra</h2>
         <div className="table-wrap">
           <table className="table">
-            <thead><tr><th>Fecha</th><th className="num">Precio anterior</th><th className="num">Precio nuevo</th><th>Usuario</th></tr></thead>
+            <thead><tr><th>Fecha</th><th>Origen</th><th>Factura</th><th>Precio de la línea (IVA incl.)</th><th className="num">Costo base anterior</th><th className="num">Costo base nuevo</th><th>Usuario</th></tr></thead>
             <tbody>
               {historial.map((h) => (
                 <tr key={h.id}>
                   <td>{h.fecha}</td>
-                  <td className="num">{h.anterior === null ? "—" : clp.format(h.anterior)}</td>
-                  <td className="num">{clp.format(h.nuevo)}</td>
+                  <td>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <Badge tone={h.origen === "Compra" ? "ok" : "warn"}>{h.origen}</Badge>
+                      {h.anulada && <Badge tone="neutral">Anulada</Badge>}
+                    </div>
+                  </td>
+                  <td>{puedeVerCompras ? <Link className="link link-sm" href={`/compras/${h.idCompra}`}>Folio {h.folio ?? h.idCompra}</Link> : `Folio ${h.folio ?? h.idCompra}`}</td>
+                  <td>{h.precio ?? "—"}</td>
+                  <td className="num">{h.anterior === null ? "—" : clpBase.format(h.anterior)}</td>
+                  <td className="num">{h.nuevo === null ? "—" : clpBase.format(h.nuevo)}</td>
                   <td>{h.usuario}</td>
                 </tr>
               ))}
-              {!historial.length && <tr><td colSpan={4} className="text-muted">Sin cambios de precio registrados.</td></tr>}
+              {!historial.length && <tr><td colSpan={7} className="text-muted">Sin compras registradas: el costo se define con la primera factura.</td></tr>}
             </tbody>
           </table>
         </div>
-        <Paginador pg={pgH} paramPagina="hpagina" paramTam="htam" etiqueta="historial de precios" />
+        <Paginador pg={pgH} paramPagina="hpagina" paramTam="htam" etiqueta="historial del costo" />
       </section>
     );
   }
@@ -207,7 +220,7 @@ export default async function ProductosPage({ searchParams }: { searchParams: Pr
               {lista.map((p) => (
                 <tr key={p.IdProducto}>
                   <td>{p.Codigo ?? "—"}</td><td>{p.Nombre}</td>
-                  <td>{nombreUnidad.get(p.UnidadMedida) ?? p.UnidadMedida}</td><td>{nombreFormato.get(p.Formato) ?? p.Formato}</td>
+                  <td>{nombreUnidad.get(p.UnidadBase) ?? p.UnidadBase}</td><td>{nombreFormato.get(p.Formato) ?? p.Formato}</td>
                   <td className="num">{p.StockMinimo}</td><td className="num">{p.StockCritico}</td>
                   <td><Badge tone={p.IdEstado === 1 ? "ok" : "neutral"}>{p.IdEstado === 1 ? "Vigente" : "No vigente"}</Badge></td>
                   <td>
