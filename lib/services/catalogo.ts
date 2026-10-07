@@ -1,6 +1,6 @@
 import { revalidatePath } from "next/cache";
 import { db } from "../db/supabase";
-import { catalogoSchema } from "../validation/catalogo";
+import { catalogoSchema, catalogoUnidadSchema } from "../validation/catalogo";
 import { textoUso } from "../uso";
 
 export type CatalogoCfg = {
@@ -11,6 +11,8 @@ export type CatalogoCfg = {
   patronCodigo?: RegExp;
   ayudaCodigo?: string;
   padre?: { columna: "CodigoRegion" | "CodigoProvincia"; tabla: "Regiones" | "Provincias"; etiqueta: "Región" | "Ciudad (provincia)" };
+  /** Solo unidades de medida: el registro lleva unidad base y factor de conversión. */
+  base?: true;
   /** Dónde se usa cada registro (para mostrarlo en «Ver» antes de desactivarlo). */
   uso?: UsoCfg[];
 };
@@ -20,7 +22,10 @@ export type UsoCfg = { etiqueta: string; tabla: string; columna: string; singula
 
 export const CATALOGOS: Record<"formasPago" | "unidades" | "formatos" | "regiones" | "ciudades" | "comunas", CatalogoCfg> = {
   formasPago: { tabla: "FormasPago", id: "IdFormaPago", titulo: "Formas de pago", ruta: "/mantenedores/formas-pago", uso: [{ etiqueta: "Facturas de compra", tabla: "Compras", columna: "FormaPago", singular: "factura", plural: "facturas" }] },
-  unidades: { tabla: "UnidadesMedida", id: "IdUnidadMedida", titulo: "Unidades de medida", ruta: "/mantenedores/unidades-medida", uso: [{ etiqueta: "Productos", tabla: "Productos", columna: "UnidadMedida", singular: "producto", plural: "productos", conEstado: true }] },
+  unidades: { tabla: "UnidadesMedida", id: "IdUnidadMedida", titulo: "Unidades de medida", ruta: "/mantenedores/unidades-medida", base: true, uso: [
+    { etiqueta: "Productos", tabla: "Productos", columna: "UnidadMedida", singular: "producto", plural: "productos", conEstado: true },
+    { etiqueta: "Unidades que la usan como base", tabla: "UnidadesMedida", columna: "UnidadBase", singular: "unidad", plural: "unidades" },
+  ] },
   formatos: { tabla: "Formatos", id: "IdFormato", titulo: "Formatos", ruta: "/mantenedores/formatos", uso: [{ etiqueta: "Productos", tabla: "Productos", columna: "Formato", singular: "producto", plural: "productos", conEstado: true }] },
   regiones: {
     tabla: "Regiones", id: "IdRegion", titulo: "Regiones", ruta: "/mantenedores/regiones",
@@ -57,20 +62,25 @@ export type PropsFormCatalogo = {
   codigoNumerico: boolean;
   ayudaCodigo?: string;
   padre?: { columna: "CodigoRegion" | "CodigoProvincia"; etiqueta: string };
+  base?: boolean;
 };
 
 export function propsFormCatalogo(cfg: CatalogoCfg): PropsFormCatalogo {
   const props: PropsFormCatalogo = { codigoNumerico: !!cfg.patronCodigo };
   if (cfg.ayudaCodigo) props.ayudaCodigo = cfg.ayudaCodigo;
   if (cfg.padre) props.padre = { columna: cfg.padre.columna, etiqueta: cfg.padre.etiqueta };
+  if (cfg.base) props.base = true;
   return props;
 }
 
-type Datos = { codigo: string; nombre: string; estado: number; padre?: string };
+type Datos = { codigo: string; nombre: string; estado: number; padre?: string; unidadBase?: string; factor?: number };
 
 /** Fila a persistir. Al editar nunca incluye `Codigo` ni el padre (inmutables). */
 export function prepararFila(cfg: CatalogoCfg, d: Datos, uid: number, editando: boolean) {
-  const base = { Nombre: d.nombre, IdEstado: d.estado, IdUsuarioModificacion: uid };
+  const base = {
+    Nombre: d.nombre, IdEstado: d.estado, IdUsuarioModificacion: uid,
+    ...(cfg.base && d.unidadBase !== undefined ? { UnidadBase: d.unidadBase, Factor: d.factor } : {}),
+  };
   if (editando) return base;
   return {
     Codigo: d.codigo,
@@ -82,8 +92,16 @@ export function prepararFila(cfg: CatalogoCfg, d: Datos, uid: number, editando: 
 
 /** Validación previa pura (sin BD). */
 export function validarEntradaCatalogo(cfg: CatalogoCfg, fd: FormData): { error?: string; datos?: Datos } {
-  const p = catalogoSchema.safeParse(Object.fromEntries(fd));
+  const p = (cfg.base ? catalogoUnidadSchema : catalogoSchema).safeParse(Object.fromEntries(fd));
   if (!p.success) return { error: p.error.issues[0].message };
+  const datosBase: Pick<Datos, "unidadBase" | "factor"> = {};
+  if (cfg.base) {
+    const u = p.data as unknown as { codigo: string; unidadBase: string; factor: number };
+    const unidadBase = u.unidadBase || u.codigo; // vacía = es su propia unidad base
+    if (unidadBase === u.codigo && u.factor !== 1) return { error: "Una unidad base debe tener factor 1" };
+    datosBase.unidadBase = unidadBase;
+    datosBase.factor = u.factor;
+  }
   if (cfg.patronCodigo && !cfg.patronCodigo.test(p.data.codigo)) return { error: cfg.ayudaCodigo };
   const padre = String(fd.get("padre") ?? "").trim();
   const editando = fd.get("modo") === "editar";
@@ -91,7 +109,7 @@ export function validarEntradaCatalogo(cfg: CatalogoCfg, fd: FormData): { error?
   if (cfg.padre && !editando && !p.data.codigo.startsWith(padre)) {
     return { error: `El código debe comenzar con ${padre}` };
   }
-  return { datos: { ...p.data, ...(padre ? { padre } : {}) } };
+  return { datos: { ...p.data, ...datosBase, ...(padre ? { padre } : {}) } };
 }
 
 export async function guardarCatalogo(

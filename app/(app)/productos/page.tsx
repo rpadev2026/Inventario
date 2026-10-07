@@ -18,7 +18,10 @@ type Params = Record<string, string | string[] | undefined>;
 const texto = (v: string | string[] | undefined) => (typeof v === "string" && v !== "" ? v : undefined);
 const tono = { Crítico: "danger", Bajo: "warn", OK: "ok" } as const;
 const AVISOS: Record<string, string> = { creado: "Producto creado correctamente", editado: "Cambios guardados correctamente" };
-const COLS = "CodigoProducto,NombreProducto,UnidadMedida,Formato,StockMinimo,StockCritico,IdEstado";
+const COLS = "IdProducto,Codigo,Nombre,UnidadMedida,Formato,PrecioCompra,UnidadBase,CostoUnitarioBase,StockMinimo,StockCritico,IdEstado";
+const idValido = (v: string | undefined) => (v && /^[1-9]\d{0,14}$/.test(v) ? Number(v) : undefined);
+const clp = new Intl.NumberFormat("es-CL", { style: "currency", currency: "CLP", maximumFractionDigits: 2 });
+const clpBase = new Intl.NumberFormat("es-CL", { style: "currency", currency: "CLP", maximumFractionDigits: 6 });
 
 /** URL de /productos con solo los parámetros indicados (los undefined se omiten). */
 function href(q: Record<string, string | undefined>) {
@@ -37,8 +40,9 @@ export default async function ProductosPage({ searchParams }: { searchParams: Pr
   // Crear/editar solo con «productos.gestionar» (la acción del servidor lo exige igualmente).
   // Venir desde una factura (?volver=) abre directo la vista Crear.
   const crear = puedeGestionar && (sp.crear === "1" || !!rutaVolver);
-  const codEditar = puedeGestionar && !crear ? texto(sp.editar) : undefined;
-  const codVer = crear || codEditar ? undefined : texto(sp.ver);
+  // Un id inválido (texto, 0, negativo) se ignora y se muestra el listado.
+  const idEditar = puedeGestionar && !crear ? idValido(texto(sp.editar)) : undefined;
+  const idVer = crear || idEditar ? undefined : idValido(texto(sp.ver));
 
   // Parámetros del listado (página, tamaño y filtros) que se conservan al ir a una vista y volver.
   const q = texto(sp.q);
@@ -65,13 +69,13 @@ export default async function ProductosPage({ searchParams }: { searchParams: Pr
     );
   }
 
-  const codPanel = codEditar ?? codVer;
-  const { data: sel } = codPanel
-    ? await db.from("Productos").select("*").eq("CodigoProducto", codPanel).maybeSingle<Producto>()
+  const idPanel = idEditar ?? idVer;
+  const { data: sel } = idPanel
+    ? await db.from("Productos").select("*").eq("IdProducto", idPanel).maybeSingle<Producto>()
     : { data: null };
 
   // ===== Editar: solo el formulario del producto, con Volver =====
-  if (codEditar && sel) {
+  if (idEditar && sel) {
     return (
       <section className="space-y-4">
         <div className="page-head">
@@ -79,18 +83,18 @@ export default async function ProductosPage({ searchParams }: { searchParams: Pr
           <Link href={volverListado} className="btn btn-secondary">Volver</Link>
         </div>
         <div className="card">
-          <FormProducto key={sel.CodigoProducto} p={sel} unidades={unidades} formatos={formatos} despuesDeGuardar={href({ ...base, aviso: "editado" })} />
+          <FormProducto key={sel.IdProducto} p={sel} unidades={unidades} formatos={formatos} despuesDeGuardar={href({ ...base, aviso: "editado" })} />
         </div>
       </section>
     );
   }
 
   // ===== Ver: datos del producto (solo lectura) y su stock por bodega, paginado =====
-  if (codVer && sel) {
-    const { count } = await db.from("StockBodega").select("IdBodega", { count: "exact", head: true }).eq("CodigoProducto", sel.CodigoProducto);
+  if (idVer && sel) {
+    const { count } = await db.from("StockBodega").select("IdBodega", { count: "exact", head: true }).eq("IdProducto", sel.IdProducto);
     const pgS = paginar({ pagina: sp.ppagina, tam: sp.ptam }, count ?? 0);
     const { data } = await db.from("StockBodega").select("IdBodega,Cantidad,Bodegas!inner(NombreBodega)")
-      .eq("CodigoProducto", sel.CodigoProducto).order("IdBodega").range(pgS.from, pgS.to).returns<any[]>();
+      .eq("IdProducto", sel.IdProducto).order("IdBodega").range(pgS.from, pgS.to).returns<any[]>();
     const stock = (data ?? []).map((r) => {
       const cant = Number(r.Cantidad);
       const nivel = cant <= Number(sel.StockCritico) ? "Crítico" : cant <= Number(sel.StockMinimo) ? "Bajo" : "OK";
@@ -99,15 +103,18 @@ export default async function ProductosPage({ searchParams }: { searchParams: Pr
     return (
       <section className="space-y-4">
         <div className="page-head">
-          <h1 className="page-title">{sel.NombreProducto}</h1>
+          <h1 className="page-title">{sel.Nombre}</h1>
           <Link href={volverListado} className="btn btn-secondary">Volver</Link>
         </div>
         <div className="card">
           <div className="form-grid form-grid-4">
-            <Dato titulo="Código">{sel.CodigoProducto}</Dato>
+            <Dato titulo="Código">{sel.Codigo}</Dato>
             <Dato titulo="Unidad de medida">{nombreUnidad.get(sel.UnidadMedida) ?? sel.UnidadMedida}</Dato>
             <Dato titulo="Formato">{nombreFormato.get(sel.Formato) ?? sel.Formato}</Dato>
             <Dato titulo="Estado"><Badge tone={sel.IdEstado === 1 ? "ok" : "neutral"}>{sel.IdEstado === 1 ? "Vigente" : "No vigente"}</Badge></Dato>
+            <Dato titulo="Precio de compra">{`${clp.format(Number(sel.PrecioCompra))} por ${nombreUnidad.get(sel.UnidadMedida) ?? sel.UnidadMedida}`}</Dato>
+            <Dato titulo="Unidad base">{nombreUnidad.get(sel.UnidadBase) ?? sel.UnidadBase}</Dato>
+            <Dato titulo="Costo unitario base">{`${clpBase.format(Number(sel.CostoUnitarioBase))} por ${nombreUnidad.get(sel.UnidadBase) ?? sel.UnidadBase}`}</Dato>
             <Dato titulo="Stock mínimo">{String(sel.StockMinimo)}</Dato>
             <Dato titulo="Stock crítico">{String(sel.StockCritico)}</Dato>
           </div>
@@ -166,15 +173,15 @@ export default async function ProductosPage({ searchParams }: { searchParams: Pr
             </thead>
             <tbody>
               {lista.map((p) => (
-                <tr key={p.CodigoProducto}>
-                  <td>{p.CodigoProducto}</td><td>{p.NombreProducto}</td>
+                <tr key={p.IdProducto}>
+                  <td>{p.Codigo ?? "—"}</td><td>{p.Nombre}</td>
                   <td>{nombreUnidad.get(p.UnidadMedida) ?? p.UnidadMedida}</td><td>{nombreFormato.get(p.Formato) ?? p.Formato}</td>
                   <td className="num">{p.StockMinimo}</td><td className="num">{p.StockCritico}</td>
                   <td><Badge tone={p.IdEstado === 1 ? "ok" : "neutral"}>{p.IdEstado === 1 ? "Vigente" : "No vigente"}</Badge></td>
                   <td>
                     <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
-                      <Link className="link link-sm" href={href({ ...base, ver: p.CodigoProducto })} aria-label={`Ver ${p.NombreProducto}`}>Ver</Link>
-                      {puedeGestionar && <Link className="link link-sm" href={href({ ...base, editar: p.CodigoProducto })} aria-label={`Editar ${p.NombreProducto}`}>Editar</Link>}
+                      <Link className="link link-sm" href={href({ ...base, ver: String(p.IdProducto) })} aria-label={`Ver ${p.Nombre}`}>Ver</Link>
+                      {puedeGestionar && <Link className="link link-sm" href={href({ ...base, editar: String(p.IdProducto) })} aria-label={`Editar ${p.Nombre}`}>Editar</Link>}
                     </div>
                   </td>
                 </tr>

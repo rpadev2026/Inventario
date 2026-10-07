@@ -22,13 +22,13 @@ beforeAll(async () => {
     insert into "Usuarios"("Rut","Nombres","Apellidos","Correo") values
       ('1-9','Ana','Compras','ana@x.cl'),('2-7','Beto','Solicita','beto@x.cl'),('3-5','Cami','Bodega','cami@x.cl');
     insert into "Proveedores"("Rut","RazonSocial","Giro") values ('76086428-5','Prov SA','Alimentos');
-    insert into "Productos"("CodigoProducto","NombreProducto","UnidadMedida","Formato","StockMinimo","StockCritico") values
-      ('HAR','Harina','KG','BOLSA',10,5),('ACE','Aceite','L','BOTELLA',4,2);
+    insert into "Productos"("Codigo","Nombre","UnidadMedida","Formato","PrecioCompra","StockMinimo","StockCritico") values
+      ('HAR','Harina','KG','BOLSA',2000,10,5),('ACE','Aceite','L','BOTELLA',1500,4,2);
     insert into "Bodegas"("NombreBodega") values ('Cocina');
   `);
 });
 
-const FACT = (folio = 1, det = `'[{"codigo":"HAR","precio":1000,"cantidad":50}]'`, neto = 50000, iva = 9500, total = 59500) =>
+const FACT = (folio = 1, det = `'[{"producto":1,"precio":1000,"cantidad":50}]'`, neto = 50000, iva = 9500, total = 59500) =>
   `select registrar_factura(1,1,${folio},'2026-10-01','2026-10-02','CONTADO',${neto},${iva},${total},${det}::jsonb)`;
 
 describe("registrar_factura", () => {
@@ -36,11 +36,11 @@ describe("registrar_factura", () => {
     await db.query(FACT(1));
     expect(Number(await val(`select count(*) from "ComprasDetalle"`))).toBe(1);
     expect(Number(await val(`select count(*) from "BodegaCentral"`))).toBe(1);
-    expect(Number(await val(`select "Cantidad" from "StockBodega" sb join "Bodegas" b using("IdBodega") where b."EsCentral" and "CodigoProducto"='HAR'`))).toBe(50);
+    expect(Number(await val(`select "Cantidad" from "StockBodega" sb join "Bodegas" b using("IdBodega") where b."EsCentral" and "IdProducto"=1`))).toBe(50);
   });
   it("acumula stock en una segunda factura", async () => {
     await db.query(FACT(2));
-    expect(Number(await val(`select "Cantidad" from "StockBodega" where "CodigoProducto"='HAR' and "IdBodega"=1`))).toBe(100);
+    expect(Number(await val(`select "Cantidad" from "StockBodega" where "IdProducto"=1 and "IdBodega"=1`))).toBe(100);
   });
   it("rechaza folio duplicado sin dejar datos a medias", async () => {
     const antes = Number(await val(`select count(*) from "BodegaCentral"`));
@@ -50,7 +50,7 @@ describe("registrar_factura", () => {
   it("rechaza detalle que no cuadra con neto", async () => { await fails(FACT(3, undefined, 99999, 18999, 118998), /neto/i); });
   it("rechaza total inconsistente", async () => { await fails(FACT(4, undefined, 50000, 9500, 70000)); });
   it("rechaza producto inexistente y no deja la cabecera", async () => {
-    await fails(FACT(5, `'[{"codigo":"NOPE","precio":1,"cantidad":1}]'`, 1, 0, 1), /Producto/);
+    await fails(FACT(5, `'[{"producto":999,"precio":1,"cantidad":1}]'`, 1, 0, 1), /Producto/);
     expect(Number(await val(`select count(*) from "Compras" where "Folio"=5`))).toBe(0);
   });
 });
@@ -58,56 +58,56 @@ describe("registrar_factura", () => {
 describe("flujo de solicitudes", () => {
   let sol: number;
   it("crea solicitud en estado Creada con historial", async () => {
-    sol = Number(await val(`select crear_solicitud(2, 2, '[{"codigo":"HAR","cantidad":30}]'::jsonb)`));
+    sol = Number(await val(`select crear_solicitud(2, 2, '[{"producto":1,"cantidad":30}]'::jsonb)`));
     expect(Number(await val(`select "EstadoSolicitud" from "Solicitudes" where "IdSolicitud"=${sol}`))).toBe(0);
     expect(Number(await val(`select count(*) from "HistorialSolicitudes" where "IdSolicitud"=${sol}`))).toBe(1);
   });
   it("no permite destino Bodega Central ni solicitud vacía", async () => {
-    await fails(`select crear_solicitud(2, 1, '[{"codigo":"HAR","cantidad":1}]'::jsonb)`, /Bodega destino/);
+    await fails(`select crear_solicitud(2, 1, '[{"producto":1,"cantidad":1}]'::jsonb)`, /Bodega destino/);
     await fails(`select crear_solicitud(2, 2, '[]'::jsonb)`, /productos/);
   });
   it("solo el dueño edita y solo en Creada", async () => {
-    await fails(`select actualizar_solicitud(3, ${sol}, 2, '[{"codigo":"HAR","cantidad":5}]'::jsonb)`, /solicitante/);
-    await db.query(`select actualizar_solicitud(2, ${sol}, 2, '[{"codigo":"HAR","cantidad":30},{"codigo":"ACE","cantidad":10}]'::jsonb)`);
+    await fails(`select actualizar_solicitud(3, ${sol}, 2, '[{"producto":1,"cantidad":5}]'::jsonb)`, /solicitante/);
+    await db.query(`select actualizar_solicitud(2, ${sol}, 2, '[{"producto":1,"cantidad":30},{"producto":2,"cantidad":10}]'::jsonb)`);
     expect(Number(await val(`select count(*) from "SolicitudesDetalle" where "IdSolicitud"=${sol}`))).toBe(2);
   });
   it("rechaza transiciones inválidas (Creada->Aprobada, recepcionar sin aprobar)", async () => {
     await fails(`select cambiar_estado_solicitud(3, ${sol}, 2::smallint)`, /Transición/);
-    await fails(`select recepcionar_solicitud(2, ${sol}, '[{"codigo":"HAR","cantidad":1}]'::jsonb)`, /recepcionable/);
+    await fails(`select recepcionar_solicitud(2, ${sol}, '[{"producto":1,"cantidad":1}]'::jsonb)`, /recepcionable/);
   });
   it("no se puede enviar vacía y Creada->Enviada funciona", async () => {
     await db.query(`select cambiar_estado_solicitud(2, ${sol}, 1::smallint)`);
     expect(Number(await val(`select "EstadoSolicitud" from "Solicitudes" where "IdSolicitud"=${sol}`))).toBe(1);
   });
   it("aprobar valida stock y cantidades", async () => {
-    await fails(`select aprobar_solicitud(3, ${sol}, '[{"codigo":"ACE","cantidad":10}]'::jsonb)`, /Stock insuficiente/);
-    await fails(`select aprobar_solicitud(3, ${sol}, '[{"codigo":"HAR","cantidad":31}]'::jsonb)`, /inválida/);
-    await fails(`select aprobar_solicitud(3, ${sol}, '[{"codigo":"HAR","cantidad":0}]'::jsonb)`, /al menos un producto/);
+    await fails(`select aprobar_solicitud(3, ${sol}, '[{"producto":2,"cantidad":10}]'::jsonb)`, /Stock insuficiente/);
+    await fails(`select aprobar_solicitud(3, ${sol}, '[{"producto":1,"cantidad":31}]'::jsonb)`, /inválida/);
+    await fails(`select aprobar_solicitud(3, ${sol}, '[{"producto":1,"cantidad":0}]'::jsonb)`, /al menos un producto/);
   });
   it("aprueba con cantidad menor; ítems no informados quedan en 0", async () => {
-    await db.query(`select aprobar_solicitud(3, ${sol}, '[{"codigo":"HAR","cantidad":20}]'::jsonb)`);
+    await db.query(`select aprobar_solicitud(3, ${sol}, '[{"producto":1,"cantidad":20}]'::jsonb)`);
     expect(Number(await val(`select "EstadoSolicitud" from "Solicitudes" where "IdSolicitud"=${sol}`))).toBe(2);
-    expect(Number(await val(`select "CantidadAprobada" from "SolicitudesDetalle" where "IdSolicitud"=${sol} and "CodigoProducto"='ACE'`))).toBe(0);
+    expect(Number(await val(`select "CantidadAprobada" from "SolicitudesDetalle" where "IdSolicitud"=${sol} and "IdProducto"=2`))).toBe(0);
   });
   it("solo el solicitante recepciona y no más de lo pendiente", async () => {
-    await fails(`select recepcionar_solicitud(3, ${sol}, '[{"codigo":"HAR","cantidad":5}]'::jsonb)`, /solicitante/);
-    await fails(`select recepcionar_solicitud(2, ${sol}, '[{"codigo":"HAR","cantidad":21}]'::jsonb)`, /excede/);
+    await fails(`select recepcionar_solicitud(3, ${sol}, '[{"producto":1,"cantidad":5}]'::jsonb)`, /solicitante/);
+    await fails(`select recepcionar_solicitud(2, ${sol}, '[{"producto":1,"cantidad":21}]'::jsonb)`, /excede/);
   });
   it("recepción parcial -> estado 4, mueve stock y registra movimiento", async () => {
-    const r = await val(`select recepcionar_solicitud(2, ${sol}, '[{"codigo":"HAR","cantidad":8}]'::jsonb)`);
+    const r = await val(`select recepcionar_solicitud(2, ${sol}, '[{"producto":1,"cantidad":8}]'::jsonb)`);
     expect(Number(r)).toBe(4);
-    expect(Number(await val(`select "Cantidad" from "StockBodega" where "IdBodega"=1 and "CodigoProducto"='HAR'`))).toBe(92);
-    expect(Number(await val(`select "Cantidad" from "StockBodega" where "IdBodega"=2 and "CodigoProducto"='HAR'`))).toBe(8);
+    expect(Number(await val(`select "Cantidad" from "StockBodega" where "IdBodega"=1 and "IdProducto"=1`))).toBe(92);
+    expect(Number(await val(`select "Cantidad" from "StockBodega" where "IdBodega"=2 and "IdProducto"=1`))).toBe(8);
     expect(Number(await val(`select count(*) from "MovimientosBodega" where "IdSolicitud"=${sol}`))).toBe(1);
   });
   it("recepción final -> estado 3 y no se puede recepcionar otra vez", async () => {
-    expect(Number(await val(`select recepcionar_solicitud(2, ${sol}, '[{"codigo":"HAR","cantidad":12}]'::jsonb)`))).toBe(3);
-    expect(Number(await val(`select "Cantidad" from "StockBodega" where "IdBodega"=2 and "CodigoProducto"='HAR'`))).toBe(20);
-    await fails(`select recepcionar_solicitud(2, ${sol}, '[{"codigo":"HAR","cantidad":1}]'::jsonb)`, /recepcionable/);
+    expect(Number(await val(`select recepcionar_solicitud(2, ${sol}, '[{"producto":1,"cantidad":12}]'::jsonb)`))).toBe(3);
+    expect(Number(await val(`select "Cantidad" from "StockBodega" where "IdBodega"=2 and "IdProducto"=1`))).toBe(20);
+    await fails(`select recepcionar_solicitud(2, ${sol}, '[{"producto":1,"cantidad":1}]'::jsonb)`, /recepcionable/);
     expect(Number(await val(`select count(*) from "HistorialSolicitudes" where "IdSolicitud"=${sol}`))).toBe(5);
   });
   it("rechazo desde Enviada y estado terminal", async () => {
-    const s2 = Number(await val(`select crear_solicitud(2, 2, '[{"codigo":"HAR","cantidad":1}]'::jsonb)`));
+    const s2 = Number(await val(`select crear_solicitud(2, 2, '[{"producto":1,"cantidad":1}]'::jsonb)`));
     await db.query(`select cambiar_estado_solicitud(2, ${s2}, 1::smallint)`);
     await db.query(`select cambiar_estado_solicitud(3, ${s2}, 5::smallint)`);
     await fails(`select cambiar_estado_solicitud(3, ${s2}, 2::smallint)`, /Transición/);
@@ -116,27 +116,27 @@ describe("flujo de solicitudes", () => {
 
 describe("anular_factura", () => {
   it("revierte stock cuando está disponible", async () => {
-    await db.query(`select registrar_factura(1,1,50,'2026-10-01','2026-10-02','CONTADO',1000,190,1190,'[{"codigo":"ACE","precio":100,"cantidad":10}]'::jsonb)`);
+    await db.query(`select registrar_factura(1,1,50,'2026-10-01','2026-10-02','CONTADO',1000,190,1190,'[{"producto":2,"precio":100,"cantidad":10}]'::jsonb)`);
     const id = Number(await val(`select "IdCompra" from "Compras" where "Folio"=50`));
     await fails(`select anular_factura(1, ${id}, 'x')`, /motivo/);
     await db.query(`select anular_factura(1, ${id}, 'Error de digitación')`);
-    expect(Number(await val(`select "Cantidad" from "StockBodega" where "IdBodega"=1 and "CodigoProducto"='ACE'`))).toBe(0);
+    expect(Number(await val(`select "Cantidad" from "StockBodega" where "IdBodega"=1 and "IdProducto"=2`))).toBe(0);
     expect(Number(await val(`select "IdEstado" from "Compras" where "IdCompra"=${id}`))).toBe(0);
     await fails(`select anular_factura(1, ${id}, 'Otra vez anulada')`, /ya está anulada/);
   });
   it("no anula si el stock ya fue despachado y no deja cambios a medias", async () => {
     // folio 1 (50 HAR) + 2 (50 HAR) - 20 despachados => quedan 80; anular folio 1 (50) funciona, pero dejemos stock bajo
     const id = Number(await val(`select "IdCompra" from "Compras" where "Folio"=2`));
-    await db.query(`update "StockBodega" set "Cantidad" = 10 where "IdBodega"=1 and "CodigoProducto"='HAR'`);
+    await db.query(`update "StockBodega" set "Cantidad" = 10 where "IdBodega"=1 and "IdProducto"=1`);
     await fails(`select anular_factura(1, ${id}, 'Factura duplicada')`, /despachado/);
     expect(Number(await val(`select "IdEstado" from "Compras" where "IdCompra"=${id}`))).toBe(1);
-    expect(Number(await val(`select "Cantidad" from "StockBodega" where "IdBodega"=1 and "CodigoProducto"='HAR'`))).toBe(10);
+    expect(Number(await val(`select "Cantidad" from "StockBodega" where "IdBodega"=1 and "IdProducto"=1`))).toBe(10);
   });
 });
 
 describe("maestros y reglas de factura", () => {
   const FP = (fr: string, fp: string, folio: number) =>
-    `select registrar_factura(1,1,${folio},'2026-10-02','${fr}','${fp}',1000,190,1190,'[{"codigo":"ACE","precio":100,"cantidad":10}]'::jsonb)`;
+    `select registrar_factura(1,1,${folio},'2026-10-02','${fr}','${fp}',1000,190,1190,'[{"producto":2,"precio":100,"cantidad":10}]'::jsonb)`;
   it("rechaza fecha de recepción anterior a la de factura", async () => {
     await fails(FP("2026-10-01", "CONTADO", 70), /fecha de recepción/i);
     await db.query(FP("2026-10-02", "CONTADO", 70));
@@ -150,8 +150,8 @@ describe("maestros y reglas de factura", () => {
     finally { await db.query(`update "FormasPago" set "IdEstado"=1 where "Codigo"='CONTADO'`); }
   });
   it("rechaza producto con unidad/formato inexistente", async () => {
-    await fails(`insert into "Productos"("CodigoProducto","NombreProducto","UnidadMedida","Formato") values ('T1','T','Tonelada','CAJA')`, /foreign key|violates/i);
-    await fails(`insert into "Productos"("CodigoProducto","NombreProducto","UnidadMedida","Formato") values ('T2','T','KG','Tonelada')`, /foreign key|violates/i);
+    await fails(`insert into "Productos"("Codigo","Nombre","UnidadMedida","Formato","PrecioCompra") values ('T1','T','Tonelada','CAJA',1)`, /foreign key|violates/i);
+    await fails(`insert into "Productos"("Codigo","Nombre","UnidadMedida","Formato","PrecioCompra") values ('T2','T','KG','Tonelada',1)`, /foreign key|violates/i);
   });
   it("siembra formas, unidades y formatos iniciales", async () => {
     const cods = async (t: string) => (await db.query<any>(`select "Codigo" from "${t}" order by "Codigo"`)).rows.map((r) => r.Codigo);
@@ -173,7 +173,7 @@ describe("integridad y permisos", () => {
     await fails(`insert into "Bodegas"("NombreBodega","EsCentral") values ('Otra', true)`);
   });
   it("stock crítico no puede superar al mínimo", async () => {
-    await fails(`insert into "Productos"("CodigoProducto","NombreProducto","UnidadMedida","Formato","StockMinimo","StockCritico") values ('Z','Z','KG','CAJA',1,5)`);
+    await fails(`insert into "Productos"("Codigo","Nombre","UnidadMedida","Formato","PrecioCompra","StockMinimo","StockCritico") values ('Z','Z','KG','CAJA',1,1,5)`);
   });
   it("anon/authenticated no tienen acceso a tablas ni funciones", async () => {
     for (const rol of ["anon", "authenticated"]) {
@@ -378,5 +378,65 @@ describe("roles base inactivos (migración 0012)", () => {
     await db.query(`update "Roles" set "IdEstado"=0 where "IdRol"=${id}`);
     await fails(`select guardar_rol(1,${id},'Otro nombre',null,0::smallint,array[]::text[])`, /roles base/);
     await db.query(`update "Roles" set "IdEstado"=1 where "IdRol"=${id}`);
+  });
+});
+
+describe("productos: costo base (migración 0013)", () => {
+  const ins = (cod: string, nom: string, um: string, precio: number, extra = "") =>
+    `insert into "Productos"("Codigo","Nombre","UnidadMedida","Formato","PrecioCompra"${extra ? "," + extra.split("|")[0] : ""}) values (${cod === "null" ? "null" : `'${cod}'`},'${nom}','${um}','CAJA',${precio}${extra ? "," + extra.split("|")[1] : ""}) returning "IdProducto"`;
+  const fila = async (id: number) => (await db.query<any>(`select "UnidadBase","CostoUnitarioBase" from "Productos" where "IdProducto"=${id}`)).rows[0];
+
+  it("calcula UnidadBase y CostoUnitarioBase por unidad", async () => {
+    expect(await fila(1)).toEqual({ UnidadBase: "G", CostoUnitarioBase: "2.000000" });
+    expect(await fila(2)).toEqual({ UnidadBase: "ML", CostoUnitarioBase: "1.500000" });
+    const un = Number(await val(ins("UN1", "Huevo", "UN", 350)));
+    expect(await fila(un)).toEqual({ UnidadBase: "UN", CostoUnitarioBase: "350.000000" });
+  });
+  it("recalcula al cambiar precio o unidad", async () => {
+    await db.query(`update "Productos" set "PrecioCompra"=3000 where "IdProducto"=1`);
+    expect((await fila(1)).CostoUnitarioBase).toBe("3.000000");
+    await db.query(`update "Productos" set "UnidadMedida"='UN' where "IdProducto"=1`);
+    expect(await fila(1)).toEqual({ UnidadBase: "UN", CostoUnitarioBase: "3000.000000" });
+    await db.query(`update "Productos" set "UnidadMedida"='KG', "PrecioCompra"=2000 where "IdProducto"=1`);
+  });
+  it("sobrescribe UnidadBase y CostoUnitarioBase enviados a mano", async () => {
+    const id = Number(await val(ins("MAN", "Manual", "KG", 1000, `"UnidadBase","CostoUnitarioBase"|'KG',999`)));
+    expect(await fila(id)).toEqual({ UnidadBase: "G", CostoUnitarioBase: "1.000000" });
+  });
+  it("Codigo es opcional pero único; Nombre es único", async () => {
+    await db.query(ins("null", "Sin codigo A", "KG", 1));
+    await db.query(ins("null", "Sin codigo B", "KG", 1));
+    await fails(ins("HAR", "Otro", "KG", 1), /Productos_Codigo_key/);
+    await fails(ins("OTRO", "Harina", "KG", 1), /Productos_Nombre_key/);
+  });
+  it("rechaza PrecioCompra negativo", async () => {
+    await fails(ins("NEG", "Negativo", "KG", -1));
+  });
+  it("rechaza cambiar Factor o UnidadBase de una unidad en uso, y lo permite si no se usa", async () => {
+    await fails(`update "UnidadesMedida" set "Factor"=500 where "Codigo"='KG'`, /hay productos que usan esta unidad/);
+    await db.query(`insert into "UnidadesMedida"("Codigo","Nombre","UnidadBase","Factor") values ('CAJ12','Caja 12','UN',12)`);
+    await db.query(`update "UnidadesMedida" set "Factor"=24 where "Codigo"='CAJ12'`);
+    expect(Number(await val(`select "Factor" from "UnidadesMedida" where "Codigo"='CAJ12'`))).toBe(24);
+  });
+  it("la unidad base debe ser una unidad base de factor 1", async () => {
+    await fails(`insert into "UnidadesMedida"("Codigo","Nombre","UnidadBase","Factor") values ('X1','X','KG',2)`, /unidad base/i);
+    await fails(`insert into "UnidadesMedida"("Codigo","Nombre","UnidadBase","Factor") values ('X2','X','X2',5)`, /check/i);
+  });
+  it("las RPC rechazan producto inexistente o no vigente sin dejar cabecera", async () => {
+    const id = Number(await val(ins("OFF", "Inactivo", "KG", 1)));
+    await db.query(`update "Productos" set "IdEstado"=0 where "IdProducto"=${id}`);
+    for (const pid of [999, id]) {
+      await fails(`select registrar_factura(1,1,900,'2026-10-01','2026-10-01','CONTADO',1,0,1,'[{"producto":${pid},"precio":1,"cantidad":1}]'::jsonb)`, /Producto/);
+      await fails(`select crear_solicitud(2, 2, '[{"producto":${pid},"cantidad":1}]'::jsonb)`, /Producto/);
+    }
+    expect(Number(await val(`select count(*) from "Compras" where "Folio"=900`))).toBe(0);
+  });
+  it("los mensajes de producto muestran código y nombre, no el id interno", async () => {
+    const id = Number(await val(`select "IdProducto" from "Productos" where "Nombre"='Inactivo'`));
+    await fails(`select crear_solicitud(2, 2, '[{"producto":${id},"cantidad":1}]'::jsonb)`, /Producto OFF — Inactivo no existe o no vigente/);
+    const sinCodigo = Number(await val(`select "IdProducto" from "Productos" where "Nombre"='Sin codigo A'`));
+    await db.query(`update "Productos" set "IdEstado"=0 where "IdProducto"=${sinCodigo}`);
+    await fails(`select crear_solicitud(2, 2, '[{"producto":${sinCodigo},"cantidad":1}]'::jsonb)`, /Producto Sin codigo A no existe o no vigente/);
+    await fails(`select crear_solicitud(2, 2, '[{"producto":999999,"cantidad":1}]'::jsonb)`, /Producto 999999 no existe o no vigente/);
   });
 });

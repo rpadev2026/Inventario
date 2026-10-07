@@ -6,7 +6,7 @@ let almacen: Map<string, string>;
 
 const valido: Borrador = {
   idProv: "3", folio: "123", fechaFactura: "2026-10-01", fechaRecepcion: "2026-10-02", formaPago: "CONTADO",
-  lineas: [{ codigo: "HAR-001", precio: "1,5", cantidad: "10" }],
+  lineas: [{ producto: "7", precio: "1,5", cantidad: "10" }],
 };
 
 beforeEach(() => {
@@ -26,7 +26,7 @@ describe("borrador de factura", () => {
     guardarBorrador(valido);
     expect(leerBorrador()).toEqual(valido);
   });
-  it.each(["{", "[]", '{"idProv":5}', "null", '"x"', JSON.stringify({ ...valido, lineas: [{ codigo: 1 }] }), JSON.stringify({ ...valido, lineas: "x" })])(
+  it.each(["{", "[]", '{"idProv":5}', "null", '"x"', JSON.stringify({ ...valido, lineas: [{ producto: 1 }] }), JSON.stringify({ ...valido, lineas: "x" })])(
     "forma inválida %s → null",
     (txt) => {
       almacen.set(CLAVE, txt);
@@ -51,17 +51,24 @@ describe("borrador de factura", () => {
 
 describe("aplicarPreProducto", () => {
   it("usa la primera línea sin producto", () => {
-    const ls = [{ codigo: "A", precio: "1", cantidad: "2" }, { codigo: "", precio: "5", cantidad: "" }];
+    const ls = [{ producto: "A", precio: "1", cantidad: "2" }, { producto: "", precio: "5", cantidad: "" }];
     expect(aplicarPreProducto(ls, "E2E-1")).toEqual([
-      { codigo: "A", precio: "1", cantidad: "2" },
-      { codigo: "E2E-1", precio: "5", cantidad: "" },
+      { producto: "A", precio: "1", cantidad: "2" },
+      { producto: "E2E-1", precio: "5", cantidad: "" },
     ]);
-    expect(ls[1].codigo).toBe("");
+    expect(ls[1].producto).toBe("");
   });
   it("agrega una línea nueva si todas tienen producto", () => {
-    expect(aplicarPreProducto([{ codigo: "A", precio: "1", cantidad: "2" }], "B")).toEqual([
-      { codigo: "A", precio: "1", cantidad: "2" },
-      { codigo: "B", precio: "", cantidad: "" },
+    expect(aplicarPreProducto([{ producto: "A", precio: "1", cantidad: "2" }], "B")).toEqual([
+      { producto: "A", precio: "1", cantidad: "2" },
+      { producto: "B", precio: "", cantidad: "" },
     ]);
+  });
+});
+
+describe("borrador con el formato viejo (codigo)", () => {
+  it("se ignora sin romper", () => {
+    almacen.set(CLAVE, JSON.stringify({ ...valido, lineas: [{ codigo: "HAR-001", precio: "1", cantidad: "2" }] }));
+    expect(leerBorrador()).toBeNull();
   });
 });

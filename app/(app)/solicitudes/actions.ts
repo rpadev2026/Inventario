@@ -7,7 +7,7 @@ import { notificarEnviada, notificarResuelta } from "@/lib/services/correo";
 
 type R = { error?: string; ok?: boolean; id?: number };
 
-const items = z.array(z.object({ codigo: z.string().min(1).max(40), cantidad: z.coerce.number().min(0) })).min(1).max(200);
+const items = z.array(z.object({ producto: z.coerce.number().int().positive(), cantidad: z.coerce.number().min(0) })).min(1).max(200);
 const idSchema = z.coerce.number().int().positive();
 
 function mapError(e: { code?: string; message: string }): string {

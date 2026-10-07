@@ -1,3 +1,4 @@
+import { etiquetaProducto } from "@/lib/producto-etiqueta";
 import Link from "next/link";
 import { db } from "@/lib/db/supabase";
 import { requerirPaginaPermiso, esAdmin } from "@/lib/auth/session";
@@ -76,17 +77,17 @@ export default async function BodegasPage({ searchParams }: { searchParams: Prom
   // ===== Ver: solo la bodega y sus productos (con stock), paginados =====
   if (idVer && sel) {
     const [{ count }, unidades] = await Promise.all([
-      db.from("StockBodega").select("CodigoProducto", { count: "exact", head: true }).eq("IdBodega", sel.IdBodega),
+      db.from("StockBodega").select("IdProducto", { count: "exact", head: true }).eq("IdBodega", sel.IdBodega),
       mapaNombres("UnidadesMedida"),
     ]);
     const pgS = paginar({ pagina: sp.ppagina, tam: sp.ptam }, count ?? 0);
     const { data } = await db.from("StockBodega")
-      .select("CodigoProducto,Cantidad,Productos!inner(NombreProducto,UnidadMedida,StockMinimo,StockCritico)")
-      .eq("IdBodega", sel.IdBodega).order("CodigoProducto").range(pgS.from, pgS.to).returns<any[]>();
+      .select("IdProducto,Cantidad,Productos!inner(Codigo,Nombre,UnidadMedida,StockMinimo,StockCritico)")
+      .eq("IdBodega", sel.IdBodega).order("IdProducto").range(pgS.from, pgS.to).returns<any[]>();
     const stock = (data ?? []).map((r) => {
       const cant = Number(r.Cantidad);
       const nivel = cant <= Number(r.Productos.StockCritico) ? "Crítico" : cant <= Number(r.Productos.StockMinimo) ? "Bajo" : "OK";
-      return { codigo: r.CodigoProducto as string, cant, nivel: nivel as keyof typeof tono, p: r.Productos };
+      return { id: r.IdProducto as number, cant, nivel: nivel as keyof typeof tono, p: r.Productos };
     });
     return (
       <section className="space-y-4">
@@ -101,8 +102,8 @@ export default async function BodegasPage({ searchParams }: { searchParams: Prom
             <thead><tr><th>Producto</th><th className="num">Stock</th><th>Unidad</th><th className="num">Mín.</th><th className="num">Crít.</th><th>Nivel</th></tr></thead>
             <tbody>
               {stock.map((r) => (
-                <tr key={r.codigo}>
-                  <td>{r.codigo} — {r.p.NombreProducto}</td>
+                <tr key={r.id}>
+                  <td>{etiquetaProducto(r.p.Codigo, r.p.Nombre)}</td>
                   <td className="num">{r.cant}</td>
                   <td>{unidades.get(r.p.UnidadMedida) ?? r.p.UnidadMedida}</td>
                   <td className="num">{r.p.StockMinimo}</td><td className="num">{r.p.StockCritico}</td>

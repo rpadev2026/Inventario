@@ -42,13 +42,6 @@ export const vendedorSchema = z.object({
   telefono: opt(30), correo: correoOpt, estado,
 });
 
-export const productoSchema = z.object({
-  codigo: txt(40).min(1, "Código requerido").regex(/^[A-Za-z0-9._-]+$/, "Código: solo letras, números, . _ -"),
-  nombre: txt().min(1, "Nombre requerido"),
-  unidad: codigoCatalogo, formato: codigoCatalogo,
-  stockMinimo: z.coerce.number().min(0), stockCritico: z.coerce.number().min(0), estado,
-}).refine((p) => p.stockCritico <= p.stockMinimo, { message: "El stock crítico no puede superar al mínimo", path: ["stockCritico"] });
-
 const MSG_FOLIO = "Folio: solo números enteros";
 const folio = z.union([z.number(), z.string()]).transform((v, ctx) => {
   if (typeof v === "number" ? Number.isSafeInteger(v) && v > 0 : /^[1-9]\d{0,14}$/.test(v)) return Number(v);
@@ -66,6 +59,18 @@ const precio = z.union([z.number(), z.string()]).transform((v, ctx) => {
   return n;
 });
 
+const PRECIO_COMPRA_MAX = 9_999_999_999.99; // numeric(12,2)
+export const productoSchema = z.object({
+  id: z.coerce.number().int().positive().optional(),
+  // El código es opcional: vacío o solo espacios = no informado (se guarda null).
+  codigo: z.string().trim().max(40).optional().transform((v) => v || undefined)
+    .pipe(z.string().regex(/^[A-Za-z0-9._-]+$/, "Código: solo letras, números, . _ -").optional()),
+  nombre: txt().min(1, "Nombre requerido"),
+  unidad: codigoCatalogo, formato: codigoCatalogo,
+  precioCompra: precio.refine((n) => n <= PRECIO_COMPRA_MAX, "Precio de compra demasiado alto"),
+  stockMinimo: z.coerce.number().min(0), stockCritico: z.coerce.number().min(0), estado,
+}).refine((p) => p.stockCritico <= p.stockMinimo, { message: "El stock crítico no puede superar al mínimo", path: ["stockCritico"] });
+
 export const facturaSchema = z.object({
   idProveedor: z.coerce.number().int().positive(),
   folio,
@@ -73,7 +78,7 @@ export const facturaSchema = z.object({
   formaPago: codigoCatalogo,
   neto: z.coerce.number().min(0), iva: z.coerce.number().min(0), total: z.coerce.number().min(0),
   detalle: z.array(z.object({
-    codigo: z.string().min(1), precio, cantidad: z.coerce.number().positive(),
+    producto: z.coerce.number().int().positive(), precio, cantidad: z.coerce.number().positive(),
   })).min(1, "Agregue al menos un producto").max(200),
 }).refine((f) => Math.abs(f.neto + f.iva - f.total) <= 1, { message: "Neto + IVA debe igualar el Total", path: ["total"] })
   .refine((f) => f.fechaRecepcion >= f.fechaFactura, {

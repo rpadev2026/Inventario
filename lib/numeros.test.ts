@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { filtrarDecimal, filtrarDecimal2, parseCantidad, parseDecimal2, soloDigitos } from "./numeros";
+import { filtrarDecimal, filtrarDecimal2, filtrarDecimalComa, parseCantidad, parseDecimal2, soloDigitos } from "./numeros";
 
 describe("parseDecimal2", () => {
   it("acepta coma o punto como decimal", () => {
@@ -46,5 +46,17 @@ describe("parseCantidad", () => {
     expect(parseCantidad("0,000")).toBeNull();
     expect(parseCantidad("1,2345")).toBeNull();
     expect(parseCantidad("-1")).toBeNull();
+  });
+});
+
+describe("filtrarDecimalComa (precios: el punto es separador de miles, no decimal)", () => {
+  it("descarta el punto: «1.500» queda 1500", () => expect(filtrarDecimalComa("1.500", 2)).toBe("1500"));
+  it("la coma es el decimal, con tope de decimales", () => {
+    expect(filtrarDecimalComa("1500,5", 2)).toBe("1500,5");
+    expect(filtrarDecimalComa("1.500,567", 2)).toBe("1500,56");
+  });
+  it("ignora letras y una segunda coma", () => {
+    expect(filtrarDecimalComa("12a", 2)).toBe("12");
+    expect(filtrarDecimalComa("1,2,3", 2)).toBe("1,2");
   });
 });

@@ -4,8 +4,9 @@ Next.js (App Router, TypeScript) + Tailwind + Supabase (Postgres). Toda la lógi
 
 ## Puesta en marcha
 1. Crear un proyecto en Supabase y ejecutar en el SQL Editor, en orden:
-   `supabase/migrations/0001_esquema.sql`, `0002_funciones.sql`, `0003_solicitudes.sql`, `0004_anular_factura.sql`, `0005_fix_search_path.sql`, `0006_maestros.sql`, `0007_permisos.sql`, `0008_territorio.sql`, `0009_territorio_datos.sql`, `0010_territorio_proveedores.sql`, `0011_vendedor_rut_vigente.sql`, `0012_roles_base_reactivar.sql` y `supabase/seed.sql`. Los datos de regiones, ciudades (provincias) y comunas salen de la API DPA del MOP y se regeneran con `npm run gen:territorio`.
+   `supabase/migrations/0001_esquema.sql`, `0002_funciones.sql`, `0003_solicitudes.sql`, `0004_anular_factura.sql`, `0005_fix_search_path.sql`, `0006_maestros.sql`, `0007_permisos.sql`, `0008_territorio.sql`, `0009_territorio_datos.sql`, `0010_territorio_proveedores.sql`, `0011_vendedor_rut_vigente.sql`, `0012_roles_base_reactivar.sql`, `0013_productos_id_costo_base.sql` y `supabase/seed.sql`. Los datos de regiones, ciudades (provincias) y comunas salen de la API DPA del MOP y se regeneran con `npm run gen:territorio`.
    Nota: `0006` vacía `Compras`, `Productos` y `Solicitudes` y, por `truncate ... cascade`, sus tablas dependientes (detalle de compras, stock, movimientos, historial) (pasa a claves por código de catálogo); aplíquela solo en una base sin datos reales.
+   Nota: `0013` también vacía `Compras`, `Productos` y `Solicitudes` (y sus dependientes): `Productos` pasa a la clave `"IdProducto"` con precio de compra y costo unitario base; aplíquela solo en una base sin datos reales.
 2. Copiar `.env.example` a `.env.local` y completar:
    - `SUPABASE_URL` y `SUPABASE_SERVICE_ROLE_KEY` (Project Settings → API). **La service_role key nunca debe llevar prefijo `NEXT_PUBLIC_` ni subirse a git.**
    - `SESSION_SECRET`: `openssl rand -base64 48`.
