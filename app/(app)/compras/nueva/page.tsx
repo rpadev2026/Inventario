@@ -1,14 +1,16 @@
 import { db } from "@/lib/db/supabase";
 import { requerirPaginaPermiso } from "@/lib/auth/session";
+import { cargarUnidades } from "@/lib/catalogo-nombres";
 import FormFactura from "./form-factura";
 
 export default async function NuevaFacturaPage({ searchParams }: { searchParams: Promise<{ proveedor?: string; producto?: string }> }) {
   await requerirPaginaPermiso("compras.registrar");
   const { proveedor, producto } = await searchParams;
-  const [{ data: provs }, { data: prods }, { data: formas }] = await Promise.all([
+  const [{ data: provs }, { data: prods }, { data: formas }, unidades] = await Promise.all([
     db.from("Proveedores").select("IdProveedor,RazonSocial,Rut").eq("IdEstado", 1).order("RazonSocial"),
-    db.from("Productos").select("IdProducto,Codigo,Nombre").eq("IdEstado", 1).order("Nombre"),
+    db.from("Productos").select("IdProducto,Codigo,Nombre,UnidadBase").eq("IdEstado", 1).order("Nombre"),
     db.from("FormasPago").select("Codigo,Nombre").eq("IdEstado", 1).order("Nombre"),
+    cargarUnidades(),
   ]);
   return (
     <section className="space-y-4">
@@ -17,7 +19,8 @@ export default async function NuevaFacturaPage({ searchParams }: { searchParams:
         preProveedor={typeof proveedor === "string" ? proveedor : undefined}
         preProducto={typeof producto === "string" ? producto : undefined}
         proveedores={(provs ?? []).map((p) => ({ id: p.IdProveedor, rut: p.Rut, nombre: p.RazonSocial }))}
-        productos={(prods ?? []).map((p) => ({ id: p.IdProducto as number, codigo: p.Codigo as string | null, nombre: p.Nombre as string }))}
+        productos={(prods ?? []).map((p) => ({ id: p.IdProducto as number, codigo: p.Codigo as string | null, nombre: p.Nombre as string, unidadBase: p.UnidadBase as string }))}
+        unidades={unidades}
         formasPago={(formas ?? []).map((f) => ({ codigo: f.Codigo, nombre: f.Nombre }))}
       />
     </section>
