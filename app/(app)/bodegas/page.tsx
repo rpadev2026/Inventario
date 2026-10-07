@@ -82,7 +82,7 @@ export default async function BodegasPage({ searchParams }: { searchParams: Prom
     ]);
     const pgS = paginar({ pagina: sp.ppagina, tam: sp.ptam }, count ?? 0);
     const { data } = await db.from("StockBodega")
-      .select("IdProducto,Cantidad,Productos!inner(Codigo,Nombre,UnidadMedida,StockMinimo,StockCritico)")
+      .select("IdProducto,Cantidad,Productos!inner(Codigo,Nombre,UnidadBase,StockMinimo,StockCritico)")
       .eq("IdBodega", sel.IdBodega).order("IdProducto").range(pgS.from, pgS.to).returns<any[]>();
     const stock = (data ?? []).map((r) => {
       const cant = Number(r.Cantidad);
@@ -105,7 +105,7 @@ export default async function BodegasPage({ searchParams }: { searchParams: Prom
                 <tr key={r.id}>
                   <td>{etiquetaProducto(r.p.Codigo, r.p.Nombre)}</td>
                   <td className="num">{r.cant}</td>
-                  <td>{unidades.get(r.p.UnidadMedida) ?? r.p.UnidadMedida}</td>
+                  <td>{unidades.get(r.p.UnidadBase) ?? r.p.UnidadBase}</td>
                   <td className="num">{r.p.StockMinimo}</td><td className="num">{r.p.StockCritico}</td>
                   <td><Badge tone={tono[r.nivel]}>{r.nivel}</Badge></td>
                 </tr>

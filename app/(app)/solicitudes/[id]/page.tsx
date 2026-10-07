@@ -26,7 +26,7 @@ export default async function SolicitudPage({ params }: { params: Promise<{ id: 
   if (!bodeguero && !esDueno) notFound(); // un solicitante no ve solicitudes ajenas
 
   const [{ data: det }, { data: hist }, { data: stock }, unidades] = await Promise.all([
-    db.from("SolicitudesDetalle").select("IdProducto,Cantidad,CantidadAprobada,CantidadRecibida,Productos!inner(Codigo,Nombre,UnidadMedida)").eq("IdSolicitud", id).returns<any[]>(),
+    db.from("SolicitudesDetalle").select("IdProducto,Cantidad,CantidadAprobada,CantidadRecibida,Productos!inner(Codigo,Nombre,UnidadBase)").eq("IdSolicitud", id).returns<any[]>(),
     db.from("HistorialSolicitudes").select("EstadoSolicitud,FechaIngreso,Usuarios!HistorialSolicitudes_IdUsuarioCreacion_fkey(Nombres,Apellidos)").eq("IdSolicitud", id).order("IdHistorial").returns<any[]>(),
     db.from("StockBodega").select("IdProducto,Cantidad,Bodegas!inner(EsCentral)").eq("Bodegas.EsCentral", true).returns<any[]>(),
     mapaNombres("UnidadesMedida"),
@@ -39,7 +39,7 @@ export default async function SolicitudPage({ params }: { params: Promise<{ id: 
   const edicion = estado === 0 && esDueno
     ? await Promise.all([
         db.from("Bodegas").select("IdBodega,NombreBodega").eq("IdEstado", 1).eq("EsCentral", false).order("NombreBodega"),
-        db.from("Productos").select("IdProducto,Codigo,Nombre,UnidadMedida").eq("IdEstado", 1).order("Nombre"),
+        db.from("Productos").select("IdProducto,Codigo,Nombre,UnidadBase").eq("IdEstado", 1).order("Nombre"),
       ])
     : null;
 
@@ -58,7 +58,7 @@ export default async function SolicitudPage({ params }: { params: Promise<{ id: 
         <>
           <FormSolicitud
             bodegas={(edicion[0].data ?? []).map((b) => ({ id: b.IdBodega, nombre: b.NombreBodega }))}
-            productos={(edicion[1].data ?? []).map((p) => ({ id: p.IdProducto as number, codigo: p.Codigo as string | null, nombre: p.Nombre as string, unidad: nombreUnidad(p.UnidadMedida) }))}
+            productos={(edicion[1].data ?? []).map((p) => ({ id: p.IdProducto as number, codigo: p.Codigo as string | null, nombre: p.Nombre as string, unidad: nombreUnidad(p.UnidadBase) }))}
             inicial={{ idSolicitud: id, idBodega: sol.IdBodegaDestino, lineas: detalle.map((d) => ({ producto: String(d.IdProducto), cantidad: String(d.Cantidad) })) }}
           />
           <form action={enviarSolicitud}>
@@ -74,7 +74,7 @@ export default async function SolicitudPage({ params }: { params: Promise<{ id: 
               {detalle.map((d) => (
                 <tr key={d.IdProducto}>
                   <td>{etiquetaProducto(d.Productos.Codigo, d.Productos.Nombre)}</td>
-                  <td>{d.Cantidad} {nombreUnidad(d.Productos.UnidadMedida)}</td><td>{d.CantidadAprobada ?? "—"}</td><td>{d.CantidadRecibida}</td>
+                  <td>{d.Cantidad} {nombreUnidad(d.Productos.UnidadBase)}</td><td>{d.CantidadAprobada ?? "—"}</td><td>{d.CantidadRecibida}</td>
                 </tr>
               ))}
             </tbody>
