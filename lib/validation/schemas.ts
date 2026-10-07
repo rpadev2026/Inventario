@@ -81,6 +81,10 @@ export const facturaSchema = z.object({
     producto: z.coerce.number().int().positive(), precio, cantidad: z.coerce.number().positive(),
   })).min(1, "Agregue al menos un producto").max(200),
 }).refine((f) => Math.abs(f.neto + f.iva - f.total) <= 1, { message: "Neto + IVA debe igualar el Total", path: ["total"] })
+  // El precio de cada línea ya incluye IVA: el detalle debe sumar el total.
+  .refine((f) => Math.abs(f.detalle.reduce((a, l) => a + Math.round(l.precio * l.cantidad * 100) / 100, 0) - f.total) <= 1, {
+    message: "La suma del detalle no coincide con el total", path: ["total"],
+  })
   .refine((f) => f.fechaRecepcion >= f.fechaFactura, {
     message: "La fecha de recepción no puede ser anterior a la fecha de factura", path: ["fechaRecepcion"],
   });

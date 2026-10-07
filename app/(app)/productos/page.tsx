@@ -20,7 +20,10 @@ const tono = { Crítico: "danger", Bajo: "warn", OK: "ok" } as const;
 const AVISOS: Record<string, string> = { creado: "Producto creado correctamente", editado: "Cambios guardados correctamente" };
 const COLS = "IdProducto,Codigo,Nombre,UnidadMedida,Formato,PrecioCompra,UnidadBase,CostoUnitarioBase,StockMinimo,StockCritico,IdEstado";
 const idValido = (v: string | undefined) => (v && /^[1-9]\d{0,14}$/.test(v) ? Number(v) : undefined);
-const clp = new Intl.NumberFormat("es-CL", { style: "currency", currency: "CLP", maximumFractionDigits: 2 });
+const clpEntero = new Intl.NumberFormat("es-CL", { style: "currency", currency: "CLP", maximumFractionDigits: 0 });
+const clpDecimal = new Intl.NumberFormat("es-CL", { style: "currency", currency: "CLP", minimumFractionDigits: 2, maximumFractionDigits: 2 });
+/** Precio en pesos: sin decimales si es entero («$2.500»), con dos si no («$3.500,50»). */
+const clp = { format: (n: number) => (Number.isInteger(n) ? clpEntero : clpDecimal).format(n) };
 const clpBase = new Intl.NumberFormat("es-CL", { style: "currency", currency: "CLP", maximumFractionDigits: 6 });
 
 /** URL de /productos con solo los parámetros indicados (los undefined se omiten). */
@@ -95,6 +98,17 @@ export default async function ProductosPage({ searchParams }: { searchParams: Pr
     const pgS = paginar({ pagina: sp.ppagina, tam: sp.ptam }, count ?? 0);
     const { data } = await db.from("StockBodega").select("IdBodega,Cantidad,Bodegas!inner(NombreBodega)")
       .eq("IdProducto", sel.IdProducto).order("IdBodega").range(pgS.from, pgS.to).returns<any[]>();
+    // Historial de cambios del precio de compra (el más reciente primero), paginado aparte del stock.
+    const { count: nHist } = await db.from("HistorialPreciosProducto").select("IdHistorial", { count: "exact", head: true }).eq("IdProducto", sel.IdProducto);
+    const pgH = paginar({ pagina: sp.hpagina, tam: sp.htam }, nHist ?? 0);
+    const { data: dataH } = await db.from("HistorialPreciosProducto")
+      .select("IdHistorial,PrecioAnterior,PrecioNuevo,FechaRegistro,Usuarios!HistorialPreciosProducto_IdUsuario_fkey(Nombres,Apellidos)")
+      .eq("IdProducto", sel.IdProducto).order("IdHistorial", { ascending: false }).range(pgH.from, pgH.to).returns<any[]>();
+    const historial = (dataH ?? []).map((h) => ({
+      id: h.IdHistorial as number, anterior: h.PrecioAnterior === null ? null : Number(h.PrecioAnterior), nuevo: Number(h.PrecioNuevo),
+      fecha: new Date(h.FechaRegistro).toLocaleString("es-CL", { dateStyle: "short", timeStyle: "short" }),
+      usuario: h.Usuarios ? `${h.Usuarios.Nombres} ${h.Usuarios.Apellidos}` : "—",
+    }));
     const stock = (data ?? []).map((r) => {
       const cant = Number(r.Cantidad);
       const nivel = cant <= Number(sel.StockCritico) ? "Crítico" : cant <= Number(sel.StockMinimo) ? "Bajo" : "OK";
@@ -137,6 +151,24 @@ export default async function ProductosPage({ searchParams }: { searchParams: Pr
           </table>
         </div>
         <Paginador pg={pgS} paramPagina="ppagina" paramTam="ptam" etiqueta="stock por bodega" />
+        <h2 className="section-title">Historial de precios de compra</h2>
+        <div className="table-wrap">
+          <table className="table">
+            <thead><tr><th>Fecha</th><th className="num">Precio anterior</th><th className="num">Precio nuevo</th><th>Usuario</th></tr></thead>
+            <tbody>
+              {historial.map((h) => (
+                <tr key={h.id}>
+                  <td>{h.fecha}</td>
+                  <td className="num">{h.anterior === null ? "—" : clp.format(h.anterior)}</td>
+                  <td className="num">{clp.format(h.nuevo)}</td>
+                  <td>{h.usuario}</td>
+                </tr>
+              ))}
+              {!historial.length && <tr><td colSpan={4} className="text-muted">Sin cambios de precio registrados.</td></tr>}
+            </tbody>
+          </table>
+        </div>
+        <Paginador pg={pgH} paramPagina="hpagina" paramTam="htam" etiqueta="historial de precios" />
       </section>
     );
   }

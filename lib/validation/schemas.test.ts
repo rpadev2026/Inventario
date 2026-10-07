@@ -3,11 +3,18 @@ import { facturaSchema, productoSchema, proveedorSchema, rolSchema, sucursalSche
 import { catalogoSchema } from "./catalogo";
 
 const base = { idProveedor: 1, folio: 10, fechaFactura: "2026-10-01", fechaRecepcion: "2026-10-02", formaPago: "Contado",
-  neto: 1000, iva: 190, total: 1190, detalle: [{ producto: 1, precio: 500, cantidad: 2 }] };
+  neto: 840, iva: 160, total: 1000, detalle: [{ producto: 1, precio: 500, cantidad: 2 }] };
 
 describe("factura", () => {
   it("acepta factura consistente", () => expect(facturaSchema.safeParse(base).success).toBe(true));
   it("rechaza total inconsistente", () => expect(facturaSchema.safeParse({ ...base, total: 5000 }).success).toBe(false));
+  it("rechaza un detalle cuya suma no coincide con el total (el precio ya incluye IVA)", () => {
+    const r = facturaSchema.safeParse({ ...base, neto: 1000, iva: 190, total: 1190 });
+    expect(r.success).toBe(false);
+    if (!r.success) expect(r.error.issues[0].message).toBe("La suma del detalle no coincide con el total");
+  });
+  it("acepta una diferencia de hasta \$1 por redondeo", () =>
+    expect(facturaSchema.safeParse({ ...base, neto: 841, iva: 160, total: 1001 }).success).toBe(true));
   it("rechaza sin detalle", () => expect(facturaSchema.safeParse({ ...base, detalle: [] }).success).toBe(false));
   it("rechaza cantidad 0", () => expect(facturaSchema.safeParse({ ...base, detalle: [{ producto: 1, precio: 1, cantidad: 0 }] }).success).toBe(false));
   it("rechaza recepción anterior a la factura con el mensaje exacto", () => {
@@ -29,7 +36,7 @@ describe("factura", () => {
   it.each([0, -3, 1.5])("rechaza folio numérico %s", (folio) =>
     expect(facturaSchema.safeParse({ ...base, folio }).success).toBe(false));
   it("precio '10,50' pasa y se convierte", () => {
-    const r = facturaSchema.safeParse({ ...base, detalle: [{ producto: 1, precio: "10,50", cantidad: 1 }] });
+    const r = facturaSchema.safeParse({ ...base, neto: 9, iva: 2, total: 11, detalle: [{ producto: 1, precio: "10,50", cantidad: 1 }] });
     expect(r.success && r.data.detalle[0].precio).toBe(10.5);
   });
   it("precio '10,555' falla con mensaje", () => {
@@ -82,7 +89,7 @@ describe("factura: producto por id", () => {
   it.each([0, -1, "abc", 1.5])("rechaza producto %s", (producto) =>
     expect(facturaSchema.safeParse({ ...base, detalle: [{ producto, precio: 1, cantidad: 1 }] }).success).toBe(false));
   it("acepta producto en texto numérico y lo convierte", () => {
-    const r = facturaSchema.safeParse({ ...base, detalle: [{ producto: "3", precio: 1, cantidad: 1 }] });
+    const r = facturaSchema.safeParse({ ...base, neto: 1, iva: 0, total: 1, detalle: [{ producto: "3", precio: 1, cantidad: 1 }] });
     expect(r.success && r.data.detalle[0].producto).toBe(3);
   });
 });

@@ -71,7 +71,7 @@ export default async function FacturaPage({ params }: { params: Promise<{ id: st
         <div className="table-wrap">
           <table className="table">
             <thead>
-              <tr><th>Código</th><th>Producto</th><th>Formato</th><th>Unidad</th><th className="num">Cantidad</th><th className="num">Precio</th><th className="num">Total</th></tr>
+              <tr><th>Código</th><th>Producto</th><th>Formato</th><th>Unidad</th><th className="num">Cantidad</th><th className="num">Precio (IVA incl.)</th><th className="num">Total</th></tr>
             </thead>
             <tbody>
               {lineas.map((l) => (

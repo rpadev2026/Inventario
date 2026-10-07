@@ -30,8 +30,8 @@ beforeEach(async () => {
       ('REAL-1','Real','KG','CAJA',100,5,1),('E2E-HAR','Harina E2E','KG','BOLSA',100,10,5);
     insert into "Bodegas"("NombreBodega") values ('Cocina Real'),('Cocina E2E');
     -- factura real (sube stock real) y factura E2E
-    select registrar_factura(1,1,500,'2026-10-01','2026-10-01','CONTADO',1000,190,1190,'[{"producto":1,"precio":100,"cantidad":10}]'::jsonb);
-    select registrar_factura(2,2,1001,'2026-10-01','2026-10-01','CONTADO',1000,190,1190,'[{"producto":2,"precio":100,"cantidad":10}]'::jsonb);
+    select registrar_factura(1,1,500,'2026-10-01','2026-10-01','CONTADO',840,160,1000,'[{"producto":1,"precio":100,"cantidad":10}]'::jsonb);
+    select registrar_factura(2,2,1001,'2026-10-01','2026-10-01','CONTADO',840,160,1000,'[{"producto":2,"precio":100,"cantidad":10}]'::jsonb);
     -- solicitud E2E completa (usuario 3 = solicitante E2E, bodega 3 = Cocina E2E)
     select crear_solicitud(3, 3, '[{"producto":2,"cantidad":5}]'::jsonb);
     select cambiar_estado_solicitud(3, 1, 1::smallint);
@@ -84,6 +84,16 @@ describe("e2e-cleanup.sql", () => {
     expect((await db.query<any>(`select "Nombre" from "Productos" order by 1`)).rows.map((r) => r.Nombre)).toEqual(["Real", "Sal Real"]);
   });
 
+  it("borra el historial de precios de productos E2E y conserva el de los reales", async () => {
+    await db.exec(`update "Productos" set "PrecioCompra"=200, "IdUsuarioModificacion"=1 where "IdProducto" = 1`); // real, por el admin real
+    await db.exec(`update "Productos" set "PrecioCompra"=200, "IdUsuarioModificacion"=2 where "IdProducto" = 2`); // E2E, por un usuario E2E
+    await db.exec(cleanup);
+    const h = (await db.query<any>(`select "IdProducto" p, "PrecioNuevo" n, "IdUsuario" u from "HistorialPreciosProducto" order by "IdHistorial"`)).rows;
+    expect(h.every((r) => r.p === 1)).toBe(true);
+    expect(h.length).toBe(2);
+    expect(h[1]).toEqual({ p: 1, n: "200.00", u: 1 });
+  });
+
   it("es idempotente (segunda ejecución no falla ni borra más)", async () => {
     await db.exec(cleanup);
     await db.exec(cleanup);
@@ -103,7 +113,7 @@ describe("e2e-cleanup.sql", () => {
   });
 
   it("aborta si una factura de otro proveedor usa un producto E2E", async () => {
-    await db.exec(`select registrar_factura(1,1,501,'2026-10-01','2026-10-01','CONTADO',100,19,119,'[{"producto":2,"precio":10,"cantidad":10}]'::jsonb);`);
+    await db.exec(`select registrar_factura(1,1,501,'2026-10-01','2026-10-01','CONTADO',84,16,100,'[{"producto":2,"precio":10,"cantidad":10}]'::jsonb);`);
     await expect(db.exec(cleanup)).rejects.toThrow(/Abortado/);
     expect(await count("Compras")).toBe(3);
   });
