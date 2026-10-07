@@ -5,7 +5,7 @@
 -- Qué considera "datos E2E" (nada más se toca):
 --   usuarios  : correo like 'e2e.%@example.test'
 --   proveedor : RUT 76086428-5 con razón social 'E2E Distribuidora SpA'
---   productos : "Codigo" like 'E2E-%'
+--   productos : "Codigo" like 'E2E-%' o nombre terminado en ' E2E' (los productos pueden no tener código)
 --   bodegas   : nombre terminado en ' E2E' (p. ej. 'Cocina E2E', 'Bar E2E'); nunca la Bodega Central
 --   roles     : nombre terminado en ' E2E' (p. ej. 'Consulta E2E') que no sea rol base
 -- Los usuarios E2E incluyen e2e.admin (rol Administrador); se borran como los demás.
@@ -27,7 +27,7 @@ begin
   select coalesce(array_agg("IdProveedor"), '{}') into p_ids from "Proveedores" where "Rut" = '76086428-5' and "RazonSocial" = 'E2E Distribuidora SpA';
   select coalesce(array_agg("IdBodega"), '{}') into b_ids from "Bodegas" where "NombreBodega" like '% E2E' and not "EsCentral";
 
-  select coalesce(array_agg("IdProducto"), '{}') into prod_ids from "Productos" where "Codigo" like 'E2E-%';
+  select coalesce(array_agg("IdProducto"), '{}') into prod_ids from "Productos" where "Codigo" like 'E2E-%' or "Nombre" like '% E2E';
   select coalesce(array_agg("IdRol"), '{}') into r_ids from "Roles" where "NombreRol" like '% E2E' and not "EsBase";
 
   -- Solicitudes de prueba: hechas por usuarios E2E o dirigidas a la bodega E2E.

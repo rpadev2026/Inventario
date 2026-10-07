@@ -78,6 +78,12 @@ describe("e2e-cleanup.sql", () => {
     expect((await db.query<any>(`select "IdUsuarioCreacion" c, "IdUsuarioModificacion" m from "Regiones" where "Codigo"='13'`)).rows[0]).toEqual({ c: null, m: null });
   });
 
+  it("borra también los productos E2E sin código (nombre terminado en ' E2E')", async () => {
+    await db.exec(`insert into "Productos"("Codigo","Nombre","UnidadMedida","Formato","PrecioCompra") values (null,'Sal E2E','KG','CAJA',10),(null,'Sal Real','KG','CAJA',10)`);
+    await db.exec(cleanup);
+    expect((await db.query<any>(`select "Nombre" from "Productos" order by 1`)).rows.map((r) => r.Nombre)).toEqual(["Real", "Sal Real"]);
+  });
+
   it("es idempotente (segunda ejecución no falla ni borra más)", async () => {
     await db.exec(cleanup);
     await db.exec(cleanup);
