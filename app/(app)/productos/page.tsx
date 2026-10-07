@@ -20,7 +20,10 @@ const tono = { Crítico: "danger", Bajo: "warn", OK: "ok" } as const;
 const AVISOS: Record<string, string> = { creado: "Producto creado correctamente", editado: "Cambios guardados correctamente" };
 const COLS = "IdProducto,Codigo,Nombre,UnidadMedida,Formato,PrecioCompra,UnidadBase,CostoUnitarioBase,StockMinimo,StockCritico,IdEstado";
 const idValido = (v: string | undefined) => (v && /^[1-9]\d{0,14}$/.test(v) ? Number(v) : undefined);
-const clp = new Intl.NumberFormat("es-CL", { style: "currency", currency: "CLP", maximumFractionDigits: 2 });
+const clpEntero = new Intl.NumberFormat("es-CL", { style: "currency", currency: "CLP", maximumFractionDigits: 0 });
+const clpDecimal = new Intl.NumberFormat("es-CL", { style: "currency", currency: "CLP", minimumFractionDigits: 2, maximumFractionDigits: 2 });
+/** Precio en pesos: sin decimales si es entero («$2.500»), con dos si no («$3.500,50»). */
+const clp = { format: (n: number) => (Number.isInteger(n) ? clpEntero : clpDecimal).format(n) };
 const clpBase = new Intl.NumberFormat("es-CL", { style: "currency", currency: "CLP", maximumFractionDigits: 6 });
 
 /** URL de /productos con solo los parámetros indicados (los undefined se omiten). */
