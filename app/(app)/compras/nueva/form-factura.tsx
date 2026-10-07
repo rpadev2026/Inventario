@@ -7,16 +7,17 @@ import Field from "@/components/app/field";
 import Combobox from "@/components/app/combobox";
 import Icon from "@/components/app/icon";
 import { aplicarPreProducto, guardarBorrador, leerBorrador, limpiarBorrador, type Borrador } from "@/lib/borrador-factura";
+import { etiquetaProducto } from "@/lib/producto-etiqueta";
 import { filtrarDecimal, filtrarDecimal2, parseCantidad, parseDecimal2, soloDigitos } from "@/lib/numeros";
 
 type Prov = { id: number; rut: string; nombre: string };
-type Prod = { codigo: string; nombre: string };
+type Prod = { id: number; codigo: string | null; nombre: string };
 type FormaPago = { codigo: string; nombre: string };
 type Linea = Borrador["lineas"][number];
 
 const IVA = 0.19;
 const MSG_RECEPCION = "La fecha de recepción no puede ser anterior a la fecha de factura";
-const lineaVacia = (): Linea => ({ codigo: "", precio: "", cantidad: "" });
+const lineaVacia = (): Linea => ({ producto: "", precio: "", cantidad: "" });
 const clp = (n: number) => n.toLocaleString("es-CL", { style: "currency", currency: "CLP", maximumFractionDigits: 0 });
 
 export default function FormFactura(props: {
@@ -38,7 +39,7 @@ export default function FormFactura(props: {
     [props.proveedores],
   );
   const opcionesProd = useMemo(
-    () => props.productos.map((p) => ({ valor: p.codigo, etiqueta: `${p.codigo} — ${p.nombre}`, busqueda: `${p.codigo} ${p.nombre}` })),
+    () => props.productos.map((p) => ({ valor: String(p.id), etiqueta: etiquetaProducto(p.codigo, p.nombre), busqueda: `${p.codigo ?? ""} ${p.nombre}` })),
     [props.productos],
   );
 
@@ -59,7 +60,7 @@ export default function FormFactura(props: {
     const prov = props.preProveedor;
     if (prov && props.proveedores.some((p) => String(p.id) === prov)) setIdProv(prov);
     const prod = props.preProducto;
-    if (prod && props.productos.some((p) => p.codigo === prod)) ls = aplicarPreProducto(ls, prod);
+    if (prod && props.productos.some((p) => String(p.id) === prod)) ls = aplicarPreProducto(ls, prod);
     setLineas(ls);
   }, [props.preProveedor, props.preProducto, props.proveedores, props.productos]);
 
@@ -93,7 +94,7 @@ export default function FormFactura(props: {
       const r = await registrarFactura({
         idProveedor: idProv, folio, fechaFactura, fechaRecepcion, formaPago,
         neto: Math.round(neto), iva, total,
-        detalle: lineas.map((l) => ({ codigo: l.codigo, precio: l.precio, cantidad: parseCantidad(l.cantidad) })),
+        detalle: lineas.map((l) => ({ producto: l.producto, precio: l.precio, cantidad: parseCantidad(l.cantidad) })),
       });
       if (r.error) setError(r.error);
       else {
@@ -138,7 +139,7 @@ export default function FormFactura(props: {
         </div>
         {lineas.map((l, i) => (
           <div key={i} className="line-grid line-grid-4">
-            <Combobox label="Producto" required opciones={opcionesProd} valor={l.codigo} onCambio={(v) => setLinea(i, "codigo", v)} placeholder="Busque por código o nombre" />
+            <Combobox label="Producto" required opciones={opcionesProd} valor={l.producto} onCambio={(v) => setLinea(i, "producto", v)} placeholder="Busque por código o nombre" />
             <Field label="Precio unitario">
               <input type="text" inputMode="decimal" autoComplete="off" value={l.precio} onChange={(e) => setLinea(i, "precio", filtrarDecimal2(e.target.value))} required className="input" />
             </Field>
