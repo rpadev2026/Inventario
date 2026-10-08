@@ -6,6 +6,8 @@ export const PERMISOS = [
   { codigo: "proveedores.gestionar", modulo: "Proveedores", descripcion: "Crear y editar proveedores" },
   { codigo: "productos.ver", modulo: "Productos", descripcion: "Ver productos" },
   { codigo: "productos.gestionar", modulo: "Productos", descripcion: "Crear y editar productos" },
+  { codigo: "recetas.ver", modulo: "Recetas", descripcion: "Ver recetas y su costo" },
+  { codigo: "recetas.gestionar", modulo: "Recetas", descripcion: "Crear y editar recetas" },
   { codigo: "bodegas.ver", modulo: "Bodegas", descripcion: "Ver bodegas y su stock" },
   { codigo: "solicitudes.ver_propias", modulo: "Solicitudes", descripcion: "Ver y recepcionar solicitudes propias" },
   { codigo: "solicitudes.crear", modulo: "Solicitudes", descripcion: "Crear, editar y enviar solicitudes propias" },
