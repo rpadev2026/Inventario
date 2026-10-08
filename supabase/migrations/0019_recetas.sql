@@ -167,3 +167,108 @@ select r."IdRol", p.permiso
 from "Roles" r
 join (values ('Compras','recetas.ver'),('Compras','recetas.gestionar')) as p(rol, permiso) on p.rol = r."NombreRol"
 on conflict do nothing;
+
+-- ===== RPC: guardar_receta (crea o edita la cabecera y reemplaza todos los detalles, en una transacción) =====
+-- p_cabecera: {"codigo","nombre","porciones","rendimientoCantidad","rendimientoUnidad","estado"}
+-- p_detalle : [{"producto": id | "subreceta": id, "cantidad","porcion","unidad","merma"}] (merma = fracción: 0,25 = 25 %)
+create or replace function guardar_receta(p_usuario bigint, p_id bigint, p_cabecera jsonb, p_detalle jsonb)
+returns bigint language plpgsql security definer set search_path = public as $$
+declare
+  v_id bigint;
+  v_nombre text;
+  v_porciones numeric;
+  v_rend numeric;
+  v_rend_u text := nullif(btrim(coalesce(p_cabecera->>'rendimientoUnidad', '')), '');
+  v_estado smallint;
+  d jsonb;
+  v_ing bigint;
+  v_es_sub boolean;
+  v_cant numeric;
+  v_porc numeric;
+  v_merma numeric;
+  v_unidad text;
+  v_vistos text[] := '{}';
+  v_clave text;
+  v_estado_ing smallint;
+  v_nombre_ing text;
+begin
+  if p_cabecera is null or jsonb_typeof(p_cabecera) <> 'object' then
+    raise exception 'Datos de la receta no válidos'; end if;
+  v_nombre := btrim(coalesce(p_cabecera->>'nombre', ''));
+  if char_length(v_nombre) < 1 or char_length(v_nombre) > 150 then
+    raise exception 'El nombre de la receta debe tener entre 1 y 150 caracteres'; end if;
+  if coalesce(p_cabecera->>'porciones', '1') !~ '^[0-9]{1,6}(\.[0-9]{1,2})?$' or coalesce(p_cabecera->>'porciones', '1')::numeric <= 0 then
+    raise exception 'Las porciones deben ser un número mayor que 0 (hasta 2 decimales)'; end if;
+  v_porciones := coalesce(p_cabecera->>'porciones', '1')::numeric;
+  if coalesce(p_cabecera->>'estado', '1') not in ('0', '1') then
+    raise exception 'Estado de receta inválido'; end if;
+  v_estado := coalesce(p_cabecera->>'estado', '1')::smallint;
+
+  if (p_cabecera->>'rendimientoCantidad') is null <> (v_rend_u is null) then
+    raise exception 'El rendimiento requiere cantidad y unidad'; end if;
+  if v_rend_u is not null then
+    if p_cabecera->>'rendimientoCantidad' !~ '^[0-9]{1,11}(\.[0-9]{1,3})?$' or (p_cabecera->>'rendimientoCantidad')::numeric <= 0 then
+      raise exception 'El rendimiento debe ser un número mayor que 0 (hasta 3 decimales)'; end if;
+    v_rend := (p_cabecera->>'rendimientoCantidad')::numeric;
+    if not exists (select 1 from "UnidadesMedida" where "Codigo" = v_rend_u and "IdEstado" = 1) then
+      raise exception 'La unidad del rendimiento no existe o no está vigente'; end if;
+  end if;
+
+  if p_detalle is null or jsonb_typeof(p_detalle) <> 'array' or jsonb_array_length(p_detalle) = 0
+     or jsonb_array_length(p_detalle) > 200 then
+    raise exception 'Agregue al menos un ingrediente (máximo 200)'; end if;
+
+  if p_id is null then
+    insert into "Recetas"("CodigoReceta","Nombre","RendimientoPorciones","RendimientoCantidad","RendimientoUnidad","IdEstado","IdUsuarioCreacion","IdUsuarioModificacion")
+    values (nullif(btrim(coalesce(p_cabecera->>'codigo', '')), ''), v_nombre, v_porciones, v_rend, v_rend_u, v_estado, p_usuario, p_usuario)
+    returning "IdReceta" into v_id;
+  else
+    perform 1 from "Recetas" where "IdReceta" = p_id for update;
+    if not found then raise exception 'La receta no existe'; end if;
+    v_id := p_id;
+    update "Recetas" set "CodigoReceta" = nullif(btrim(coalesce(p_cabecera->>'codigo', '')), ''), "Nombre" = v_nombre,
+      "RendimientoPorciones" = v_porciones, "RendimientoCantidad" = v_rend, "RendimientoUnidad" = v_rend_u,
+      "IdEstado" = v_estado, "IdUsuarioModificacion" = p_usuario
+    where "IdReceta" = v_id;
+    delete from "RecetaDetalles" where "IdReceta" = v_id;
+  end if;
+
+  for d in select * from jsonb_array_elements(p_detalle) loop
+    if (d ? 'producto') = (d ? 'subreceta') then raise exception 'Ingrediente no válido'; end if;
+    v_es_sub := d ? 'subreceta';
+    if v_es_sub then
+      if (d->>'subreceta') !~ '^[0-9]{1,15}$' then raise exception 'Sub-receta no válida'; end if;
+      v_ing := (d->>'subreceta')::bigint;
+      select "IdEstado", "Nombre" into v_estado_ing, v_nombre_ing from "Recetas" where "IdReceta" = v_ing;
+      if not found then raise exception 'La sub-receta % no existe', v_ing; end if;
+      if v_estado_ing <> 1 then raise exception 'La sub-receta % no está vigente', v_nombre_ing; end if;
+      v_clave := 's' || v_ing;
+    else
+      v_ing := producto_de_item(d);
+      select "IdEstado" into v_estado_ing from "Productos" where "IdProducto" = v_ing;
+      if not found then raise exception 'El producto % no existe', v_ing; end if;
+      if v_estado_ing <> 1 then raise exception 'El producto % no está vigente', etiqueta_producto(v_ing); end if;
+      v_clave := 'p' || v_ing;
+    end if;
+    if v_clave = any(v_vistos) then
+      raise exception 'Ingrediente repetido en la receta: %', case when v_es_sub then v_nombre_ing else etiqueta_producto(v_ing) end;
+    end if;
+    v_vistos := v_vistos || v_clave;
+
+    if coalesce(d->>'cantidad', '') !~ '^[0-9]{1,7}(\.[0-9]{1,3})?$' or (d->>'cantidad')::numeric <= 0 then
+      raise exception 'La cantidad debe ser un número mayor que 0 (hasta 3 decimales)'; end if;
+    if coalesce(d->>'porcion', '') !~ '^[0-9]{1,7}(\.[0-9]{1,3})?$' or (d->>'porcion')::numeric <= 0 then
+      raise exception 'La porción neta debe ser un número mayor que 0 (hasta 3 decimales)'; end if;
+    if coalesce(d->>'merma', '0') !~ '^[0-9]{1,2}(\.[0-9]{1,4})?$' then
+      raise exception 'La merma debe ser un número entre 0 y 99 (fracción: 0,25 = 25 %%)'; end if;
+    v_cant := (d->>'cantidad')::numeric; v_porc := (d->>'porcion')::numeric; v_merma := coalesce(d->>'merma', '0')::numeric;
+    v_unidad := nullif(btrim(coalesce(d->>'unidad', '')), '');
+    if v_unidad is null or not exists (select 1 from "UnidadesMedida" where "Codigo" = v_unidad and "IdEstado" = 1) then
+      raise exception 'La unidad % no existe o no está vigente', coalesce(v_unidad, '(vacía)'); end if;
+
+    insert into "RecetaDetalles"("IdReceta","IdProducto","IdSubReceta","Cantidad","PorcionNeta","UnidadMedida","PorcentajeMerma")
+    values (v_id, case when v_es_sub then null else v_ing end, case when v_es_sub then v_ing else null end, v_cant, v_porc, v_unidad, v_merma);
+  end loop;
+  return v_id;
+end $$;
+revoke all on function guardar_receta(bigint, bigint, jsonb, jsonb) from public, anon, authenticated;

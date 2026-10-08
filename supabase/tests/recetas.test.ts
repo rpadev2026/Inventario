@@ -124,3 +124,56 @@ describe("permisos de Recetas", () => {
     expect(r.rows.map((x) => x.Permiso)).toEqual(["recetas.gestionar", "recetas.ver"]);
   });
 });
+
+const G = (id: number | "null", cab: object, det: unknown) =>
+  `select guardar_receta(1, ${id}, '${JSON.stringify(cab)}'::jsonb, '${JSON.stringify(det)}'::jsonb)`;
+const CAB = (nombre: string, extra: object = {}) => ({ codigo: null, nombre, porciones: 1, rendimientoCantidad: null, rendimientoUnidad: null, estado: 1, ...extra });
+const L = (producto: number, extra: object = {}) => ({ producto, cantidad: 1, porcion: 100, unidad: "G", merma: 0, ...extra });
+
+describe("guardar_receta", () => {
+  it("crea la cabecera y los detalles y devuelve el id", async () => {
+    const id = Number(await val(G("null", CAB("g uno", { codigo: "g-1", porciones: 4 }), [L(1), L(2, { unidad: "ML" })])));
+    expect(await val(`select "CodigoReceta" from "Recetas" where "IdReceta"=${id}`)).toBe("G-1");
+    expect(Number(await val(`select count(*) from "RecetaDetalles" where "IdReceta"=${id}`))).toBe(2);
+    expect(Number(await val(`select "IdUsuarioCreacion" from "Recetas" where "IdReceta"=${id}`))).toBe(1);
+  });
+  it("al editar reemplaza todos los detalles", async () => {
+    const id = Number(await val(G("null", CAB("g dos"), [L(1), L(2, { unidad: "ML" })])));
+    await db.query(G(id, CAB("g dos", { porciones: 2 }), [L(1, { porcion: 250, merma: 0.25 })]));
+    expect(Number(await val(`select count(*) from "RecetaDetalles" where "IdReceta"=${id}`))).toBe(1);
+    expect(Number(await val(`select "PorcionNeta" from "RecetaDetalles" where "IdReceta"=${id}`))).toBe(250);
+    expect(Number(await val(`select "RendimientoPorciones" from "Recetas" where "IdReceta"=${id}`))).toBe(2);
+  });
+  it("rechaza una receta sin ingredientes", async () => { await fails(G("null", CAB("g vacia"), []), /ingrediente/); });
+  it("rechaza ingredientes no vigentes", async () => {
+    const p = Number(await val(`insert into "Productos"("Codigo","Nombre","UnidadBase","Formato","IdEstado") values ('NOV','No vigente','G','BOLSA',0) returning "IdProducto"`));
+    await fails(G("null", CAB("g nov"), [L(p)]), /vigente/);
+    const s = await receta("G SUBNV", `"RendimientoCantidad","RendimientoUnidad","IdEstado"|100,'G',0`);
+    await fails(G("null", CAB("g nov2"), [{ subreceta: s, cantidad: 1, porcion: 10, unidad: "G", merma: 0 }]), /vigente/);
+  });
+  it("rechaza una unidad no vigente", async () => {
+    await db.query(`insert into "UnidadesMedida"("Codigo","Nombre","UnidadBase","Factor","IdEstado") values ('GX','Gramo viejo','G',1,0)`);
+    await fails(G("null", CAB("g un"), [L(1, { unidad: "GX" })]), /unidad/i);
+  });
+  it("rechaza ingredientes repetidos", async () => { await fails(G("null", CAB("g rep"), [L(1), L(1)]), /repet/i); });
+  it("rechaza merma negativa, cantidad 0 y porciones 0", async () => {
+    await fails(G("null", CAB("g m"), [L(1, { merma: -0.1 })]), /merma/i);
+    await fails(G("null", CAB("g c"), [L(1, { cantidad: 0 })]), /cantidad/i);
+    await fails(G("null", CAB("g p", { porciones: 0 }), [L(1)]), /porciones/i);
+  });
+  it("producto no numérico: 'Producto no válido'", async () => {
+    await fails(G("null", CAB("g pn"), [{ producto: "x", cantidad: 1, porcion: 1, unidad: "G", merma: 0 }]), /Producto no válido/);
+  });
+  it("estado fuera de 0/1 falla", async () => { await fails(G("null", CAB("g e", { estado: 2 }), [L(1)]), /[Ee]stado/); });
+  it("un error en la línea 2 deja la receta como estaba", async () => {
+    const id = Number(await val(G("null", CAB("g atom"), [L(1)])));
+    await fails(G(id, CAB("g atom cambiada"), [L(2, { unidad: "ML" }), L(1, { unidad: "L" })]), /familia/);
+    expect(await val(`select "Nombre" from "Recetas" where "IdReceta"=${id}`)).toBe("G ATOM");
+    expect(Number(await val(`select count(*) from "RecetaDetalles" where "IdReceta"=${id}`))).toBe(1);
+    expect(Number(await val(`select "IdProducto" from "RecetaDetalles" where "IdReceta"=${id}`))).toBe(1);
+  });
+  it("un nombre duplicado falla con 23505", async () => {
+    await expect(db.query(G("null", CAB("g atom"), [L(1)]))).rejects.toMatchObject({ code: "23505" });
+  });
+  it("editar una receta que no existe falla", async () => { await fails(G(99999, CAB("g nada"), [L(1)]), /no existe/); });
+});
