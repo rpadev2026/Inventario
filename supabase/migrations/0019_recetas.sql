@@ -272,3 +272,64 @@ begin
   return v_id;
 end $$;
 revoke all on function guardar_receta(bigint, bigint, jsonb, jsonb) from public, anon, authenticated;
+
+-- ===== RPC: calcular_receta (costo total, por porción y por unidad base del rendimiento) =====
+-- Devuelve {"total","porcion","incompleto","costoPorBase","lineas":[{"detalle","tipo","id","nombre","cantidadBruta","unidad","costo","sinCosto"}]}.
+-- cantidadBruta = Cantidad × PorcionNeta × (1 + merma), en la unidad de la línea. Un ingrediente sin costo deja la línea
+-- «sin costo» y la receta «incompleta» (el total suma solo las líneas con costo; costoPorBase es null si es incompleta).
+create or replace function calcular_receta_n(p_receta bigint, p_nivel int)
+returns jsonb language plpgsql stable security definer set search_path = public as $$
+declare
+  v_rec "Recetas"%rowtype;
+  l record;
+  v_sub jsonb;
+  v_bruto numeric;
+  v_cpb numeric;
+  v_costo numeric;
+  v_total numeric := 0;
+  v_incompleto boolean := false;
+  v_lineas jsonb := '[]'::jsonb;
+  v_factor_rend numeric;
+begin
+  select * into v_rec from "Recetas" where "IdReceta" = p_receta;
+  if not found then raise exception 'La receta no existe'; end if;
+  if p_nivel > 20 then raise exception 'Receta demasiado anidada'; end if;
+
+  for l in
+    select d."IdDetalle", d."IdProducto", d."IdSubReceta", d."Cantidad", d."PorcionNeta", d."UnidadMedida", d."PorcentajeMerma",
+           u."Factor" as factor, p."Nombre" as nombre_producto, p."CostoUnitarioBase" as costo_producto, s."Nombre" as nombre_sub
+    from "RecetaDetalles" d
+    join "UnidadesMedida" u on u."Codigo" = d."UnidadMedida"
+    left join "Productos" p on p."IdProducto" = d."IdProducto"
+    left join "Recetas" s on s."IdReceta" = d."IdSubReceta"
+    where d."IdReceta" = p_receta order by d."IdDetalle"
+  loop
+    v_bruto := l."Cantidad" * l."PorcionNeta" * (1 + l."PorcentajeMerma");
+    if l."IdProducto" is not null then
+      v_cpb := l.costo_producto;
+    else
+      v_sub := calcular_receta_n(l."IdSubReceta", p_nivel + 1);
+      v_cpb := (v_sub->>'costoPorBase')::numeric;
+    end if;
+    v_costo := case when v_cpb is null then null else round(v_bruto * l.factor * v_cpb, 2) end;
+    if v_costo is null then v_incompleto := true; else v_total := v_total + v_costo; end if;
+    v_lineas := v_lineas || jsonb_build_object(
+      'detalle', l."IdDetalle", 'tipo', case when l."IdProducto" is not null then 'producto' else 'subreceta' end,
+      'id', coalesce(l."IdProducto", l."IdSubReceta"), 'nombre', coalesce(l.nombre_producto, l.nombre_sub),
+      'cantidadBruta', v_bruto, 'unidad', l."UnidadMedida", 'costo', v_costo, 'sinCosto', v_costo is null);
+  end loop;
+
+  select "Factor" into v_factor_rend from "UnidadesMedida" where "Codigo" = v_rec."RendimientoUnidad";
+  return jsonb_build_object(
+    'total', v_total, 'porcion', round(v_total / v_rec."RendimientoPorciones", 2), 'incompleto', v_incompleto,
+    'costoPorBase', case when v_rec."RendimientoCantidad" is null or v_incompleto then null
+                         else v_total / (v_rec."RendimientoCantidad" * v_factor_rend) end,
+    'lineas', v_lineas);
+end $$;
+revoke all on function calcular_receta_n(bigint, int) from public, anon, authenticated;
+
+create or replace function calcular_receta(p_receta bigint) returns jsonb
+language sql stable security definer set search_path = public as $$
+  select calcular_receta_n(p_receta, 0);
+$$;
+revoke all on function calcular_receta(bigint) from public, anon, authenticated;

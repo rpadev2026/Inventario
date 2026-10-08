@@ -177,3 +177,71 @@ describe("guardar_receta", () => {
   });
   it("editar una receta que no existe falla", async () => { await fails(G(99999, CAB("g nada"), [L(1)]), /no existe/); });
 });
+
+describe("calcular_receta", () => {
+  let c1 = 0; // producto con costo 1 por gramo: facilita los números
+  const calc = async (id: number) => (await db.query<any>(`select calcular_receta(${id}) as r`)).rows[0].r;
+  const crear = async (nombre: string, det: unknown[], cab: object = {}) => Number(await val(G("null", CAB(nombre, cab), det)));
+  beforeAll(async () => {
+    c1 = Number(await val(`insert into "Productos"("Codigo","Nombre","UnidadBase","Formato","CostoUnitarioBase") values ('C1','Costo uno','G','BOLSA',1) returning "IdProducto"`));
+  });
+
+  it("producto con merma: bruto = neto × (1 + merma) y costo = bruto × costo base", async () => {
+    const id = await crear("K simple", [L(1, { porcion: 500, merma: 0.3 })]);
+    const r = await calc(id);
+    expect(r.lineas[0].cantidadBruta).toBeCloseTo(650);
+    expect(r.lineas[0].costo).toBeCloseTo(0.65);
+    expect(r.total).toBeCloseTo(0.65);
+    expect(r.incompleto).toBe(false);
+  });
+  it("convierte la unidad de la línea (0,5 KG = 500 G) y su bruto queda en la unidad de la línea", async () => {
+    const id = await crear("K kilo", [L(1, { porcion: 0.5, unidad: "KG", merma: 0.3 })]);
+    const r = await calc(id);
+    expect(r.lineas[0].cantidadBruta).toBeCloseTo(0.65);
+    expect(r.lineas[0].unidad).toBe("KG");
+    expect(r.lineas[0].costo).toBeCloseTo(0.65);
+  });
+  it("Cantidad multiplica la porción", async () => {
+    const id = await crear("K cantidad", [L(1, { cantidad: 2, porcion: 500, merma: 0.3 })]);
+    expect((await calc(id)).lineas[0].costo).toBeCloseTo(1.3);
+  });
+  it("porción por persona = total ÷ RendimientoPorciones, a 2 decimales", async () => {
+    const id = await crear("K porciones", [L(c1, { porcion: 100 })], { porciones: 3 });
+    const r = await calc(id);
+    expect(r.total).toBeCloseTo(100);
+    expect(r.porcion).toBeCloseTo(33.33);
+  });
+  it("sub-receta: usa el costo por unidad base de su rendimiento", async () => {
+    const sub = await crear("K bechamel", [L(c1, { porcion: 2000 })], { rendimientoCantidad: 2000, rendimientoUnidad: "G" });
+    expect((await calc(sub)).costoPorBase).toBeCloseTo(1);
+    const id = await crear("K usa bechamel", [{ subreceta: sub, cantidad: 1, porcion: 400, unidad: "G", merma: 0 }]);
+    const r = await calc(id);
+    expect(r.lineas[0].tipo).toBe("subreceta");
+    expect(r.lineas[0].costo).toBeCloseTo(400);
+  });
+  it("sub-receta con rendimiento en KG y línea en G", async () => {
+    const sub = await crear("K salsa", [L(c1, { porcion: 2000 })], { rendimientoCantidad: 2, rendimientoUnidad: "KG" });
+    expect((await calc(sub)).costoPorBase).toBeCloseTo(1);
+    const id = await crear("K usa salsa", [{ subreceta: sub, cantidad: 1, porcion: 0.1, unidad: "KG", merma: 0 }]);
+    expect((await calc(id)).lineas[0].costo).toBeCloseTo(100);
+  });
+  it("ingrediente sin costo: línea sin costo, receta incompleta, y el total suma el resto", async () => {
+    const id = await crear("K sin costo", [L(c1, { porcion: 10 }), L(3, { porcion: 50 })]);
+    const r = await calc(id);
+    expect(r.incompleto).toBe(true);
+    expect(r.total).toBeCloseTo(10);
+    expect(r.lineas.find((l: any) => l.id === 3).sinCosto).toBe(true);
+    expect(r.lineas.find((l: any) => l.id === 3).costo).toBeNull();
+  });
+  it("una sub-receta incompleta deja incompleta a la receta que la usa", async () => {
+    const sub = await crear("K sub incompleta", [L(3, { porcion: 100 })], { rendimientoCantidad: 100, rendimientoUnidad: "G" });
+    const rs = await calc(sub);
+    expect(rs.incompleto).toBe(true);
+    expect(rs.costoPorBase).toBeNull();
+    const id = await crear("K usa incompleta", [{ subreceta: sub, cantidad: 1, porcion: 50, unidad: "G", merma: 0 }]);
+    const r = await calc(id);
+    expect(r.incompleto).toBe(true);
+    expect(r.lineas[0].sinCosto).toBe(true);
+  });
+  it("receta inexistente: 'La receta no existe'", async () => { await fails(`select calcular_receta(999999)`, /La receta no existe/); });
+});
