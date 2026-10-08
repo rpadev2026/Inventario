@@ -94,6 +94,32 @@ describe("e2e-cleanup.sql", () => {
     expect(h).toEqual([{ p: 1, n: "100.000000" }, { p: 1, n: "200.000000" }]);
   });
 
+  it("borra las recetas E2E (y sus detalles) y conserva las reales", async () => {
+    await db.exec(`
+      select guardar_receta(1, null, '{"nombre":"Plato E2E","porciones":1,"estado":1}'::jsonb, '[{"producto":2,"cantidad":1,"porcion":10,"unidad":"G","merma":0}]'::jsonb);
+      select guardar_receta(1, null, '{"codigo":"E2E-R2","nombre":"Salsa con codigo","porciones":1,"estado":1}'::jsonb, '[{"producto":2,"cantidad":1,"porcion":10,"unidad":"G","merma":0}]'::jsonb);
+      select guardar_receta(1, null, '{"nombre":"Plato Real","porciones":1,"estado":1}'::jsonb, '[{"producto":1,"cantidad":1,"porcion":10,"unidad":"G","merma":0}]'::jsonb);
+    `);
+    await db.exec(cleanup);
+    expect((await db.query<any>(`select "Nombre" from "Recetas"`)).rows.map((r) => r.Nombre)).toEqual(["PLATO REAL"]);
+    expect(await count("RecetaDetalles")).toBe(1);
+  });
+
+  it("aborta si una receta real usa un producto E2E", async () => {
+    await db.exec(`select guardar_receta(1, null, '{"nombre":"Plato Real","porciones":1,"estado":1}'::jsonb, '[{"producto":2,"cantidad":1,"porcion":10,"unidad":"G","merma":0}]'::jsonb)`);
+    await expect(db.exec(cleanup)).rejects.toThrow(/Abortado/);
+    expect(await count("Usuarios")).toBe(4);
+  });
+
+  it("aborta si una receta real usa como sub-receta una receta E2E", async () => {
+    await db.exec(`
+      select guardar_receta(1, null, '{"nombre":"Base E2E","porciones":1,"rendimientoCantidad":100,"rendimientoUnidad":"G","estado":1}'::jsonb, '[{"producto":1,"cantidad":1,"porcion":10,"unidad":"G","merma":0}]'::jsonb);
+      select guardar_receta(1, null, '{"nombre":"Plato Real","porciones":1,"estado":1}'::jsonb, '[{"subreceta":1,"cantidad":1,"porcion":10,"unidad":"G","merma":0}]'::jsonb);
+    `);
+    await expect(db.exec(cleanup)).rejects.toThrow(/Abortado/);
+    expect(await count("Recetas")).toBe(2);
+  });
+
   it("es idempotente (segunda ejecución no falla ni borra más)", async () => {
     await db.exec(cleanup);
     await db.exec(cleanup);
