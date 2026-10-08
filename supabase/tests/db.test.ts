@@ -477,7 +477,7 @@ describe("precio desde la factura (migración 0016)", () => {
     await fails(`update "Productos" set "UnidadBase"='ML' where "IdProducto"=${p}`, /ya tiene stock o facturas/);
   });
   it("no se puede cambiar el factor de una unidad usada por productos o facturas; sin uso sí", async () => {
-    await fails(`update "UnidadesMedida" set "Factor"=500 where "Codigo"='KG'`, /hay productos o facturas que usan esta unidad/);
+    await fails(`update "UnidadesMedida" set "Factor"=500 where "Codigo"='KG'`, /hay productos, facturas o recetas que usan esta unidad/);
     await fails(`update "UnidadesMedida" set "Factor"=2 where "Codigo"='G'`);
     await db.query(`insert into "UnidadesMedida"("Codigo","Nombre","UnidadBase","Factor") values ('CAJ12','Caja 12','UN',12)`);
     await db.query(`update "UnidadesMedida" set "Factor"=24 where "Codigo"='CAJ12'`);
