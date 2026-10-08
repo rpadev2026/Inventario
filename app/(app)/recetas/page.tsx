@@ -39,6 +39,13 @@ const calcular = async (id: number): Promise<Calculo | null> => {
   const { data } = await db.rpc("calcular_receta", { p_receta: id });
   return (data as Calculo | null) ?? null;
 };
+/** Costos de varias recetas en una sola llamada (sin las líneas), por id. */
+type Resumen = Omit<Calculo, "lineas">;
+const calcularVarias = async (ids: number[]): Promise<Record<string, Resumen>> => {
+  if (!ids.length) return {};
+  const { data } = await db.rpc("calcular_recetas", { p_ids: ids });
+  return (data as Record<string, Resumen> | null) ?? {};
+};
 
 export default async function RecetasPage({ searchParams }: { searchParams: Promise<Params> }) {
   const sesion = await requerirPaginaPermiso("recetas.ver");
@@ -71,16 +78,26 @@ export default async function RecetasPage({ searchParams }: { searchParams: Prom
           ? db.from("RecetaDetalles").select("IdProducto,IdSubReceta,Cantidad,PorcionNeta,UnidadMedida,PorcentajeMerma").eq("IdReceta", idEditar).order("IdDetalle").returns<any[]>()
           : Promise.resolve({ data: [] as any[] }),
       ]);
-      const productos: ProductoOpcion[] = (prods ?? []).map((p) => ({
+      // Ingredientes de la receta que ya no están vigentes: se ofrecen igual (marcados) para que la línea no quede en blanco.
+      const faltanProd = (dets ?? []).filter((d) => d.IdProducto !== null && !(prods ?? []).some((p) => p.IdProducto === d.IdProducto)).map((d) => d.IdProducto as number);
+      const faltanSub = (dets ?? []).filter((d) => d.IdSubReceta !== null && !(recs ?? []).some((r) => r.IdReceta === d.IdSubReceta)).map((d) => d.IdSubReceta as number);
+      const [{ data: prodsExtra }, { data: subsExtra }] = await Promise.all([
+        faltanProd.length ? db.from("Productos").select("IdProducto,Codigo,Nombre,UnidadBase,CostoUnitarioBase").in("IdProducto", faltanProd).returns<any[]>() : Promise.resolve({ data: [] as any[] }),
+        faltanSub.length ? db.from("Recetas").select("IdReceta,Nombre,RendimientoUnidad").in("IdReceta", faltanSub).returns<any[]>() : Promise.resolve({ data: [] as any[] }),
+      ]);
+      const productos: ProductoOpcion[] = [...(prods ?? []), ...(prodsExtra ?? [])].map((p) => ({
         id: p.IdProducto, codigo: p.Codigo, nombre: p.Nombre, unidadBase: p.UnidadBase,
         costoBase: p.CostoUnitarioBase === null ? null : Number(p.CostoUnitarioBase),
+        noVigente: faltanProd.includes(p.IdProducto),
       }));
       // Sub-recetas posibles: vigentes con rendimiento (menos la que se edita); su costo por unidad base sale del RPC.
-      const candidatas = (recs ?? []).filter((r) => r.IdReceta !== idEditar);
-      const subrecetas: SubrecetaOpcion[] = await Promise.all(candidatas.map(async (r) => ({
+      const candidatas = [...(recs ?? []).filter((r) => r.IdReceta !== idEditar), ...(subsExtra ?? []).filter((r) => r.RendimientoUnidad)];
+      const costosSub = await calcularVarias(candidatas.map((r) => r.IdReceta as number));
+      const subrecetas: SubrecetaOpcion[] = candidatas.map((r) => ({
         id: r.IdReceta as number, nombre: r.Nombre as string, rendimientoUnidad: r.RendimientoUnidad as string,
-        costoPorBase: (await calcular(r.IdReceta))?.costoPorBase ?? null,
-      })));
+        costoPorBase: costosSub[String(r.IdReceta)]?.costoPorBase ?? null,
+        noVigente: faltanSub.includes(r.IdReceta),
+      }));
       const lineas: LineaForm[] = (dets ?? []).map((d) => ({
         tipo: d.IdProducto !== null ? "producto" : "subreceta", ingrediente: String(d.IdProducto ?? d.IdSubReceta),
         cantidad: String(Number(d.Cantidad)), porcion: String(Number(d.PorcionNeta)), unidad: d.UnidadMedida,
@@ -177,7 +194,7 @@ export default async function RecetasPage({ searchParams }: { searchParams: Prom
   const filtradas = filtrarRecetas(todas ?? [], { q, estado });
   const pg = paginar({ pagina: sp.pagina, tam: sp.tam }, filtradas.length);
   const lista = filtradas.slice(pg.from, pg.to + 1);
-  const costos = new Map(await Promise.all(lista.map(async (r) => [r.IdReceta, await calcular(r.IdReceta)] as const)));
+  const costos = await calcularVarias(lista.map((r) => r.IdReceta));
   const hayFiltro = !!q || estado !== undefined;
   const aviso = typeof sp.aviso === "string" ? AVISOS[sp.aviso] : undefined;
 
@@ -201,7 +218,7 @@ export default async function RecetasPage({ searchParams }: { searchParams: Prom
             <thead><tr><th>Código</th><th>Nombre</th><th className="num">Porciones</th><th className="num">Costo por porción</th><th>Estado</th><th>Acciones</th></tr></thead>
             <tbody>
               {lista.map((r) => {
-                const c = costos.get(r.IdReceta);
+                const c = costos[String(r.IdReceta)];
                 return (
                   <tr key={r.IdReceta}>
                     <td>{r.CodigoReceta ?? "—"}</td><td>{r.Nombre}</td>

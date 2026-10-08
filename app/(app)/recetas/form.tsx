@@ -15,9 +15,9 @@ export type RecetaForm = {
   rendimientoCantidad: number | null; rendimientoUnidad: string | null; estado: number;
 };
 export type LineaForm = { tipo: "producto" | "subreceta"; ingrediente: string; cantidad: string; porcion: string; unidad: string; merma: string };
-export type ProductoOpcion = { id: number; codigo: string | null; nombre: string; unidadBase: string; costoBase: number | null };
+export type ProductoOpcion = { id: number; codigo: string | null; nombre: string; unidadBase: string; costoBase: number | null; noVigente?: boolean };
 /** Receta vigente con rendimiento que se puede usar como ingrediente: `costoPorBase` es null si su costo está incompleto. */
-export type SubrecetaOpcion = { id: number; nombre: string; rendimientoUnidad: string; costoPorBase: number | null };
+export type SubrecetaOpcion = { id: number; nombre: string; rendimientoUnidad: string; costoPorBase: number | null; noVigente?: boolean };
 
 type Props = {
   receta?: RecetaForm; lineas?: LineaForm[]; productos: ProductoOpcion[]; subrecetas: SubrecetaOpcion[];
@@ -41,8 +41,8 @@ export default function FormReceta({ receta, lineas: lineasIniciales, productos,
   const [pending, start] = useTransition();
 
   const opcionesProducto = useMemo(
-    () => productos.map((p) => ({ valor: String(p.id), etiqueta: etiquetaProducto(p.codigo, p.nombre), busqueda: `${p.codigo ?? ""} ${p.nombre}` })), [productos]);
-  const opcionesSub = useMemo(() => subrecetas.map((s) => ({ valor: String(s.id), etiqueta: s.nombre, busqueda: s.nombre })), [subrecetas]);
+    () => productos.map((p) => ({ valor: String(p.id), etiqueta: etiquetaProducto(p.codigo, p.nombre) + (p.noVigente ? " (no vigente)" : ""), busqueda: `${p.codigo ?? ""} ${p.nombre}` })), [productos]);
+  const opcionesSub = useMemo(() => subrecetas.map((s) => ({ valor: String(s.id), etiqueta: s.nombre + (s.noVigente ? " (no vigente)" : ""), busqueda: s.nombre })), [subrecetas]);
   const unidadesRendimiento = unidades.filter((u) => u.IdEstado === 1 || u.Codigo === rendUnidad);
 
   const setLinea = (i: number, cambio: Partial<LineaForm>) => setLineas((ls) => ls.map((l, j) => (j === i ? { ...l, ...cambio } : l)));

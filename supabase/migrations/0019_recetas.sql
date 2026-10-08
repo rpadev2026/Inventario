@@ -333,3 +333,17 @@ language sql stable security definer set search_path = public as $$
   select calcular_receta_n(p_receta, 0);
 $$;
 revoke all on function calcular_receta(bigint) from public, anon, authenticated;
+
+-- Costos de varias recetas en una sola llamada: {"<id>": {"total","porcion","incompleto","costoPorBase"}} (sin las líneas).
+create or replace function calcular_recetas(p_ids bigint[]) returns jsonb
+language plpgsql stable security definer set search_path = public as $$
+declare
+  v_id bigint;
+  r jsonb := '{}'::jsonb;
+begin
+  foreach v_id in array coalesce(p_ids, '{}'::bigint[]) loop
+    r := r || jsonb_build_object(v_id::text, calcular_receta_n(v_id, 0) - 'lineas');
+  end loop;
+  return r;
+end $$;
+revoke all on function calcular_recetas(bigint[]) from public, anon, authenticated;

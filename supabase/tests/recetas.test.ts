@@ -245,3 +245,20 @@ describe("calcular_receta", () => {
   });
   it("receta inexistente: 'La receta no existe'", async () => { await fails(`select calcular_receta(999999)`, /La receta no existe/); });
 });
+
+describe("calcular_recetas (por lote)", () => {
+  it("devuelve porción, incompleto y costoPorBase de cada receta en una sola llamada, sin las líneas", async () => {
+    const a = Number(await val(G("null", CAB("lote a", { rendimientoCantidad: 100, rendimientoUnidad: "G" }), [L(1, { porcion: 100 })])));
+    const b = Number(await val(G("null", CAB("lote b"), [L(3, { porcion: 50 })])));
+    const r = await val(`select calcular_recetas(array[${a},${b}]::bigint[])`);
+    expect(Object.keys(r).sort()).toEqual([String(a), String(b)].sort());
+    expect(r[a].lineas).toBeUndefined();
+    expect(r[a].incompleto).toBe(false);
+    expect(r[a].costoPorBase).toBeCloseTo(0.001);
+    expect(r[b].incompleto).toBe(true);
+  });
+  it("una lista vacía devuelve un objeto vacío y una receta inexistente falla", async () => {
+    expect(await val(`select calcular_recetas('{}'::bigint[])`)).toEqual({});
+    await fails(`select calcular_recetas(array[999999]::bigint[])`, /La receta no existe/);
+  });
+});

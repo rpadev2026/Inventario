@@ -187,7 +187,10 @@ body { background: var(--bg); color: var(--text); font-family: var(--font-body);
   .line-grid { display: grid; gap: .5rem; align-items: end; grid-template-columns: 1fr auto; padding-bottom: .75rem; border-bottom: 1px dashed var(--border-strong); }
   .line-grid > :first-child { grid-column: 1 / -1; }
   .line-grid-nota { grid-column: 1 / -1; font-size: .8125rem; margin: 0; }
-  @media (min-width: 640px) { .line-grid { padding-bottom: 0; border-bottom: 0; } .line-grid-3 { grid-template-columns: minmax(0, 1fr) 8rem auto; } .line-grid-4 { grid-template-columns: minmax(0, 1fr) 8rem 8rem auto; } .line-grid-5 { grid-template-columns: minmax(0, 1fr) 9rem 8rem 8rem auto; } .line-grid-7 { grid-template-columns: 9rem minmax(0, 1fr) 6rem 7rem 8rem 6rem auto; } .line-grid > :first-child { grid-column: auto; } }
+  @media (min-width: 640px) { .line-grid { padding-bottom: 0; border-bottom: 0; } .line-grid-3 { grid-template-columns: minmax(0, 1fr) 8rem auto; } .line-grid-4 { grid-template-columns: minmax(0, 1fr) 8rem 8rem auto; } .line-grid-5 { grid-template-columns: minmax(0, 1fr) 9rem 8rem 8rem auto; } .line-grid > :first-child { grid-column: auto; } }
+  /* Ingredientes de receta (7 campos): 3 columnas entre 640 y 1279 px, una sola fila desde 1280 px. */
+  @media (min-width: 640px) { .line-grid-7 { grid-template-columns: repeat(3, minmax(0, 1fr)); } .line-grid-7 > :nth-child(2) { grid-column: span 2; } }
+  @media (min-width: 1280px) { .line-grid-7 { grid-template-columns: 9rem minmax(0, 1fr) 6rem 7rem 8rem 6rem auto; } .line-grid-7 > :nth-child(2) { grid-column: auto; } }
 
   /* ───────── Tablas (con desplazamiento horizontal en pantallas estrechas) ───────── */
   .table-wrap { overflow-x: auto; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); }
