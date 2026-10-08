@@ -21,7 +21,7 @@ Registrar recetas (fichas técnicas) con ingredientes que son productos del inve
 | Columna | Tipo / regla |
 |---|---|
 | `"IdReceta"` | bigint identity, PK |
-| `"Codigo"` | text, único, opcional (vacío = null) |
+| `"CodigoReceta"` | text, único, opcional (vacío = null) |
 | `"Nombre"` | text, obligatorio, único |
 | `"RendimientoPorciones"` | numeric(8,2), > 0, por defecto 1 |
 | `"RendimientoCantidad"` | numeric(14,3), > 0, nullable |
@@ -30,7 +30,7 @@ Registrar recetas (fichas técnicas) con ingredientes que son productos del inve
 | auditoría | como `Productos` |
 
 - Check: `RendimientoCantidad` y `RendimientoUnidad` ambos nulos o ambos con valor.
-- Trigger `normalizar_receta` (como `normalizar_producto`): `Codigo := upper(nullif(btrim(Codigo),''))`, `Nombre := upper(btrim(Nombre))`; únicos sin distinguir mayúsculas. Trigger `set_modificacion`.
+- Trigger `normalizar_receta` (como `normalizar_producto`): `CodigoReceta := upper(nullif(btrim(CodigoReceta),''))`, `Nombre := upper(btrim(Nombre))`; únicos sin distinguir mayúsculas. Trigger `set_modificacion`.
 - Una receta sin rendimiento no puede usarse como sub-receta.
 - Una receta no se desactiva si es sub-receta de otra receta vigente (mensaje de negocio, como la regla de unidades de medida).
 - RLS activo sin políticas públicas, `revoke` a `anon/authenticated`.
