@@ -150,7 +150,7 @@ describe("rol", () => {
     expect(r.success && r.data.detalle).toBeNull();
     expect(r.success && r.data.nombre).toBe("Consulta");
   });
-  it("rechaza permiso fuera del catalogo", () => expect(rolSchema.safeParse({ nombre: "X", permisos: ["compras.borrar"] }).success).toBe(false));
+  it("rechaza permiso con formato invalido (los codigos validos los define la tabla Permisos, que valida guardar_rol)", () => expect(rolSchema.safeParse({ nombre: "X", permisos: ["Compras Borrar"] }).success).toBe(false));
   it("acepta permiso del catalogo", () => expect(rolSchema.safeParse({ nombre: "X", permisos: ["compras.ver"] }).success).toBe(true));
   it("rechaza nombre vacio", () => expect(rolSchema.safeParse({ nombre: "  " }).success).toBe(false));
   it("rechaza detalle de mas de 200", () => expect(rolSchema.safeParse({ nombre: "X", detalle: "a".repeat(201) }).success).toBe(false));

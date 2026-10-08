@@ -4,7 +4,7 @@ import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { cache } from "react";
 import { db } from "@/lib/db/supabase";
-import { permisosEfectivos, tienePermiso, type Permiso } from "./permisos";
+import { permisosEfectivos, tienePermiso } from "./permisos";
 
 const COOKIE = "sesion";
 const DURACION_S = 60 * 60 * 8;
@@ -14,7 +14,7 @@ const key = () => {
   return new TextEncoder().encode(s);
 };
 
-export type Sesion = { uid: number; roles: string[]; permisos: Permiso[]; cambiar: boolean };
+export type Sesion = { uid: number; roles: string[]; permisos: string[]; cambiar: boolean };
 
 /** Lo que se firma en el JWT: nunca lleva permisos (se leen siempre de la BD). */
 export type DatosSesion = { uid: number; roles: string[]; cambiar: boolean };
@@ -68,7 +68,11 @@ export const leerSesion = cache(async (): Promise<Sesion | null> => {
       if (n) (porRol[n] ??= []).push(x.Permiso as string);
     }
   }
-  return { uid, roles, permisos: permisosEfectivos(roles, porRol), cambiar: c.DebeCambiar };
+  // Administrador tiene todos los permisos de la tabla "Permisos"; el resto, los de sus roles.
+  const catalogo = roles.includes("Administrador")
+    ? ((await db.from("Permisos").select("Codigo")).data ?? []).map((p: any) => p.Codigo as string)
+    : [];
+  return { uid, roles, permisos: permisosEfectivos(roles, porRol, catalogo), cambiar: c.DebeCambiar };
 });
 
 export async function cerrarSesion() {
@@ -80,7 +84,7 @@ export function esAdmin(s: Sesion): boolean {
 }
 
 /** Exige sesión y alguno de los permisos (Administrador los tiene todos). Lanza error si no cumple. */
-export async function requerirPermiso(...p: Permiso[]): Promise<Sesion> {
+export async function requerirPermiso(...p: string[]): Promise<Sesion> {
   const s = await leerSesion();
   if (!s) throw new Error("No autenticado");
   if (s.cambiar) throw new Error("Debe cambiar su clave");
@@ -89,7 +93,7 @@ export async function requerirPermiso(...p: Permiso[]): Promise<Sesion> {
 }
 
 /** Igual que requerirPermiso pero para páginas: redirige. */
-export async function requerirPaginaPermiso(...p: Permiso[]): Promise<Sesion> {
+export async function requerirPaginaPermiso(...p: string[]): Promise<Sesion> {
   const s = await leerSesion();
   if (!s) redirect("/login");
   if (s.cambiar) redirect("/cambiar-clave");

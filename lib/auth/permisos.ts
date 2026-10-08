@@ -1,35 +1,29 @@
-export const PERMISOS = [
-  { codigo: "compras.ver", modulo: "Compras", descripcion: "Ver facturas de compra" },
-  { codigo: "compras.registrar", modulo: "Compras", descripcion: "Registrar facturas de compra" },
-  { codigo: "compras.anular", modulo: "Compras", descripcion: "Anular facturas de compra" },
-  { codigo: "proveedores.ver", modulo: "Proveedores", descripcion: "Ver proveedores" },
-  { codigo: "proveedores.gestionar", modulo: "Proveedores", descripcion: "Crear y editar proveedores" },
-  { codigo: "productos.ver", modulo: "Productos", descripcion: "Ver productos" },
-  { codigo: "productos.gestionar", modulo: "Productos", descripcion: "Crear y editar productos" },
-  { codigo: "recetas.ver", modulo: "Recetas", descripcion: "Ver recetas y su costo" },
-  { codigo: "recetas.gestionar", modulo: "Recetas", descripcion: "Crear y editar recetas" },
-  { codigo: "bodegas.ver", modulo: "Bodegas", descripcion: "Ver bodegas y su stock" },
-  { codigo: "solicitudes.ver_propias", modulo: "Solicitudes", descripcion: "Ver y recepcionar solicitudes propias" },
-  { codigo: "solicitudes.crear", modulo: "Solicitudes", descripcion: "Crear, editar y enviar solicitudes propias" },
-  { codigo: "solicitudes.gestionar", modulo: "Solicitudes", descripcion: "Ver, aprobar y despachar todas las solicitudes" },
-  { codigo: "movimientos.ver", modulo: "Movimientos", descripcion: "Ver movimientos de inventario" },
-] as const;
+/**
+ * Los permisos viven en la tabla "Permisos" (código, módulo, descripción y orden): es el único catálogo.
+ * Aquí solo está la lógica que los usa. Un código escrito mal en el código lo detecta la prueba
+ * supabase/tests/permisos.test.ts, que compara cada uso contra la tabla.
+ */
+export type PermisoCatalogo = { codigo: string; modulo: string; descripcion: string };
 
-export type Permiso = (typeof PERMISOS)[number]["codigo"];
-
-export const CODIGOS_PERMISO = PERMISOS.map((p) => p.codigo) as unknown as readonly [Permiso, ...Permiso[]];
-
-const CONOCIDOS = new Set<string>(CODIGOS_PERMISO);
-
-/** Administrador tiene todos; el resto, la unión de los permisos de sus roles (solo códigos del catálogo). */
-export function permisosEfectivos(roles: string[], porRol: Record<string, string[]>): Permiso[] {
-  if (roles.includes("Administrador")) return [...CODIGOS_PERMISO];
-  const out = new Set<Permiso>();
-  for (const r of roles) for (const c of porRol[r] ?? []) if (CONOCIDOS.has(c)) out.add(c as Permiso);
+/**
+ * Administrador tiene todos los permisos del catálogo (`catalogo`, leído de la tabla); el resto, la unión de los de sus roles
+ * (RolesPermisos solo guarda códigos del catálogo: lo exige la clave foránea).
+ */
+export function permisosEfectivos(roles: string[], porRol: Record<string, string[]>, catalogo: readonly string[] = []): string[] {
+  if (roles.includes("Administrador")) return [...catalogo];
+  const out = new Set<string>();
+  for (const r of roles) for (const c of porRol[r] ?? []) out.add(c);
   return [...out];
 }
 
 /** Verdadero si tiene alguno de los requeridos (o si no se pide ninguno). */
-export function tienePermiso(permisos: readonly string[], ...requeridos: Permiso[]): boolean {
+export function tienePermiso(permisos: readonly string[], ...requeridos: string[]): boolean {
   return requeridos.length === 0 || requeridos.some((p) => permisos.includes(p));
+}
+
+/** Agrupa el catálogo por módulo conservando el orden en que viene (el de la columna Orden). */
+export function agruparPermisos(catalogo: readonly PermisoCatalogo[]): { modulo: string; permisos: PermisoCatalogo[] }[] {
+  const grupos = new Map<string, PermisoCatalogo[]>();
+  for (const p of catalogo) grupos.set(p.modulo, [...(grupos.get(p.modulo) ?? []), p]);
+  return [...grupos].map(([modulo, permisos]) => ({ modulo, permisos }));
 }

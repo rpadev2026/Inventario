@@ -3,7 +3,6 @@ import { validarRut } from "./rut";
 import { codigoCatalogo } from "./catalogo";
 import { esCorreoValido, MSG_CORREO } from "./correo";
 import { parseCantidad, parseDecimal2 } from "../numeros";
-import { CODIGOS_PERMISO } from "../auth/permisos";
 
 const txt = (max = 150) => z.string().trim().max(max);
 const opt = (max = 150) => txt(max).optional().transform((v) => v || null);
@@ -98,7 +97,8 @@ export const rolSchema = z.object({
   nombre: txt(60).min(1, "Nombre requerido"),
   detalle: opt(200),
   estado,
-  permisos: z.array(z.enum(CODIGOS_PERMISO)).default([]),
+  // Los códigos válidos son los de la tabla "Permisos": guardar_rol rechaza uno desconocido con un mensaje de negocio.
+  permisos: z.array(z.string().regex(/^[a-z_]+\.[a-z_]+$/, "Permiso no válido")).default([]),
 });
 
 /** Cantidad positiva con hasta 3 decimales (número o texto con coma/punto). */
