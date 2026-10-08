@@ -25,6 +25,8 @@ export const CATALOGOS: Record<"formasPago" | "unidades" | "formatos" | "regione
   unidades: { tabla: "UnidadesMedida", id: "IdUnidadMedida", titulo: "Unidades de medida", ruta: "/mantenedores/unidades-medida", base: true, uso: [
     { etiqueta: "Productos", tabla: "Productos", columna: "UnidadBase", singular: "producto", plural: "productos", conEstado: true },
     { etiqueta: "Líneas de factura", tabla: "ComprasDetalle", columna: "UnidadMedida", singular: "línea", plural: "líneas" },
+    { etiqueta: "Líneas de receta", tabla: "RecetaDetalles", columna: "UnidadMedida", singular: "línea", plural: "líneas" },
+    { etiqueta: "Rendimiento de recetas", tabla: "Recetas", columna: "RendimientoUnidad", singular: "receta", plural: "recetas" },
     { etiqueta: "Unidades que la usan como base", tabla: "UnidadesMedida", columna: "UnidadBase", singular: "unidad", plural: "unidades" },
   ] },
   formatos: { tabla: "Formatos", id: "IdFormato", titulo: "Formatos", ruta: "/mantenedores/formatos", uso: [{ etiqueta: "Productos", tabla: "Productos", columna: "Formato", singular: "producto", plural: "productos", conEstado: true }] },
