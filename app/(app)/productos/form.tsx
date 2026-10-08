@@ -17,13 +17,15 @@ type Props = {
   p?: Producto; unidades: UnidadInfo[]; formatos: ItemCatalogo[];
   /** El producto ya tiene stock o facturas: su unidad base no se puede cambiar. */
   unidadBaseBloqueada?: boolean;
+  /** En cuántas recetas se usa: si se desactiva, esas recetas no podrán guardarse hasta cambiar la línea. */
+  enRecetas?: number;
   /** Ruta de origen (p. ej. la factura): al crear, vuelve ahí con el producto elegido. */
   volver?: string;
   /** Si no hay ruta de origen, al guardar bien se va a esta ruta (el listado, con el aviso). */
   despuesDeGuardar?: string;
 };
 
-export default function FormProducto({ p, unidades, formatos, unidadBaseBloqueada, volver, despuesDeGuardar }: Props) {
+export default function FormProducto({ p, unidades, formatos, unidadBaseBloqueada, enRecetas = 0, volver, despuesDeGuardar }: Props) {
   const router = useRouter();
   const bases = unidadesBase(unidades);
   const [base, setBase] = useState(p?.UnidadBase ?? bases[0]?.Codigo ?? "");
@@ -67,7 +69,7 @@ export default function FormProducto({ p, unidades, formatos, unidadBaseBloquead
         <Field label="Formato"><select name="formato" defaultValue={p?.Formato} className="input">{opcionesCatalogo(formatos, p?.Formato).map((o) => <option key={o.codigo} value={o.codigo}>{o.etiqueta}</option>)}</select></Field>
         {campoStock("stockMinimo", "unidadMinimo", "Stock mínimo", p?.StockMinimo)}
         {campoStock("stockCritico", "unidadCritico", "Stock crítico", p?.StockCritico, "No puede superar al mínimo")}
-        <Field label="Estado"><select name="estado" defaultValue={p?.IdEstado ?? 1} className="input"><option value={1}>Vigente</option><option value={0}>No vigente</option></select></Field>
+        <Field label="Estado" hint={enRecetas > 0 ? `Se usa en ${enRecetas} ${enRecetas === 1 ? "receta" : "recetas"}: si lo desactiva, no podrán guardarse hasta cambiar esa línea` : undefined}><select name="estado" defaultValue={p?.IdEstado ?? 1} className="input"><option value={1}>Vigente</option><option value={0}>No vigente</option></select></Field>
       </div>
       <div className="form-actions">
         <button disabled={pending} className="btn btn-primary">{p ? "Guardar cambios" : "Crear producto"}</button>

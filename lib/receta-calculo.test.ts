@@ -30,3 +30,11 @@ describe("calcularReceta", () => {
     expect(calcularReceta([L()], 1).incompleto).toBe(false);
   });
 });
+
+describe("redondeo a 2 decimales como numeric: mitades hacia arriba sin error de coma flotante", () => {
+  const costo = (porcion: number) => calcularLinea({ cantidad: 1, porcion, merma: 0, factorUnidad: 1, costoPorBase: 1 }).costo;
+  it("1,005 → 1,01 (con coma flotante ingenua daría 1,00)", () => { expect(costo(1.005)).toBe(1.01); });
+  it("2,135 → 2,14 y 4,015 → 4,02 (con EPSILON daba 2,13 y 4,01)", () => { expect(costo(2.135)).toBe(2.14); expect(costo(4.015)).toBe(4.02); });
+  it("2,675 → 2,68 y 0,285 → 0,29", () => { expect(costo(2.675)).toBe(2.68); expect(costo(0.285)).toBe(0.29); });
+  it("valores muy pequeños dan 0", () => { expect(costo(0.0000001)).toBe(0); });
+});

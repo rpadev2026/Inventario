@@ -151,10 +151,10 @@ export default function FormReceta({ receta, lineas: lineasIniciales, productos,
         <div><button type="button" onClick={() => setLineas((ls) => [...ls, lineaVacia()])} className="btn btn-secondary btn-sm"><Icon name="plus" size={16} />Agregar ingrediente</button></div>
       </div>
 
-      <dl className="ml-auto grid w-full max-w-xs gap-1 rounded-lg p-4 text-sm" style={{ background: "var(--surface-2)" }} aria-live="polite">
-        <div className="flex justify-between"><dt className="text-muted">Costo total</dt><dd>{clp(resumen.total)}</dd></div>
-        <div className="flex justify-between border-t pt-2 text-base font-semibold" style={{ borderColor: "var(--border-strong)" }}><dt>Costo por porción</dt><dd>{clp(resumen.porcion)}</dd></div>
-        {resumen.incompleto && <div className="text-muted">Incompleto: hay ingredientes sin costo.</div>}
+      <dl className="resumen" aria-live="polite">
+        <div><dt className="text-muted">Costo total{resumen.incompleto ? " (parcial)" : ""}</dt><dd>{clp(resumen.total)}</dd></div>
+        <div className="resumen-total"><dt>Costo por porción{resumen.incompleto ? " (parcial)" : ""}</dt><dd>{clp(resumen.porcion)}</dd></div>
+        {resumen.incompleto && <div className="text-muted">Incompleto: hay ingredientes sin costo (un producto sin factura registrada o una sub-receta incompleta).</div>}
       </dl>
 
       {error && <p role="alert" className="alert alert-error">{error}</p>}

@@ -20,6 +20,11 @@ const texto = (v: string | string[] | undefined) => (typeof v === "string" && v 
 const tono = { Crítico: "danger", Bajo: "warn", OK: "ok" } as const;
 const AVISOS: Record<string, string> = { creado: "Producto creado correctamente", editado: "Cambios guardados correctamente" };
 const COLS = "IdProducto,Codigo,Nombre,UnidadBase,Formato,CostoUnitarioBase,StockMinimo,StockCritico,IdEstado";
+/** Cuántas recetas (distintas) usan el producto como ingrediente. */
+async function recetasQueUsan(idProducto: number): Promise<number> {
+  const { data } = await db.from("RecetaDetalles").select("IdReceta").eq("IdProducto", idProducto);
+  return new Set((data ?? []).map((d: any) => d.IdReceta as number)).size;
+}
 const idValido = (v: string | undefined) => (v && /^[1-9]\d{0,14}$/.test(v) ? Number(v) : undefined);
 const clpEntero = new Intl.NumberFormat("es-CL", { style: "currency", currency: "CLP", maximumFractionDigits: 0 });
 const clpDecimal = new Intl.NumberFormat("es-CL", { style: "currency", currency: "CLP", minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -82,7 +87,7 @@ export default async function ProductosPage({ searchParams }: { searchParams: Pr
 
   // ===== Editar: solo el formulario del producto, con Volver =====
   if (idEditar && sel) {
-    const bloqueada = await productoTieneMovimientos(sel.IdProducto);
+    const [bloqueada, enRecetas] = await Promise.all([productoTieneMovimientos(sel.IdProducto), recetasQueUsan(sel.IdProducto)]);
     return (
       <section className="space-y-4">
         <div className="page-head">
@@ -90,7 +95,7 @@ export default async function ProductosPage({ searchParams }: { searchParams: Pr
           <Link href={volverListado} className="btn btn-secondary">Volver</Link>
         </div>
         <div className="card">
-          <FormProducto key={sel.IdProducto} p={sel} unidades={unidades} formatos={formatos} unidadBaseBloqueada={bloqueada} despuesDeGuardar={href({ ...base, aviso: "editado" })} />
+          <FormProducto key={sel.IdProducto} p={sel} unidades={unidades} formatos={formatos} unidadBaseBloqueada={bloqueada} enRecetas={enRecetas} despuesDeGuardar={href({ ...base, aviso: "editado" })} />
         </div>
       </section>
     );
@@ -98,6 +103,7 @@ export default async function ProductosPage({ searchParams }: { searchParams: Pr
 
   // ===== Ver: datos del producto (solo lectura) y su stock por bodega, paginado =====
   if (idVer && sel) {
+    const enRecetas = await recetasQueUsan(sel.IdProducto);
     const { count } = await db.from("StockBodega").select("IdBodega", { count: "exact", head: true }).eq("IdProducto", sel.IdProducto);
     const pgS = paginar({ pagina: sp.ppagina, tam: sp.ptam }, count ?? 0);
     const { data } = await db.from("StockBodega").select("IdBodega,Cantidad,Bodegas!inner(NombreBodega)")
@@ -136,6 +142,7 @@ export default async function ProductosPage({ searchParams }: { searchParams: Pr
             <Dato titulo="Costo unitario base (con IVA)">{sel.CostoUnitarioBase === null ? "" : `${clpBase.format(Number(sel.CostoUnitarioBase))} por ${nombreUnidad.get(sel.UnidadBase) ?? sel.UnidadBase}`}</Dato>
             <Dato titulo="Stock mínimo">{String(sel.StockMinimo)}</Dato>
             <Dato titulo="Stock crítico">{String(sel.StockCritico)}</Dato>
+            <Dato titulo="Recetas que lo usan">{enRecetas === 0 ? "Ninguna" : `${enRecetas} ${enRecetas === 1 ? "receta" : "recetas"}`}</Dato>
           </div>
         </div>
         <h2 className="section-title">Stock por bodega</h2>

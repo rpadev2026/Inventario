@@ -107,6 +107,13 @@ const positivo3 = (msg: string) => z.union([z.number(), z.string()]).transform((
   if (n === null) { ctx.addIssue({ code: "custom", message: msg }); return z.NEVER; }
   return n;
 });
+const MSG_PORCIONES = "Porciones: número mayor que 0, hasta 2 decimales y 999.999,99 como máximo";
+/** Porciones de una receta: mayor que 0, hasta 2 decimales y 999.999,99 (numeric(8,2) en la base). */
+const porciones2 = z.union([z.number(), z.string()]).transform((v, ctx) => {
+  const n = typeof v === "number" ? (Number.isFinite(v) && v > 0 && Math.abs(v * 100 - Math.round(v * 100)) < 1e-6 ? v : null) : parseDecimal2(v.trim());
+  if (n === null || n <= 0 || n > 999999.99) { ctx.addIssue({ code: "custom", message: MSG_PORCIONES }); return z.NEVER; }
+  return n;
+});
 const MSG_MERMA = "Merma: entre 0 y 1000 %, máximo 2 decimales";
 /** Merma escrita en porcentaje (30 = 30 %) que se guarda como fracción (0,3). */
 const mermaPct = z.union([z.number(), z.string()]).default(0).transform((v, ctx) => {
@@ -121,7 +128,7 @@ export const recetaSchema = z.object({
   codigo: z.string().trim().max(40).optional().transform((v) => (v ? v.toUpperCase() : undefined))
     .pipe(z.string().regex(/^[A-Za-z0-9._-]+$/, "Código: solo letras, números, . _ -").optional()),
   nombre: txt().min(1, "Nombre requerido").transform((v) => v.toUpperCase()),
-  porciones: z.preprocess((v) => (v === "" || v === undefined || v === null ? 1 : v), positivo3("Porciones: número mayor que 0")),
+  porciones: z.preprocess((v) => (v === "" || v === undefined || v === null ? 1 : v), porciones2),
   rendimientoCantidad: z.preprocess(vacioAUndefined, positivo3("Rendimiento: número mayor que 0 (hasta 3 decimales)").optional()),
   rendimientoUnidad: unidadOpcional,
   estado,
