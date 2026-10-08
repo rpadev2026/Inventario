@@ -11,6 +11,7 @@ import Badge from "@/components/app/badge";
 import FiltrosListado from "@/components/app/filtros-listado";
 import Icon from "@/components/app/icon";
 import Paginador from "@/components/app/paginador";
+import FormReceta, { type LineaForm, type ProductoOpcion, type SubrecetaOpcion } from "./form";
 
 type Params = Record<string, string | string[] | undefined>;
 type Calculo = {
@@ -43,7 +44,10 @@ export default async function RecetasPage({ searchParams }: { searchParams: Prom
   const sesion = await requerirPaginaPermiso("recetas.ver");
   const puedeGestionar = tienePermiso(sesion.permisos, "recetas.gestionar");
   const sp = await searchParams;
-  const idVer = idValido(texto(sp.ver));
+  // Crear/editar solo con «recetas.gestionar» (la acción del servidor lo exige igualmente).
+  const crear = puedeGestionar && sp.crear === "1";
+  const idEditar = puedeGestionar && !crear ? idValido(texto(sp.editar)) : undefined;
+  const idVer = crear || idEditar ? undefined : idValido(texto(sp.ver));
 
   // Parámetros del listado (página, tamaño y filtros) que se conservan al ir a una vista y volver.
   const q = texto(sp.q);
@@ -53,6 +57,56 @@ export default async function RecetasPage({ searchParams }: { searchParams: Prom
 
   const unidades = await cargarUnidades();
   const nombreUnidad = new Map(unidades.map((u) => [u.Codigo, u.Nombre]));
+
+  // ===== Crear / Editar: solo el formulario, con Volver =====
+  if (crear || idEditar) {
+    const { data: rec } = idEditar
+      ? await db.from("Recetas").select("*").eq("IdReceta", idEditar).maybeSingle<any>()
+      : { data: null };
+    if (crear || rec) {
+      const [{ data: prods }, { data: recs }, { data: dets }] = await Promise.all([
+        db.from("Productos").select("IdProducto,Codigo,Nombre,UnidadBase,CostoUnitarioBase").eq("IdEstado", 1).order("Nombre").returns<any[]>(),
+        db.from("Recetas").select("IdReceta,Nombre,RendimientoUnidad").eq("IdEstado", 1).not("RendimientoUnidad", "is", null).order("Nombre").returns<any[]>(),
+        idEditar
+          ? db.from("RecetaDetalles").select("IdProducto,IdSubReceta,Cantidad,PorcionNeta,UnidadMedida,PorcentajeMerma").eq("IdReceta", idEditar).order("IdDetalle").returns<any[]>()
+          : Promise.resolve({ data: [] as any[] }),
+      ]);
+      const productos: ProductoOpcion[] = (prods ?? []).map((p) => ({
+        id: p.IdProducto, codigo: p.Codigo, nombre: p.Nombre, unidadBase: p.UnidadBase,
+        costoBase: p.CostoUnitarioBase === null ? null : Number(p.CostoUnitarioBase),
+      }));
+      // Sub-recetas posibles: vigentes con rendimiento (menos la que se edita); su costo por unidad base sale del RPC.
+      const candidatas = (recs ?? []).filter((r) => r.IdReceta !== idEditar);
+      const subrecetas: SubrecetaOpcion[] = await Promise.all(candidatas.map(async (r) => ({
+        id: r.IdReceta as number, nombre: r.Nombre as string, rendimientoUnidad: r.RendimientoUnidad as string,
+        costoPorBase: (await calcular(r.IdReceta))?.costoPorBase ?? null,
+      })));
+      const lineas: LineaForm[] = (dets ?? []).map((d) => ({
+        tipo: d.IdProducto !== null ? "producto" : "subreceta", ingrediente: String(d.IdProducto ?? d.IdSubReceta),
+        cantidad: String(Number(d.Cantidad)), porcion: String(Number(d.PorcionNeta)), unidad: d.UnidadMedida,
+        merma: Number(d.PorcentajeMerma) === 0 ? "" : String(Math.round(Number(d.PorcentajeMerma) * 10000) / 100),
+      }));
+      return (
+        <section className="space-y-4">
+          <div className="page-head">
+            <h1 className="page-title">{crear ? "Crear receta" : "Editar receta"}</h1>
+            <Link href={volverListado} className="btn btn-secondary">Volver</Link>
+          </div>
+          <div className="card">
+            <FormReceta
+              key={idEditar ?? "nueva"} productos={productos} subrecetas={subrecetas} unidades={unidades} lineas={lineas}
+              receta={rec ? {
+                id: rec.IdReceta, codigo: rec.CodigoReceta, nombre: rec.Nombre, porciones: Number(rec.RendimientoPorciones),
+                rendimientoCantidad: rec.RendimientoCantidad === null ? null : Number(rec.RendimientoCantidad),
+                rendimientoUnidad: rec.RendimientoUnidad, estado: rec.IdEstado,
+              } : undefined}
+              despuesDeGuardar={href({ ...(crear ? { tam: base.tam } : base), aviso: crear ? "creado" : "editado" })}
+            />
+          </div>
+        </section>
+      );
+    }
+  }
 
   // ===== Ver: datos, ingredientes con su costo y resumen =====
   if (idVer) {
