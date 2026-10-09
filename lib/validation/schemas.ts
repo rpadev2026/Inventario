@@ -2,7 +2,7 @@ import { z } from "zod";
 import { validarRut } from "./rut";
 import { codigoCatalogo } from "./catalogo";
 import { esCorreoValido, MSG_CORREO } from "./correo";
-import { parseDecimal2 } from "../numeros";
+import { parseCantidad, parseDecimal2 } from "../numeros";
 import { CODIGOS_PERMISO } from "../auth/permisos";
 
 const txt = (max = 150) => z.string().trim().max(max);
@@ -99,4 +99,47 @@ export const rolSchema = z.object({
   detalle: opt(200),
   estado,
   permisos: z.array(z.enum(CODIGOS_PERMISO)).default([]),
+});
+
+/** Cantidad positiva con hasta 3 decimales (número o texto con coma/punto). */
+const positivo3 = (msg: string) => z.union([z.number(), z.string()]).transform((v, ctx) => {
+  const n = typeof v === "number" ? (Number.isFinite(v) && v > 0 && Math.abs(v * 1000 - Math.round(v * 1000)) < 1e-6 ? v : null) : parseCantidad(v.trim());
+  if (n === null) { ctx.addIssue({ code: "custom", message: msg }); return z.NEVER; }
+  return n;
+});
+const MSG_MERMA = "Merma: entre 0 y 1000 %, máximo 2 decimales";
+/** Merma escrita en porcentaje (30 = 30 %) que se guarda como fracción (0,3). */
+const mermaPct = z.union([z.number(), z.string()]).default(0).transform((v, ctx) => {
+  const n = typeof v === "number" ? (Number.isFinite(v) && v >= 0 && Math.abs(v * 100 - Math.round(v * 100)) < 1e-6 ? v : null) : parseDecimal2(v.trim() || "0");
+  if (n === null || n > 1000) { ctx.addIssue({ code: "custom", message: MSG_MERMA }); return z.NEVER; }
+  return Number((n / 100).toFixed(4));
+});
+const vacioAUndefined = (v: unknown) => (v === "" || v === null ? undefined : v);
+
+export const recetaSchema = z.object({
+  id: z.coerce.number().int().positive().optional(),
+  codigo: z.string().trim().max(40).optional().transform((v) => (v ? v.toUpperCase() : undefined))
+    .pipe(z.string().regex(/^[A-Za-z0-9._-]+$/, "Código: solo letras, números, . _ -").optional()),
+  nombre: txt().min(1, "Nombre requerido").transform((v) => v.toUpperCase()),
+  porciones: z.preprocess((v) => (v === "" || v === undefined || v === null ? 1 : v), positivo3("Porciones: número mayor que 0")),
+  rendimientoCantidad: z.preprocess(vacioAUndefined, positivo3("Rendimiento: número mayor que 0 (hasta 3 decimales)").optional()),
+  rendimientoUnidad: unidadOpcional,
+  estado,
+  detalle: z.array(z.object({
+    tipo: z.enum(["producto", "subreceta"]),
+    ingrediente: z.coerce.number().int().positive("Elija el ingrediente"),
+    cantidad: positivo3("La cantidad debe ser un número mayor que 0 (hasta 3 decimales)"),
+    porcion: positivo3("La porción neta debe ser un número mayor que 0 (hasta 3 decimales)"),
+    unidad: codigoCatalogo,
+    merma: mermaPct,
+  })).min(1, "Agregue al menos un ingrediente").max(200),
+}).superRefine((r, ctx) => {
+  if ((r.rendimientoCantidad === undefined) !== (r.rendimientoUnidad === undefined))
+    ctx.addIssue({ code: "custom", message: "El rendimiento requiere cantidad y unidad", path: ["rendimientoCantidad"] });
+  const vistos = new Set<string>();
+  for (const l of r.detalle) {
+    const k = `${l.tipo}:${l.ingrediente}`;
+    if (vistos.has(k)) ctx.addIssue({ code: "custom", message: "Un ingrediente no puede repetirse en la receta", path: ["detalle"] });
+    vistos.add(k);
+  }
 });

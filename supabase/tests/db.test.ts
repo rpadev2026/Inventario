@@ -199,7 +199,7 @@ describe("roles y permisos", () => {
 
   it("roles base siembran permisos equivalentes", async () => {
     expect(await permisos("Compras")).toEqual(
-      ["compras.anular", "compras.registrar", "compras.ver", "productos.gestionar", "productos.ver", "proveedores.gestionar", "proveedores.ver"]);
+      ["compras.anular", "compras.registrar", "compras.ver", "productos.gestionar", "productos.ver", "proveedores.gestionar", "proveedores.ver", "recetas.gestionar", "recetas.ver"]);
     expect(await permisos("Bodeguero Central")).toEqual(["bodegas.ver", "movimientos.ver", "solicitudes.gestionar", "solicitudes.ver_propias"]);
     expect(await permisos("Solicitante")).toEqual(["bodegas.ver", "solicitudes.crear", "solicitudes.ver_propias"]);
     expect(await permisos("Administrador")).toEqual([]);

@@ -2,11 +2,11 @@ import { describe, expect, it } from "vitest";
 import { CODIGOS_PERMISO, PERMISOS, permisosEfectivos, tienePermiso } from "./permisos";
 
 describe("permisosEfectivos", () => {
-  it("Administrador recibe los 12 permisos", () => {
+  it("Administrador recibe los 14 permisos", () => {
     const p = permisosEfectivos(["Administrador"], {});
-    expect(p).toHaveLength(12);
+    expect(p).toHaveLength(14);
     expect(new Set(p)).toEqual(new Set(CODIGOS_PERMISO));
-    expect(PERMISOS).toHaveLength(12);
+    expect(PERMISOS).toHaveLength(14);
   });
   it("un rol devuelve sus permisos", () => {
     expect(permisosEfectivos(["Compras"], { Compras: ["compras.ver"] })).toEqual(["compras.ver"]);

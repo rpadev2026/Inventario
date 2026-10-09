@@ -10,6 +10,7 @@ const MENU: (MenuItem & { permisos: Permiso[] | "admin" | null })[] = [
   { href: "/compras", label: "Compras", icon: "receipt", permisos: ["compras.ver"] },
   { href: "/proveedores", label: "Proveedores", icon: "truck", permisos: ["proveedores.ver"] },
   { href: "/productos", label: "Productos", icon: "package", permisos: ["productos.ver"] },
+  { href: "/recetas", label: "Recetas", icon: "book", permisos: ["recetas.ver"] },
   { href: "/solicitudes", label: "Solicitudes", icon: "clipboard", permisos: ["solicitudes.ver_propias", "solicitudes.gestionar"] },
   { href: "/bodegas", label: "Bodegas", icon: "warehouse", permisos: ["bodegas.ver"] },
   { href: "/movimientos", label: "Movimientos", icon: "repeat", permisos: ["movimientos.ver"] },
