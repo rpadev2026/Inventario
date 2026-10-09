@@ -6,7 +6,8 @@ import Icon from "@/components/app/icon";
 import Paginador from "@/components/app/paginador";
 import { db } from "@/lib/db/supabase";
 import { requerirPaginaAdmin } from "@/lib/auth/session";
-import { PERMISOS } from "@/lib/auth/permisos";
+import { agruparPermisos } from "@/lib/auth/permisos";
+import { cargarPermisos } from "@/lib/services/permisos";
 import { paginar } from "@/lib/paginacion";
 import { leerEstado } from "@/lib/filtro-estado";
 import { filtrarRoles } from "@/lib/roles-filtro";
@@ -22,7 +23,6 @@ const estadoBadge = (e: number) => <Badge tone={e === 1 ? "ok" : "neutral"}>{e =
 const Dato = ({ titulo, children }: { titulo: string; children: React.ReactNode }) => (
   <div><div className="label-block">{titulo}</div><div>{children || "—"}</div></div>
 );
-const MODULOS = [...new Set(PERMISOS.map((p) => p.modulo))];
 
 /** URL de este mantenedor con solo los parámetros indicados (los undefined se omiten). */
 function href(q: Record<string, string | undefined>) {
@@ -32,7 +32,7 @@ function href(q: Record<string, string | undefined>) {
 
 export default async function RolesPage({ searchParams }: { searchParams: Promise<Params> }) {
   await requerirPaginaAdmin();
-  const sp = await searchParams;
+  const [sp, catalogo] = await Promise.all([searchParams, cargarPermisos()]);
   const crear = sp.crear === "1";
   const idEditar = crear ? undefined : entero(sp.editar);
   const idVer = crear || idEditar ? undefined : entero(sp.ver);
@@ -52,7 +52,7 @@ export default async function RolesPage({ searchParams }: { searchParams: Promis
           <Link href={volverListado} className="btn btn-secondary">Volver</Link>
         </div>
         <div className="card">
-          <FormRol accion={guardarRol} despuesDeGuardar={href({ tam: base.tam, aviso: "creado" })} />
+          <FormRol catalogo={catalogo} accion={guardarRol} despuesDeGuardar={href({ tam: base.tam, aviso: "creado" })} />
         </div>
       </section>
     );
@@ -78,7 +78,7 @@ export default async function RolesPage({ searchParams }: { searchParams: Promis
           <Link href={volverListado} className="btn btn-secondary">Volver</Link>
         </div>
         <div className="card">
-          <FormRol key={enEdicion.IdRol} rol={enEdicion} permisos={permisosDe(enEdicion.IdRol)} accion={guardarRol}
+          <FormRol key={enEdicion.IdRol} catalogo={catalogo} rol={enEdicion} permisos={permisosDe(enEdicion.IdRol)} accion={guardarRol}
             despuesDeGuardar={href({ ...base, aviso: "editado" })} />
         </div>
       </section>
@@ -114,9 +114,9 @@ export default async function RolesPage({ searchParams }: { searchParams: Promis
               <table className="table">
                 <thead><tr><th>Módulo</th><th>Permisos</th></tr></thead>
                 <tbody>
-                  {MODULOS.map((m) => {
-                    const lista = PERMISOS.filter((p) => p.modulo === m && asignados.has(p.codigo));
-                    return lista.length ? <tr key={m}><td>{m}</td><td>{lista.map((p) => p.descripcion).join(" · ")}</td></tr> : null;
+                  {agruparPermisos(catalogo).map(({ modulo, permisos }) => {
+                    const lista = permisos.filter((p) => asignados.has(p.codigo));
+                    return lista.length ? <tr key={modulo}><td>{modulo}</td><td>{lista.map((p) => p.descripcion).join(" · ")}</td></tr> : null;
                   })}
                 </tbody>
               </table>

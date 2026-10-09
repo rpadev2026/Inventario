@@ -164,10 +164,10 @@ export default function FormFactura(props: {
         <div><button type="button" onClick={() => setLineas((ls) => [...ls, lineaVacia()])} className="btn btn-secondary btn-sm"><Icon name="plus" size={16} />Agregar línea</button></div>
       </div>
 
-      <dl className="ml-auto grid w-full max-w-xs gap-1 rounded-lg p-4 text-sm" style={{ background: "var(--surface-2)" }} aria-live="polite">
-        <div className="flex justify-between"><dt className="text-muted">Neto</dt><dd className="num">{clp(neto)}</dd></div>
-        <div className="flex justify-between"><dt className="text-muted">IVA 19%</dt><dd>{clp(iva)}</dd></div>
-        <div className="flex justify-between border-t pt-2 text-base font-semibold" style={{ borderColor: "var(--border-strong)" }}><dt>Total</dt><dd>{clp(total)}</dd></div>
+      <dl className="resumen" aria-live="polite">
+        <div><dt className="text-muted">Neto</dt><dd className="num">{clp(neto)}</dd></div>
+        <div><dt className="text-muted">IVA 19%</dt><dd>{clp(iva)}</dd></div>
+        <div className="resumen-total"><dt>Total</dt><dd>{clp(total)}</dd></div>
       </dl>
 
       {error && <p role="alert" className="alert alert-error">{error}</p>}

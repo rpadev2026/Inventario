@@ -1,7 +1,12 @@
 /** Una línea de receta ya resuelta: `factorUnidad` lleva su unidad a la unidad base y `costoPorBase` es el costo por unidad base del ingrediente. */
 export type LineaCalculo = { cantidad: number; porcion: number; merma: number; factorUnidad: number; costoPorBase: number | null };
 
-const redondear2 = (n: number) => Math.round((n + Number.EPSILON) * 100) / 100;
+/**
+ * Redondeo a 2 decimales con las mitades hacia arriba, como `round()` de numeric en Postgres. Se limpia el ruido de la
+ * coma flotante (15 cifras significativas) y se desplaza el punto decimal con notación exponencial, sin multiplicar
+ * por 100 (que daba 2,13 para 2,135).
+ */
+const redondear2 = (n: number) => (Math.abs(n) < 1e-6 ? 0 : Number(`${Math.round(Number(`${n.toPrecision(15)}e2`))}e-2`));
 
 /** Misma fórmula que `calcular_receta`: bruto = cantidad × porción × (1 + merma); costo = bruto × factor × costo base (2 decimales). */
 export function calcularLinea(l: LineaCalculo): { bruto: number; costo: number | null } {

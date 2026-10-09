@@ -108,8 +108,15 @@ describe("Recetas: bloqueos por uso", () => {
     await fails(`update "Recetas" set "RendimientoCantidad"=null,"RendimientoUnidad"=null where "IdReceta"=${s}`, /rendimiento/);
     await db.query(`update "Recetas" set "RendimientoUnidad"='KG',"RendimientoCantidad"=2 where "IdReceta"=${s}`);
   });
-  it("no cambia base/factor de una unidad usada por recetas", async () => {
-    await fails(`update "UnidadesMedida" set "Factor"=2000 where "Codigo"='KG'`, /unidad/i);
+  it("no cambia base/factor de una unidad usada solo en una línea de receta", async () => {
+    await db.query(`insert into "UnidadesMedida"("Codigo","Nombre","UnidadBase","Factor") values ('XL','Unidad de línea','G',2)`);
+    const r = await receta("B4"); await linea(r, `"IdProducto"|1`, "XL");
+    await fails(`update "UnidadesMedida" set "Factor"=3 where "Codigo"='XL'`, /hay productos, facturas o recetas que usan esta unidad/);
+  });
+  it("no cambia base/factor de una unidad usada solo como rendimiento de una receta", async () => {
+    await db.query(`insert into "UnidadesMedida"("Codigo","Nombre","UnidadBase","Factor") values ('XR','Unidad de rendimiento','G',2)`);
+    await receta("B5", `"RendimientoCantidad","RendimientoUnidad"|10,'XR'`);
+    await fails(`update "UnidadesMedida" set "Factor"=3 where "Codigo"='XR'`, /hay productos, facturas o recetas que usan esta unidad/);
   });
   it("no cambia la unidad base de un producto usado en recetas", async () => {
     const id = Number(await val(`insert into "Productos"("Codigo","Nombre","UnidadBase","Formato") values ('USO','En receta','G','BOLSA') returning "IdProducto"`));
@@ -260,5 +267,55 @@ describe("calcular_recetas (por lote)", () => {
   it("una lista vacía devuelve un objeto vacío y una receta inexistente falla", async () => {
     expect(await val(`select calcular_recetas('{}'::bigint[])`)).toEqual({});
     await fails(`select calcular_recetas(array[999999]::bigint[])`, /La receta no existe/);
+  });
+});
+
+describe("límites de guardar_receta", () => {
+  const una = (extra: object) => G("null", CAB(`lim ${Math.random()}`), [L(1, extra)]);
+  it("acepta los máximos de cada número", async () => {
+    await db.query(una({ cantidad: 9999999.999, porcion: 9999999.999, merma: 99.9999 }));
+  });
+  it("rechaza 8 dígitos enteros en cantidad y porción", async () => {
+    await fails(una({ cantidad: 12345678 }), /cantidad/i);
+    await fails(una({ porcion: 12345678 }), /porción/i);
+  });
+  it("rechaza 4 decimales en cantidad y porción", async () => {
+    await fails(una({ cantidad: 0.0001 }), /cantidad/i);
+    await fails(una({ porcion: 1.0005 }), /porción/i);
+  });
+  it("rechaza una merma de 100 o más (3 dígitos enteros) y 5 decimales", async () => {
+    await fails(una({ merma: 100 }), /merma/i);
+    await fails(una({ merma: 0.12345 }), /merma/i);
+  });
+  it("rechaza rendimiento de 12 dígitos enteros y porciones con 3 decimales", async () => {
+    await fails(G("null", CAB("lim r", { rendimientoCantidad: 123456789012, rendimientoUnidad: "G" }), [L(1)]), /rendimiento/i);
+    await fails(G("null", CAB("lim p", { porciones: 1.234 }), [L(1)]), /porciones/i);
+  });
+});
+
+describe("calcular_receta: tope de anidación", () => {
+  const cadena = async (n: number, prefijo: string) => {
+    let anterior = Number(await val(G("null", CAB(`${prefijo} 0`, { rendimientoCantidad: 100, rendimientoUnidad: "G" }), [L(1)])));
+    for (let i = 1; i < n; i++)
+      anterior = Number(await val(G("null", CAB(`${prefijo} ${i}`, { rendimientoCantidad: 100, rendimientoUnidad: "G" }),
+        [{ subreceta: anterior, cantidad: 1, porcion: 10, unidad: "G", merma: 0 }])));
+    return anterior;
+  };
+  it("21 recetas encadenadas (20 niveles de sub-recetas) se calculan", async () => {
+    const id = await cadena(21, "cad a");
+    expect((await db.query<any>(`select calcular_receta(${id}) as r`)).rows[0].r.incompleto).toBe(false);
+  });
+  it("22 recetas encadenadas superan el tope: 'Receta demasiado anidada'", async () => {
+    const id = await cadena(22, "cad b");
+    await fails(`select calcular_receta(${id})`, /Receta demasiado anidada/);
+  });
+});
+
+describe("serialización de los guardados que validan ciclos", () => {
+  it("las validaciones de ciclo y de desactivación toman el bloqueo de recetas", async () => {
+    for (const f of ["validar_receta_detalle", "validar_receta"]) {
+      const def = String(await val(`select pg_get_functiondef('${f}'::regproc)`));
+      expect(def, f).toContain("pg_advisory_xact_lock");
+    }
   });
 });

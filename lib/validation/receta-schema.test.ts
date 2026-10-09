@@ -34,6 +34,12 @@ describe("recetaSchema", () => {
     expect(recetaSchema.safeParse({ ...r, detalle: [linea, linea] }).success).toBe(false);
     expect(recetaSchema.safeParse({ ...r, detalle: [linea, { ...linea, tipo: "subreceta" }] }).success).toBe(true);
   });
+  it("las porciones admiten hasta 2 decimales y 999.999,99 como máximo (igual que el servidor)", () => {
+    expect(recetaSchema.safeParse({ ...r, porciones: 1.234 }).success).toBe(false);
+    expect(recetaSchema.safeParse({ ...r, porciones: "2,5" }).success).toBe(true);
+    expect(recetaSchema.safeParse({ ...r, porciones: 999999.99 }).success).toBe(true);
+    expect(recetaSchema.safeParse({ ...r, porciones: 1000000 }).success).toBe(false);
+  });
   it("rechaza porciones 0 y nombre vacío", () => {
     expect(recetaSchema.safeParse({ ...r, porciones: 0 }).success).toBe(false);
     expect(recetaSchema.safeParse({ ...r, nombre: "  " }).success).toBe(false);

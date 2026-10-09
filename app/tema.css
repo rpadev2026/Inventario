@@ -100,6 +100,9 @@ body { background: var(--bg); color: var(--text); font-family: var(--font-body);
   .alert { padding: .75rem 1rem; border-radius: var(--radius-sm); border: 1px solid; font-size: .9375rem; }
   .alert-error { background: var(--danger-bg); border-color: var(--danger-border); color: var(--danger); }
   .alert-ok { background: var(--success-bg); border-color: var(--success-border); color: var(--success); }
+  .resumen { margin-left: auto; display: grid; width: 100%; max-width: 20rem; gap: .25rem; border-radius: .5rem; padding: 1rem; font-size: .875rem; background: var(--surface-2); }
+  .resumen > div { display: flex; justify-content: space-between; }
+  .resumen-total { border-top: 1px solid var(--border-strong); padding-top: .5rem; font-size: 1rem; font-weight: 600; }
   .alert-warn { background: var(--warning-bg); border-color: var(--warning-border); color: var(--warning); }
   .tag { display: inline-flex; align-items: center; gap: .25rem; background: var(--primary-soft); color: var(--accent-text); border-radius: 6px; padding: .125rem .5rem; font-size: .75rem; font-weight: 600; cursor: pointer; border: 0; font-family: inherit; }
 

@@ -11,6 +11,7 @@ import Badge from "@/components/app/badge";
 import FiltrosListado from "@/components/app/filtros-listado";
 import Icon from "@/components/app/icon";
 import Paginador from "@/components/app/paginador";
+import { recetasQueContienen } from "@/lib/receta-arbol";
 import FormReceta, { type LineaForm, type ProductoOpcion, type SubrecetaOpcion } from "./form";
 
 type Params = Record<string, string | string[] | undefined>;
@@ -91,7 +92,10 @@ export default async function RecetasPage({ searchParams }: { searchParams: Prom
         noVigente: faltanProd.includes(p.IdProducto),
       }));
       // Sub-recetas posibles: vigentes con rendimiento (menos la que se edita); su costo por unidad base sale del RPC.
-      const candidatas = [...(recs ?? []).filter((r) => r.IdReceta !== idEditar), ...(subsExtra ?? []).filter((r) => r.RendimientoUnidad)];
+      // No se ofrecen la propia receta ni las que ya la contienen (elegirlas formaría un ciclo).
+      const { data: aristas } = idEditar ? await db.from("RecetaDetalles").select("IdReceta,IdSubReceta").not("IdSubReceta", "is", null).returns<any[]>() : { data: [] as any[] };
+      const excluidas = idEditar ? recetasQueContienen(idEditar, (aristas ?? []).map((a) => ({ receta: a.IdReceta as number, sub: a.IdSubReceta as number }))) : new Set<number>();
+      const candidatas = [...(recs ?? []).filter((r) => r.IdReceta !== idEditar && !excluidas.has(r.IdReceta)), ...(subsExtra ?? []).filter((r) => r.RendimientoUnidad)];
       const costosSub = await calcularVarias(candidatas.map((r) => r.IdReceta as number));
       const subrecetas: SubrecetaOpcion[] = candidatas.map((r) => ({
         id: r.IdReceta as number, nombre: r.Nombre as string, rendimientoUnidad: r.RendimientoUnidad as string,
@@ -135,7 +139,8 @@ export default async function RecetasPage({ searchParams }: { searchParams: Prom
       ]);
       const porDetalle = new Map((detalles ?? []).map((d) => [d.IdDetalle as number, d]));
       const lineas = (calculo?.lineas ?? []).map((l) => ({ ...l, d: porDetalle.get(l.detalle) }));
-      const sinCosto = lineas.filter((l) => l.sinCosto).map((l) => l.nombre);
+      const sinFactura = lineas.filter((l) => l.sinCosto && l.tipo === "producto").map((l) => l.nombre);
+      const subIncompletas = lineas.filter((l) => l.sinCosto && l.tipo === "subreceta").map((l) => l.nombre);
       return (
         <section className="space-y-4">
           <div className="page-head">
@@ -148,13 +153,19 @@ export default async function RecetasPage({ searchParams }: { searchParams: Prom
               <Dato titulo="Porciones">{num.format(Number(rec.RendimientoPorciones))}</Dato>
               <Dato titulo="Rendimiento">{rec.RendimientoCantidad === null ? "" : `${num.format(Number(rec.RendimientoCantidad))} ${nombreUnidad.get(rec.RendimientoUnidad) ?? rec.RendimientoUnidad}`}</Dato>
               <Dato titulo="Estado"><Badge tone={rec.IdEstado === 1 ? "ok" : "neutral"}>{rec.IdEstado === 1 ? "Vigente" : "No vigente"}</Badge></Dato>
-              <Dato titulo="Costo total">{calculo ? clp(calculo.total) : ""}</Dato>
-              <Dato titulo="Costo por porción">{calculo ? clp(calculo.porcion) : ""}</Dato>
+              <Dato titulo={`Costo total${calculo?.incompleto ? " (parcial)" : ""}`}>{calculo ? clp(calculo.total) : ""}</Dato>
+              <Dato titulo={`Costo por porción${calculo?.incompleto ? " (parcial)" : ""}`}>{calculo ? clp(calculo.porcion) : ""}</Dato>
             </div>
           </div>
-          {sinCosto.length > 0 && (
+          {!calculo && <p role="alert" className="alert alert-error">No se pudo calcular el costo de la receta. Revise sus ingredientes e inténtelo de nuevo.</p>}
+          {sinFactura.length > 0 && (
             <p role="status" className="alert alert-warn">
-              Costo incompleto: aún no hay costo para {sinCosto.join(", ")}. El costo se define con la primera factura del producto.
+              Costo incompleto: aún no hay una factura registrada de {sinFactura.join(", ")} (el costo de un producto se define con su primera factura).
+            </p>
+          )}
+          {subIncompletas.length > 0 && (
+            <p role="status" className="alert alert-warn">
+              Costo incompleto: la sub-receta {subIncompletas.join(", ")} tiene ingredientes sin costo o no tiene rendimiento.
             </p>
           )}
           <h2 className="section-title">Ingredientes</h2>
@@ -179,7 +190,7 @@ export default async function RecetasPage({ searchParams }: { searchParams: Prom
                     <td className="num">{l.costo === null ? <Badge tone="warn">Sin costo</Badge> : clp(l.costo)}</td>
                   </tr>
                 ))}
-                {!lineas.length && <tr><td colSpan={6} className="text-muted">Esta receta no tiene ingredientes.</td></tr>}
+                {!lineas.length && calculo && <tr><td colSpan={6} className="text-muted">Esta receta no tiene ingredientes.</td></tr>}
               </tbody>
             </table>
           </div>

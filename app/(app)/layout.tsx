@@ -1,11 +1,11 @@
 import { redirect } from "next/navigation";
 import { esAdmin, leerSesion } from "@/lib/auth/session";
-import { tienePermiso, type Permiso } from "@/lib/auth/permisos";
+import { tienePermiso } from "@/lib/auth/permisos";
 import { BottomNav, SideNav, type MenuItem } from "@/components/app/nav-links";
 import Icon from "@/components/app/icon";
 import { logout } from "../login/actions";
 
-const MENU: (MenuItem & { permisos: Permiso[] | "admin" | null })[] = [
+const MENU: (MenuItem & { permisos: string[] | "admin" | null })[] = [
   { href: "/", label: "Inicio", icon: "home", permisos: null },
   { href: "/compras", label: "Compras", icon: "receipt", permisos: ["compras.ver"] },
   { href: "/proveedores", label: "Proveedores", icon: "truck", permisos: ["proveedores.ver"] },

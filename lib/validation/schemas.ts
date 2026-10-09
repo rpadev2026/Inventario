@@ -3,7 +3,6 @@ import { validarRut } from "./rut";
 import { codigoCatalogo } from "./catalogo";
 import { esCorreoValido, MSG_CORREO } from "./correo";
 import { parseCantidad, parseDecimal2 } from "../numeros";
-import { CODIGOS_PERMISO } from "../auth/permisos";
 
 const txt = (max = 150) => z.string().trim().max(max);
 const opt = (max = 150) => txt(max).optional().transform((v) => v || null);
@@ -98,13 +97,21 @@ export const rolSchema = z.object({
   nombre: txt(60).min(1, "Nombre requerido"),
   detalle: opt(200),
   estado,
-  permisos: z.array(z.enum(CODIGOS_PERMISO)).default([]),
+  // Los códigos válidos son los de la tabla "Permisos": guardar_rol rechaza uno desconocido con un mensaje de negocio.
+  permisos: z.array(z.string().regex(/^[a-z_]+\.[a-z_]+$/, "Permiso no válido")).default([]),
 });
 
 /** Cantidad positiva con hasta 3 decimales (número o texto con coma/punto). */
 const positivo3 = (msg: string) => z.union([z.number(), z.string()]).transform((v, ctx) => {
   const n = typeof v === "number" ? (Number.isFinite(v) && v > 0 && Math.abs(v * 1000 - Math.round(v * 1000)) < 1e-6 ? v : null) : parseCantidad(v.trim());
   if (n === null) { ctx.addIssue({ code: "custom", message: msg }); return z.NEVER; }
+  return n;
+});
+const MSG_PORCIONES = "Porciones: número mayor que 0, hasta 2 decimales y 999.999,99 como máximo";
+/** Porciones de una receta: mayor que 0, hasta 2 decimales y 999.999,99 (numeric(8,2) en la base). */
+const porciones2 = z.union([z.number(), z.string()]).transform((v, ctx) => {
+  const n = typeof v === "number" ? (Number.isFinite(v) && v > 0 && Math.abs(v * 100 - Math.round(v * 100)) < 1e-6 ? v : null) : parseDecimal2(v.trim());
+  if (n === null || n <= 0 || n > 999999.99) { ctx.addIssue({ code: "custom", message: MSG_PORCIONES }); return z.NEVER; }
   return n;
 });
 const MSG_MERMA = "Merma: entre 0 y 1000 %, máximo 2 decimales";
@@ -121,7 +128,7 @@ export const recetaSchema = z.object({
   codigo: z.string().trim().max(40).optional().transform((v) => (v ? v.toUpperCase() : undefined))
     .pipe(z.string().regex(/^[A-Za-z0-9._-]+$/, "Código: solo letras, números, . _ -").optional()),
   nombre: txt().min(1, "Nombre requerido").transform((v) => v.toUpperCase()),
-  porciones: z.preprocess((v) => (v === "" || v === undefined || v === null ? 1 : v), positivo3("Porciones: número mayor que 0")),
+  porciones: z.preprocess((v) => (v === "" || v === undefined || v === null ? 1 : v), porciones2),
   rendimientoCantidad: z.preprocess(vacioAUndefined, positivo3("Rendimiento: número mayor que 0 (hasta 3 decimales)").optional()),
   rendimientoUnidad: unidadOpcional,
   estado,

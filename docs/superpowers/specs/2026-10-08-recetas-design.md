@@ -71,7 +71,7 @@ Nuevos permisos `recetas.ver` y `recetas.gestionar` en el catálogo de permisos 
 - **Listado**: filtro por código/nombre y estado (`lib/recetas-filtro.ts`, `components/app/filtros-listado.tsx`), paginado; columnas código, nombre, porciones, costo por porción (insignia «Incompleto» si falta costo) y estado.
 - **Ver** (`?ver=ID`): datos y rendimiento; ingredientes con cantidad, porción neta, unidad, merma, cantidad bruta y costo; enlace a la sub-receta; resumen de costo total y por porción; aviso con los ingredientes sin costo.
 - **Crear / Editar** (`?crear=1`, `?editar=ID`, requieren `recetas.gestionar`): cabecera (código, nombre, porciones, rendimiento cantidad + unidad, estado al editar) y líneas con tipo (producto/sub-receta), `combobox`, Cantidad, Porción neta, unidad (solo la familia correcta), Merma en % y quitar. Vista previa del costo con `lib/receta-calculo.ts`. Volver y aviso al guardar. En 375 px las líneas se apilan.
-- `lib/validation/schemas.ts`: `recetaSchema` (Zod): cantidades > 0, merma 0–999,9999 %, ingredientes obligatorios y sin repetidos, nombre/código en MAYÚSCULA.
+- `lib/validation/schemas.ts`: `recetaSchema` (Zod): cantidades > 0, merma 0–1000 %, hasta 2 decimales, ingredientes obligatorios y sin repetidos, nombre/código en MAYÚSCULA.
 - La acción mapea `P0001` y `23505` (código o nombre ya existe) como en Productos.
 - Estilo solo con clases de `tema.css`; formularios con `Field`; sin colores sueltos.
 
