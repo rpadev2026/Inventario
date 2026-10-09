@@ -12,6 +12,7 @@ import Paginador from "@/components/app/paginador";
 import { asignarRol, quitarRol } from "./actions";
 import FormNuevoUsuario from "./form-nuevo";
 import FormEditarUsuario from "./form-editar";
+import FormClaveUsuario from "./form-clave";
 
 type Params = Record<string, string | string[] | undefined>;
 const entero = (v: unknown) => (typeof v === "string" && /^\d+$/.test(v) && Number(v) > 0 ? Number(v) : undefined);
@@ -86,6 +87,11 @@ export default async function UsuariosPage({ searchParams }: { searchParams: Pro
         </div>
         <div className="card">
           <FormEditarUsuario key={sel.IdUsuario} u={sel} esPropio={esPropio} despuesDeGuardar={href({ ...base, aviso: "editado" })} />
+        </div>
+
+        <div className="space-y-3">
+          <h2 className="section-title">Clave</h2>
+          <div className="card"><FormClaveUsuario key={sel.IdUsuario} id={sel.IdUsuario} /></div>
         </div>
 
         <div className="space-y-3">
