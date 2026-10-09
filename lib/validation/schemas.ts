@@ -6,6 +6,9 @@ import { parseCantidad, parseDecimal2 } from "../numeros";
 
 const txt = (max = 150) => z.string().trim().max(max);
 const opt = (max = 150) => txt(max).optional().transform((v) => v || null);
+/** Texto en MAYÚSCULA (nombres, direcciones, giros...): se guarda siempre así. */
+const txtM = (max = 150) => txt(max).transform((v) => v.toUpperCase());
+const optM = (max = 150) => txtM(max).optional().transform((v) => v || null);
 const rut = z.string().refine(validarRut, "RUT inválido");
 const correoOpt = z.string().trim().toLowerCase().max(254).optional()
   .transform((v) => v || null)
@@ -23,21 +26,21 @@ const territorioCompleto = (
 
 export const proveedorSchema = z.object({
   rut,
-  razonSocial: txt().min(1, "Razón social requerida"),
-  direccion: opt(), region: opt(), comuna: opt(), ciudad: opt(), giro: opt(),
+  razonSocial: txtM().pipe(z.string().min(1, "Razón social requerida")),
+  direccion: optM(), region: opt(), comuna: opt(), ciudad: opt(), giro: optM(),
   rutRepresentante: z.string().trim().optional().transform((v) => v || null)
     .refine((v) => v === null || validarRut(v), "RUT del representante inválido"),
-  nombreRepresentante: opt(),
+  nombreRepresentante: optM(),
   telefono: opt(30), correo: correoOpt, estado,
 }).superRefine(territorioCompleto);
 
 export const sucursalSchema = z.object({
-  region: opt(), comuna: opt(), ciudad: opt(), direccion: txt().min(1, "Dirección requerida"),
-  telefono: opt(30), correo: correoOpt, encargado: opt(), estado,
+  region: opt(), comuna: opt(), ciudad: opt(), direccion: txtM().pipe(z.string().min(1, "Dirección requerida")),
+  telefono: opt(30), correo: correoOpt, encargado: optM(), estado,
 }).superRefine(territorioCompleto);
 
 export const vendedorSchema = z.object({
-  rut, nombres: txt().min(1, "Nombres requeridos"), apellidos: txt().min(1, "Apellidos requeridos"),
+  rut, nombres: txtM().pipe(z.string().min(1, "Nombres requeridos")), apellidos: txtM().pipe(z.string().min(1, "Apellidos requeridos")),
   telefono: opt(30), correo: correoOpt, estado,
 });
 

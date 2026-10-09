@@ -27,7 +27,7 @@ describe("prepararFila", () => {
   it("normaliza el código a mayúsculas al crear", () => {
     const d = catalogoSchema.parse({ codigo: " contado ", nombre: "Contado", estado: "1" });
     const f = prepararFila(cfg, d, 7, false);
-    expect(f).toMatchObject({ Codigo: "CONTADO", Nombre: "Contado", IdEstado: 1, IdUsuarioCreacion: 7, IdUsuarioModificacion: 7 });
+    expect(f).toMatchObject({ Codigo: "CONTADO", Nombre: "CONTADO", IdEstado: 1, IdUsuarioCreacion: 7, IdUsuarioModificacion: 7 });
   });
   it("al editar no incluye Codigo", () => {
     const d = catalogoSchema.parse({ codigo: "otro", nombre: "X", estado: "0" });

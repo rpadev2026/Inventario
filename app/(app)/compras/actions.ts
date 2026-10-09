@@ -27,7 +27,7 @@ export async function registrarFactura(input: unknown): Promise<{ error?: string
 export async function anularFactura(_: unknown, fd: FormData): Promise<{ error?: string; ok?: boolean }> {
   const s = await requerirPermiso("compras.anular");
   const id = Number(fd.get("id"));
-  const motivo = String(fd.get("motivo") ?? "").slice(0, 300);
+  const motivo = String(fd.get("motivo") ?? "").slice(0, 300).toUpperCase();
   if (!Number.isInteger(id) || id <= 0) return { error: "Factura inválida" };
   const { error } = await db.rpc("anular_factura", { p_usuario: s.uid, p_compra: id, p_motivo: motivo });
   if (error) return { error: error.code === "P0001" ? error.message : "No se pudo anular la factura" };

@@ -7,7 +7,7 @@ const estado = z.coerce.number().pipe(z.union([z.literal(0), z.literal(1)])).def
 
 export const catalogoSchema = z.object({
   codigo: codigoCatalogo,
-  nombre: z.string().trim().min(1, "Nombre requerido").max(80),
+  nombre: z.string().trim().min(1, "Nombre requerido").max(80).transform((v) => v.toUpperCase()),
   estado,
 });
 
