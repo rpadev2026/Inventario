@@ -27,7 +27,7 @@ describe("edición de usuario", () => {
   it("acepta datos válidos, normaliza el correo y recorta los nombres", () => {
     const r = editarUsuarioSchema.safeParse(edicion);
     expect(r.success).toBe(true);
-    if (r.success) expect(r.data).toEqual({ id: 5, nombres: "Ana María", apellidos: "Pérez", correo: "ana@empresa.cl", estado: 1 });
+    if (r.success) expect(r.data).toEqual({ id: 5, nombres: "ANA MARÍA", apellidos: "PÉREZ", correo: "ana@empresa.cl", estado: 1 });
   });
   it("rechaza correos con formato inválido con el mensaje orientador", () => {
     for (const correo of ["", "a@b", "sin-arroba", "a@@b.cl"]) {

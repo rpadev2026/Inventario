@@ -6,7 +6,7 @@ import { requerirAdmin } from "@/lib/auth/session";
 
 type R = { error?: string; ok?: boolean };
 
-const schema = z.object({ nombre: z.string().trim().min(1, "Nombre requerido").max(100), estado: z.coerce.number().pipe(z.union([z.literal(0), z.literal(1)])).default(1) });
+const schema = z.object({ nombre: z.string().trim().min(1, "Nombre requerido").max(100).transform((v) => v.toUpperCase()), estado: z.coerce.number().pipe(z.union([z.literal(0), z.literal(1)])).default(1) });
 
 export async function guardarBodega(_: unknown, fd: FormData): Promise<R> {
   const s = await requerirAdmin();

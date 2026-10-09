@@ -253,7 +253,7 @@ describe("territorio", () => {
     expect(Number(await val(`select count(*) from "Comunas"`))).toBe(346);
   });
   it("incluye Antártica (12202)", async () => {
-    expect(await val(`select "Nombre" from "Comunas" where "Codigo"='12202'`)).toBe("Antártica");
+    expect(await val(`select "Nombre" from "Comunas" where "Codigo"='12202'`)).toBe("ANTÁRTICA");
   });
   it("rechaza una comuna con provincia inexistente", async () => {
     await fails(`insert into "Comunas"("Codigo","Nombre","CodigoProvincia") values ('99999','X','998')`);
