@@ -5,6 +5,7 @@ import { tienePermiso } from "@/lib/auth/permisos";
 import { cargarUnidades } from "@/lib/catalogo-nombres";
 import { leerEstado } from "@/lib/filtro-estado";
 import type { RecetaFila } from "@/lib/recetas-filtro";
+import { leerTodo } from "@/lib/db/leer-todo";
 import { listarPagina } from "@/lib/services/listado";
 import Aviso from "@/components/app/aviso";
 import Badge from "@/components/app/badge";
@@ -73,8 +74,8 @@ export default async function RecetasPage({ searchParams }: { searchParams: Prom
       : { data: null };
     if (crear || rec) {
       const [{ data: prods }, { data: recs }, { data: dets }] = await Promise.all([
-        db.from("Productos").select("IdProducto,Codigo,Nombre,UnidadBase,CostoUnitarioBase").eq("IdEstado", 1).order("Nombre").returns<any[]>(),
-        db.from("Recetas").select("IdReceta,Nombre,RendimientoUnidad").eq("IdEstado", 1).not("RendimientoUnidad", "is", null).order("Nombre").returns<any[]>(),
+        leerTodo<any>((a, b) => db.from("Productos").select("IdProducto,Codigo,Nombre,UnidadBase,CostoUnitarioBase", { count: "exact" }).eq("IdEstado", 1).order("Nombre").order("IdProducto").range(a, b)),
+        leerTodo<any>((a, b) => db.from("Recetas").select("IdReceta,Nombre,RendimientoUnidad", { count: "exact" }).eq("IdEstado", 1).not("RendimientoUnidad", "is", null).order("Nombre").order("IdReceta").range(a, b)),
         idEditar
           ? db.from("RecetaDetalles").select("IdProducto,IdSubReceta,Cantidad,PorcionNeta,UnidadMedida,PorcentajeMerma").eq("IdReceta", idEditar).order("IdDetalle").returns<any[]>()
           : Promise.resolve({ data: [] as any[] }),
