@@ -319,3 +319,40 @@ describe("serialización de los guardados que validan ciclos", () => {
     }
   });
 });
+
+describe("buscar_subrecetas (sub-recetas remotas)", () => {
+  const buscar = async (q: string, excluir: number | null) =>
+    ((await db.query<any>(`select buscar_subrecetas($1, $2, 20) r`, [q, excluir])).rows[0].r as { id: number; nombre: string; rendimientoUnidad: string }[]);
+  const conRend = (nombre: string) => val(`insert into "Recetas"("Nombre","RendimientoCantidad","RendimientoUnidad") values ('${nombre}',500,'G') returning "IdReceta"`).then(Number);
+
+  it("excluye la receta editada y las que la contienen, directa o indirectamente; ofrece el resto", async () => {
+    // Grafo: SB1 ⊃ SB2 ⊃ SB3, SB4 ⊃ SB3, SB5 aparte.
+    const [s1, s2, s3, s4, s5] = [await conRend("SB1 uno"), await conRend("SB2 dos"), await conRend("SB3 tres"), await conRend("SB4 cuatro"), await conRend("SB5 cinco")];
+    await linea(s1, `"IdSubReceta"|${s2}`); await linea(s2, `"IdSubReceta"|${s3}`); await linea(s4, `"IdSubReceta"|${s3}`);
+    const ids = (r: { id: number }[]) => r.map((x) => x.id).filter((i) => [s1, s2, s3, s4, s5].includes(i)).sort((a, b) => a - b);
+    expect(ids(await buscar("sb", s3))).toEqual([s5]); // SB3 la usan SB2 (y por él SB1) y SB4: solo queda SB5
+    expect(ids(await buscar("sb", s2))).toEqual([s3, s4, s5]); // la usa SB1
+    expect(ids(await buscar("sb", null))).toEqual([s1, s2, s3, s4, s5]); // receta nueva: todas
+  });
+
+  it("busca por nombre sin tildes ni mayúsculas, devuelve la unidad de rendimiento y respeta el límite", async () => {
+    await val(`insert into "Recetas"("CodigoReceta","Nombre","RendimientoCantidad","RendimientoUnidad") values ('Z-9','Salsa ÁCIDA',1,'ML') returning "IdReceta"`);
+    const r = await buscar("acida", null);
+    expect(r).toEqual([expect.objectContaining({ nombre: "SALSA ÁCIDA", rendimientoUnidad: "ML" })]);
+    expect((await buscar("z-9", null)).map((x) => x.nombre)).toEqual(["SALSA ÁCIDA"]); // también por código
+    expect(await buscar("zzzz", null)).toEqual([]);
+    expect((await db.query<any>(`select buscar_subrecetas('', null, 2) r`)).rows[0].r).toHaveLength(2);
+  });
+
+  it("no ofrece recetas no vigentes ni sin rendimiento", async () => {
+    await db.query(`insert into "Recetas"("Nombre") values ('SB-SIN rendimiento')`);
+    await db.query(`insert into "Recetas"("Nombre","RendimientoCantidad","RendimientoUnidad","IdEstado") values ('SB-NO vigente',1,'G',0)`);
+    expect(await buscar("sin rendimiento", null)).toEqual([]);
+    expect(await buscar("no vigente", null)).toEqual([]);
+  });
+
+  it("rechaza un límite inválido", async () => {
+    await fails(`select buscar_subrecetas('', null, 0)`, /Paginación/);
+    await fails(`select buscar_subrecetas('', null, 500)`, /Paginación/);
+  });
+});

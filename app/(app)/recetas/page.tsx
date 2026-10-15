@@ -5,17 +5,15 @@ import { tienePermiso } from "@/lib/auth/permisos";
 import { cargarUnidades } from "@/lib/catalogo-nombres";
 import { leerEstado } from "@/lib/filtro-estado";
 import type { RecetaFila } from "@/lib/recetas-filtro";
-import { leerTodo } from "@/lib/db/leer-todo";
 import { listarPagina } from "@/lib/services/listado";
 import Aviso from "@/components/app/aviso";
 import Badge from "@/components/app/badge";
 import FiltrosListado from "@/components/app/filtros-listado";
 import Icon from "@/components/app/icon";
 import Paginador from "@/components/app/paginador";
-import { recetasQueContienen } from "@/lib/receta-arbol";
-import FormReceta, { type LineaForm, type SubrecetaOpcion } from "./form";
-import { productosPorId } from "../buscar/actions";
-import { opcionProducto } from "@/lib/opciones-remotas";
+import FormReceta, { type LineaForm } from "./form";
+import { productosPorId, subrecetasPorId } from "../buscar/actions";
+import { opcionProducto, opcionSubreceta } from "@/lib/opciones-remotas";
 
 type Params = Record<string, string | string[] | undefined>;
 type Calculo = {
@@ -75,31 +73,15 @@ export default async function RecetasPage({ searchParams }: { searchParams: Prom
       ? await db.from("Recetas").select("*").eq("IdReceta", idEditar).maybeSingle()
       : { data: null };
     if (crear || rec) {
-      const [{ data: recs }, { data: dets }] = await Promise.all([
-        leerTodo((a, b) => db.from("Recetas").select("IdReceta,Nombre,RendimientoUnidad", { count: "exact" }).eq("IdEstado", 1).not("RendimientoUnidad", "is", null).order("Nombre").order("IdReceta").range(a, b)),
-        idEditar
-          ? db.from("RecetaDetalles").select("IdProducto,IdSubReceta,Cantidad,PorcionNeta,UnidadMedida,PorcentajeMerma").eq("IdReceta", idEditar).order("IdDetalle")
-          : Promise.resolve({ data: [] }),
-      ]);
-      // Ingredientes de la receta que ya no están vigentes: se ofrecen igual (marcados) para que la línea no quede en blanco.
+      const { data: dets } = idEditar
+        ? await db.from("RecetaDetalles").select("IdProducto,IdSubReceta,Cantidad,PorcionNeta,UnidadMedida,PorcentajeMerma").eq("IdReceta", idEditar).order("IdDetalle")
+        : { data: [] };
+      // Solo los ingredientes de las líneas guardadas (vigentes o no, para que la línea no quede en blanco); el resto se busca en el servidor al escribir.
       const idsProductos = [...new Set((dets ?? []).filter((d) => d.IdProducto !== null).map((d) => d.IdProducto as number))];
-      const faltanSub = (dets ?? []).filter((d) => d.IdSubReceta !== null && !(recs ?? []).some((r) => r.IdReceta === d.IdSubReceta)).map((d) => d.IdSubReceta as number);
-      const [productosLineas, { data: subsExtra }] = await Promise.all([
-        productosPorId(idsProductos), // los productos de las líneas guardadas (vigentes o no); el resto se busca al escribir
-        faltanSub.length ? db.from("Recetas").select("IdReceta,Nombre,RendimientoUnidad").in("IdReceta", faltanSub) : Promise.resolve({ data: [] }),
-      ]);
+      const idsSubrecetas = [...new Set((dets ?? []).filter((d) => d.IdSubReceta !== null).map((d) => d.IdSubReceta as number))];
+      const [productosLineas, subrecetasLineas] = await Promise.all([productosPorId(idsProductos), subrecetasPorId(idsSubrecetas)]);
       const productosIniciales = productosLineas.map(opcionProducto);
-      // Sub-recetas posibles: vigentes con rendimiento (menos la que se edita); su costo por unidad base sale del RPC.
-      // No se ofrecen la propia receta ni las que ya la contienen (elegirlas formaría un ciclo).
-      const { data: aristas } = idEditar ? await db.from("RecetaDetalles").select("IdReceta,IdSubReceta").not("IdSubReceta", "is", null) : { data: [] };
-      const excluidas = idEditar ? recetasQueContienen(idEditar, (aristas ?? []).map((a) => ({ receta: a.IdReceta as number, sub: a.IdSubReceta as number }))) : new Set<number>();
-      const candidatas = [...(recs ?? []).filter((r) => r.IdReceta !== idEditar && !excluidas.has(r.IdReceta)), ...(subsExtra ?? []).filter((r) => r.RendimientoUnidad)];
-      const costosSub = await calcularVarias(candidatas.map((r) => r.IdReceta as number));
-      const subrecetas: SubrecetaOpcion[] = candidatas.map((r) => ({
-        id: r.IdReceta as number, nombre: r.Nombre as string, rendimientoUnidad: r.RendimientoUnidad as string,
-        costoPorBase: costosSub[String(r.IdReceta)]?.costoPorBase ?? null,
-        noVigente: faltanSub.includes(r.IdReceta),
-      }));
+      const subrecetasIniciales = subrecetasLineas.map(opcionSubreceta);
       const lineas: LineaForm[] = (dets ?? []).map((d) => ({
         tipo: d.IdProducto !== null ? "producto" : "subreceta", ingrediente: String(d.IdProducto ?? d.IdSubReceta),
         cantidad: String(Number(d.Cantidad)), porcion: String(Number(d.PorcionNeta)), unidad: d.UnidadMedida,
@@ -113,7 +95,7 @@ export default async function RecetasPage({ searchParams }: { searchParams: Prom
           </div>
           <div className="card">
             <FormReceta
-              key={idEditar ?? "nueva"} productosIniciales={productosIniciales} subrecetas={subrecetas} unidades={unidades} lineas={lineas}
+              key={idEditar ?? "nueva"} productosIniciales={productosIniciales} subrecetasIniciales={subrecetasIniciales} unidades={unidades} lineas={lineas}
               receta={rec ? {
                 id: rec.IdReceta, codigo: rec.CodigoReceta, nombre: rec.Nombre, porciones: Number(rec.RendimientoPorciones),
                 rendimientoCantidad: rec.RendimientoCantidad === null ? null : Number(rec.RendimientoCantidad),

@@ -2,10 +2,9 @@
 import { useMemo, useState, useTransition, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import Field from "@/components/app/field";
-import Combobox from "@/components/app/combobox";
 import ComboboxRemoto from "@/components/app/combobox-remoto";
 import type { Opcion } from "@/lib/buscar";
-import { buscarOpcionesProducto } from "@/lib/opciones-remotas";
+import { buscarOpcionesProducto, buscarOpcionesSubreceta } from "@/lib/opciones-remotas";
 import Icon from "@/components/app/icon";
 import { guardarReceta } from "./actions";
 import { calcularLinea, calcularReceta, type LineaCalculo } from "@/lib/receta-calculo";
@@ -17,11 +16,11 @@ export type RecetaForm = {
   rendimientoCantidad: number | null; rendimientoUnidad: string | null; estado: number;
 };
 export type LineaForm = { tipo: "producto" | "subreceta"; ingrediente: string; cantidad: string; porcion: string; unidad: string; merma: string };
-/** Receta vigente con rendimiento que se puede usar como ingrediente: `costoPorBase` es null si su costo está incompleto. */
-export type SubrecetaOpcion = { id: number; nombre: string; rendimientoUnidad: string; costoPorBase: number | null; noVigente?: boolean };
 
 type Props = {
-  receta?: RecetaForm; lineas?: LineaForm[]; subrecetas: SubrecetaOpcion[];
+  receta?: RecetaForm; lineas?: LineaForm[];
+  /** Sub-recetas de las líneas guardadas (con su rendimiento y costo); el resto se busca en el servidor al escribir. */
+  subrecetasIniciales: Opcion[];
   /** Productos de las líneas guardadas (con su unidad base y costo); el resto se busca en el servidor al escribir. */
   productosIniciales: Opcion[];
   unidades: UnidadInfo[]; despuesDeGuardar: string;
@@ -31,7 +30,7 @@ const lineaVacia = (): LineaForm => ({ tipo: "producto", ingrediente: "", cantid
 const clp = (n: number) => n.toLocaleString("es-CL", { style: "currency", currency: "CLP", maximumFractionDigits: 2 });
 const num = (n: number) => n.toLocaleString("es-CL", { maximumFractionDigits: 4 });
 
-export default function FormReceta({ receta, lineas: lineasIniciales, productosIniciales, subrecetas, unidades, despuesDeGuardar }: Props) {
+export default function FormReceta({ receta, lineas: lineasIniciales, productosIniciales, subrecetasIniciales, unidades, despuesDeGuardar }: Props) {
   const router = useRouter();
   const [codigo, setCodigo] = useState(receta?.codigo ?? "");
   const [nombre, setNombre] = useState(receta?.nombre ?? "");
@@ -45,21 +44,23 @@ export default function FormReceta({ receta, lineas: lineasIniciales, productosI
 
   // Productos ya elegidos por valor (con unidad base y costo): la búsqueda remota solo trae los que coinciden con lo escrito.
   const [productos, setProductos] = useState<Record<string, Opcion>>(() => Object.fromEntries(productosIniciales.map((o) => [o.valor, o])));
-  const opcionesSub = useMemo(() => subrecetas.map((s) => ({ valor: String(s.id), etiqueta: s.nombre + (s.noVigente ? " (no vigente)" : ""), busqueda: s.nombre })), [subrecetas]);
+  const [subrecetas, setSubrecetas] = useState<Record<string, Opcion>>(() => Object.fromEntries(subrecetasIniciales.map((o) => [o.valor, o])));
+  // Sin la receta que se edita ni las que la contienen (formarían un ciclo): lo resuelve el servidor. Estable por receta.
+  const buscarSub = useMemo(() => buscarOpcionesSubreceta(receta?.id), [receta?.id]);
   const unidadesRendimiento = unidades.filter((u) => u.IdEstado === 1 || u.Codigo === rendUnidad);
 
   const setLinea = (i: number, cambio: Partial<LineaForm>) => setLineas((ls) => ls.map((l, j) => (j === i ? { ...l, ...cambio } : l)));
   /** Unidad base de la familia del ingrediente de la línea ("" si aún no se elige). */
   const familiaDe = (l: LineaForm): string => {
     if (l.tipo === "producto") return productos[l.ingrediente]?.datos?.unidadBase ?? "";
-    const s = subrecetas.find((x) => String(x.id) === l.ingrediente);
-    return s ? unidades.find((u) => u.Codigo === s.rendimientoUnidad)?.UnidadBase ?? "" : "";
+    const u = subrecetas[l.ingrediente]?.datos?.rendimientoUnidad;
+    return u ? unidades.find((x) => x.Codigo === u)?.UnidadBase ?? "" : "";
   };
   const unidadDe = (l: LineaForm) => unidadDeLinea(unidades, familiaDe(l), l.unidad);
   const costoBaseDe = (l: LineaForm): number | null =>
     l.tipo === "producto"
       ? (productos[l.ingrediente]?.datos?.costoBase == null ? null : Number(productos[l.ingrediente].datos!.costoBase))
-      : subrecetas.find((s) => String(s.id) === l.ingrediente)?.costoPorBase ?? null;
+      : (subrecetas[l.ingrediente]?.datos?.costoPorBase == null ? null : Number(subrecetas[l.ingrediente].datos!.costoPorBase));
 
   // Vista previa con la misma fórmula del servidor (lib/receta-calculo.ts); una línea incompleta cuenta como «sin costo».
   const entradas = lineas.map((l): LineaCalculo | null => {
@@ -135,9 +136,10 @@ export default function FormReceta({ receta, lineas: lineasIniciales, productosI
                   onCambio={(v, o) => { setLinea(i, { ingrediente: v, unidad: "" }); if (o) setProductos((m) => ({ ...m, [o.valor]: o })); }}
                 />
               ) : (
-                <Combobox
-                  key="subreceta" label="Ingrediente" required opciones={opcionesSub} valor={l.ingrediente}
-                  onCambio={(v) => setLinea(i, { ingrediente: v, unidad: "" })} placeholder="Busque por nombre"
+                <ComboboxRemoto
+                  key="subreceta" label="Ingrediente" required valor={l.ingrediente} buscar={buscarSub} maxOpciones={20}
+                  placeholder="Busque por nombre" elegidas={subrecetas[l.ingrediente] ? [subrecetas[l.ingrediente]] : []}
+                  onCambio={(v, o) => { setLinea(i, { ingrediente: v, unidad: "" }); if (o) setSubrecetas((m) => ({ ...m, [o.valor]: o })); }}
                 />
               )}
               <Field label="Cantidad"><input value={l.cantidad} onChange={(e) => setLinea(i, { cantidad: filtrarDecimal(e.target.value, 3) })} inputMode="decimal" autoComplete="off" required className="input" /></Field>

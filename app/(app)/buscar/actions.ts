@@ -1,5 +1,5 @@
 "use server";
-import { db } from "@/lib/db/supabase";
+import { db, nulo } from "@/lib/db/supabase";
 import { requerirPermiso } from "@/lib/auth/session";
 import { mapaNombres } from "@/lib/catalogo-nombres";
 
@@ -11,6 +11,8 @@ const ids = (v: unknown) => (Array.isArray(v) ? v : []).map(Number).filter((n) =
 
 export type ProductoHallado = { id: number; codigo: string | null; nombre: string; unidadBase: string; unidadNombre: string; costoBase: number | null; vigente: boolean };
 export type ProveedorHallado = { id: number; rut: string; nombre: string };
+/** Receta usable como ingrediente: `costoPorBase` es null si su costo está incompleto. */
+export type SubrecetaHallada = { id: number; nombre: string; rendimientoUnidad: string; costoPorBase: number | null; vigente: boolean };
 
 // Quien arma una factura, una solicitud o una receta (o mira productos) necesita buscar productos; proveedores, quien registra compras o los ve.
 const PERMISOS_PRODUCTOS = ["compras.registrar", "solicitudes.crear", "recetas.gestionar", "productos.ver"];
@@ -62,4 +64,43 @@ export async function proveedoresPorId(listaIds: number[]): Promise<ProveedorHal
   const { data, error } = await db.from("Proveedores").select("IdProveedor,Rut,RazonSocial").in("IdProveedor", buscados).eq("IdEstado", 1);
   if (error) throw new Error("No se pudo leer los proveedores");
   return data.map((p) => ({ id: p.IdProveedor, rut: p.Rut, nombre: p.RazonSocial }));
+}
+
+/** Costo por unidad base del rendimiento de cada receta (null si está incompleto), en una sola llamada. */
+async function costosPorBase(listaIds: number[]): Promise<Map<number, number | null>> {
+  if (!listaIds.length) return new Map();
+  const { data, error } = await db.rpc("calcular_recetas", { p_ids: listaIds });
+  if (error) throw new Error("No se pudo calcular el costo de las sub-recetas");
+  const costos = (data ?? {}) as Record<string, { costoPorBase: number | null }>;
+  return new Map(listaIds.map((id) => [id, costos[String(id)]?.costoPorBase ?? null]));
+}
+
+const PERMISOS_RECETAS = ["recetas.gestionar"];
+
+/**
+ * Sub-recetas posibles por nombre o código: vigentes con rendimiento, sin la receta que se edita (`excluir`) ni las que ya la
+ * contienen (formarían un ciclo). Con su costo por unidad base.
+ */
+export async function buscarSubrecetas(q: string, excluir?: number): Promise<SubrecetaHallada[]> {
+  await requerirPermiso(...PERMISOS_RECETAS);
+  const excluida = ids([excluir])[0];
+  const { data, error } = await db.rpc("buscar_subrecetas", { p_q: texto(q), p_excluir: excluida ?? nulo, p_lim: LIMITE });
+  if (error) throw new Error("No se pudo buscar sub-recetas");
+  const filas = data as { id: number; nombre: string; rendimientoUnidad: string }[];
+  const costos = await costosPorBase(filas.map((f) => f.id));
+  return filas.map((f) => ({ ...f, costoPorBase: costos.get(f.id) ?? null, vigente: true }));
+}
+
+/** Sub-recetas por id (vigentes o no): para mostrar las ya elegidas al abrir una receta. */
+export async function subrecetasPorId(listaIds: number[]): Promise<SubrecetaHallada[]> {
+  await requerirPermiso(...PERMISOS_RECETAS);
+  const buscados = ids(listaIds);
+  if (!buscados.length) return [];
+  const { data, error } = await db.from("Recetas").select("IdReceta,Nombre,RendimientoUnidad,IdEstado").in("IdReceta", buscados).not("RendimientoUnidad", "is", null);
+  if (error) throw new Error("No se pudo leer las sub-recetas");
+  const costos = await costosPorBase(data.map((r) => r.IdReceta));
+  return data.map((r) => ({
+    id: r.IdReceta, nombre: r.Nombre, rendimientoUnidad: r.RendimientoUnidad as string,
+    costoPorBase: costos.get(r.IdReceta) ?? null, vigente: r.IdEstado === 1,
+  }));
 }
