@@ -3,9 +3,9 @@ import { db } from "@/lib/db/supabase";
 import { requerirPaginaPermiso } from "@/lib/auth/session";
 import { tienePermiso } from "@/lib/auth/permisos";
 import { cargarUnidades } from "@/lib/catalogo-nombres";
-import { paginar } from "@/lib/paginacion";
 import { leerEstado } from "@/lib/filtro-estado";
-import { filtrarRecetas, type RecetaFila } from "@/lib/recetas-filtro";
+import type { RecetaFila } from "@/lib/recetas-filtro";
+import { listarPagina } from "@/lib/services/listado";
 import Aviso from "@/components/app/aviso";
 import Badge from "@/components/app/badge";
 import FiltrosListado from "@/components/app/filtros-listado";
@@ -200,12 +200,8 @@ export default async function RecetasPage({ searchParams }: { searchParams: Prom
   }
 
   // ===== Listado: filtro por código/nombre y estado, y paginación =====
-  const { data: todas, error: errTodas } = await db.from("Recetas").select("IdReceta,CodigoReceta,Nombre,RendimientoPorciones,IdEstado").returns<RecetaFila[]>();
-  if (errTodas) throw new Error("No se pudo cargar las recetas");
   const estado = leerEstado(estadoPedido);
-  const filtradas = filtrarRecetas(todas ?? [], { q, estado });
-  const pg = paginar({ pagina: sp.pagina, tam: sp.tam }, filtradas.length);
-  const lista = filtradas.slice(pg.from, pg.to + 1);
+  const { filas: lista, pg } = await listarPagina<RecetaFila>("recetas", { q, estado, pagina: sp.pagina, tam: sp.tam });
   const costos = await calcularVarias(lista.map((r) => r.IdReceta));
   const hayFiltro = !!q || estado !== undefined;
   const aviso = typeof sp.aviso === "string" ? AVISOS[sp.aviso] : undefined;
