@@ -2,7 +2,7 @@ import "server-only";
 import { db } from "@/lib/db/supabase";
 import { paginar, type Paginacion } from "@/lib/paginacion";
 
-type Tabla = "productos" | "usuarios" | "bodegas" | "recetas";
+type Tabla = "productos" | "usuarios" | "bodegas" | "recetas" | "proveedores";
 
 /** Una página de un listado filtrado y ordenado en la base (RPC `listar_pagina`); el total sale del mismo filtro. */
 export async function listarPagina<T>(
