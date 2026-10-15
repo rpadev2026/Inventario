@@ -26,11 +26,8 @@ export async function autenticar(correo: string, password: string): Promise<Resu
   const valido = await verifyPassword(c?.Password ?? (await getDummy()), password);
   if (!u || u.IdEstado !== 1 || !c || !valido) {
     if (c) {
-      const intentos = c.IntentosFallidos + 1;
-      await db.from("Claves").update({
-        IntentosFallidos: intentos >= MAX_INTENTOS ? 0 : intentos,
-        BloqueadoHasta: intentos >= MAX_INTENTOS ? new Date(Date.now() + BLOQUEO_MIN * 60000).toISOString() : null,
-      }).eq("IdUsuario", c.IdUsuario);
+      const { error } = await db.rpc("registrar_fallo_login", { p_usuario: c.IdUsuario, p_max: MAX_INTENTOS, p_bloqueo_min: BLOQUEO_MIN });
+      if (error) console.error("No se pudo registrar el intento fallido de login", error.code);
     }
     return { ok: false, error: GENERICO };
   }

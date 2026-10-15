@@ -20,7 +20,10 @@ export type Sesion = { uid: number; roles: string[]; permisos: string[]; cambiar
 export type DatosSesion = { uid: number; roles: string[]; cambiar: boolean };
 
 export async function crearSesion(s: DatosSesion) {
-  const token = await new SignJWT({ roles: s.roles, cambiar: s.cambiar })
+  // La versión liga el token a la clave vigente: cambiar o resetear la clave invalida los tokens anteriores.
+  const { data: c } = await db.from("Claves").select("VersionSesion").eq("IdUsuario", s.uid).single();
+  if (!c) throw new Error("No se pudo crear la sesión");
+  const token = await new SignJWT({ roles: s.roles, cambiar: s.cambiar, v: c.VersionSesion })
     .setProtectedHeader({ alg: "HS256" })
     .setSubject(String(s.uid))
     .setIssuedAt()
@@ -43,19 +46,21 @@ export const leerSesion = cache(async (): Promise<Sesion | null> => {
   const token = (await cookies()).get(COOKIE)?.value;
   if (!token) return null;
   let uid: number;
+  let version: unknown;
   try {
     const { payload } = await jwtVerify(token, key(), { algorithms: ["HS256"] });
     uid = Number(payload.sub);
+    version = payload.v;
   } catch {
     return null;
   }
   if (!Number.isInteger(uid)) return null;
   const [{ data: u }, { data: c }, { data: rs }] = await Promise.all([
     db.from("Usuarios").select("IdEstado").eq("IdUsuario", uid).maybeSingle(),
-    db.from("Claves").select("DebeCambiar,IdEstado").eq("IdUsuario", uid).maybeSingle(),
+    db.from("Claves").select("DebeCambiar,IdEstado,VersionSesion").eq("IdUsuario", uid).maybeSingle(),
     db.from("UsuariosRoles").select("IdRol,Roles!inner(NombreRol,IdEstado)").eq("IdUsuario", uid).eq("IdEstado", 1).eq("Roles.IdEstado", 1),
   ]);
-  if (!u || u.IdEstado !== 1 || !c || c.IdEstado !== 1) return null;
+  if (!u || u.IdEstado !== 1 || !c || c.IdEstado !== 1 || c.VersionSesion !== version) return null;
   const vigentes = (rs ?? []) as any[];
   const roles = vigentes.map((r) => r.Roles.NombreRol as string);
   const idRoles = vigentes.map((r) => r.IdRol as number);

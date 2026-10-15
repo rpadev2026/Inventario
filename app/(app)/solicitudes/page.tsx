@@ -13,7 +13,8 @@ export default async function SolicitudesPage() {
     .select("IdSolicitud,NumeroSolicitud,FechaSolicitud,EstadoSolicitud,IdUsuarioSolicitante,Bodegas!inner(NombreBodega),Usuarios!Solicitudes_IdUsuarioSolicitante_fkey!inner(Nombres,Apellidos)")
     .order("IdSolicitud", { ascending: false }).limit(100);
   if (!ve_todas) q = q.eq("IdUsuarioSolicitante", s.uid);
-  const { data } = await q.returns<any[]>();
+  const { data, error } = await q.returns<any[]>();
+  if (error) throw new Error("No se pudo cargar las solicitudes");
   const puedeCrear = tienePermiso(s.permisos, "solicitudes.crear");
   return (
     <section className="space-y-4">

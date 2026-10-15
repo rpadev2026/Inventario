@@ -194,7 +194,8 @@ export default async function ProductosPage({ searchParams }: { searchParams: Pr
   }
 
   // ===== Listado de productos: filtro por código/nombre y estado, y paginación =====
-  const { data: todos } = await db.from("Productos").select(COLS).returns<ProductoFila[]>();
+  const { data: todos, error: errTodos } = await db.from("Productos").select(COLS).returns<ProductoFila[]>();
+  if (errTodos) throw new Error("No se pudo cargar los productos");
   const estado = leerEstado(estadoPedido);
   const filtrados = filtrarProductos(todos ?? [], { q, estado });
   const pg = paginar({ pagina: sp.pagina, tam: sp.tam }, filtrados.length);

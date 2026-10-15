@@ -171,10 +171,11 @@ export default async function UsuariosPage({ searchParams }: { searchParams: Pro
   }
 
   // ===== Listado de usuarios: filtro por RUT/nombre/correo y estado, y paginación =====
-  const [{ data: todos }, { data: ur }] = await Promise.all([
+  const [{ data: todos, error: errU }, { data: ur, error: errR }] = await Promise.all([
     db.from("Usuarios").select("IdUsuario,Rut,Nombres,Apellidos,Correo,IdEstado").returns<UsuarioFila[]>(),
     db.from("UsuariosRoles").select("IdUsuario,IdRol").eq("IdEstado", 1),
   ]);
+  if (errU || errR) throw new Error("No se pudo cargar los usuarios");
   const nombreRol = new Map(roles.map((r) => [r.IdRol, r.NombreRol]));
   const estado = leerEstado(estadoPedido);
   const filtrados = filtrarUsuarios(todos ?? [], { q, estado });

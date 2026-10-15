@@ -200,7 +200,8 @@ export default async function RecetasPage({ searchParams }: { searchParams: Prom
   }
 
   // ===== Listado: filtro por código/nombre y estado, y paginación =====
-  const { data: todas } = await db.from("Recetas").select("IdReceta,CodigoReceta,Nombre,RendimientoPorciones,IdEstado").returns<RecetaFila[]>();
+  const { data: todas, error: errTodas } = await db.from("Recetas").select("IdReceta,CodigoReceta,Nombre,RendimientoPorciones,IdEstado").returns<RecetaFila[]>();
+  if (errTodas) throw new Error("No se pudo cargar las recetas");
   const estado = leerEstado(estadoPedido);
   const filtradas = filtrarRecetas(todas ?? [], { q, estado });
   const pg = paginar({ pagina: sp.pagina, tam: sp.tam }, filtradas.length);
