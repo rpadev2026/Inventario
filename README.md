@@ -11,7 +11,7 @@ Next.js (App Router, TypeScript) + Tailwind + Supabase (Postgres). Toda la lógi
 2. Copiar `.env.example` a `.env.local` y completar:
    - `SUPABASE_URL` y `SUPABASE_SERVICE_ROLE_KEY` (Project Settings → API). **La service_role key nunca debe llevar prefijo `NEXT_PUBLIC_` ni subirse a git.**
    - `SESSION_SECRET`: `openssl rand -base64 48`.
-   - `RESEND_API_KEY`, `MAIL_FROM` (dominio verificado en Resend) y `APP_URL` para los correos.
+   - `RESEND_API_KEY`, `MAIL_FROM` (dominio verificado en Resend) y `APP_URL` para los correos. Los correos se encolan en la BD; para reintentar los fallidos, programe un cron (cada 5–10 min) que llame `POST /api/correos/procesar` con `Authorization: Bearer <CRON_SECRET>` (`CRON_SECRET`: 16+ caracteres).
 3. Crear el administrador inicial (la clave temporal cumple la política y se debe cambiar al ingresar):
    `npm run seed:admin -- 12345678-5 admin@tu-dominio.cl 'ClaveTemporal#2026'`
    Para no dejar la clave en el historial de la terminal, anteponga un espacio al comando o use una variable de entorno.

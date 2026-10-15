@@ -1,7 +1,8 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { jwtVerify } from "jose";
 
-const PUBLICAS = ["/login"];
+// /api/correos/procesar se autentica con CRON_SECRET (lo llama un programador, sin sesión).
+const PUBLICAS = ["/login", "/api/correos/procesar"];
 
 export async function proxy(req: NextRequest) {
   const { pathname } = req.nextUrl;
