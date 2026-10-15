@@ -4,16 +4,28 @@ import { requerirPaginaPermiso } from "@/lib/auth/session";
 import { tienePermiso } from "@/lib/auth/permisos";
 import { ESTADOS, ESTADO_TONO } from "./estados";
 import Badge from "@/components/app/badge";
+import Field from "@/components/app/field";
+import Paginador from "@/components/app/paginador";
+import { paginar } from "@/lib/paginacion";
 
-export default async function SolicitudesPage() {
+export default async function SolicitudesPage({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
+  const sp = await searchParams;
   const s = await requerirPaginaPermiso("solicitudes.ver_propias", "solicitudes.gestionar");
   // El solicitante ve solo las suyas; quien gestiona solicitudes ve todas.
   const ve_todas = tienePermiso(s.permisos, "solicitudes.gestionar");
-  let q = db.from("Solicitudes")
-    .select("IdSolicitud,NumeroSolicitud,FechaSolicitud,EstadoSolicitud,IdUsuarioSolicitante,Bodegas!inner(NombreBodega),Usuarios!Solicitudes_IdUsuarioSolicitante_fkey!inner(Nombres,Apellidos)")
-    .order("IdSolicitud", { ascending: false }).limit(100);
-  if (!ve_todas) q = q.eq("IdUsuarioSolicitante", s.uid);
-  const { data, error } = await q.returns<any[]>();
+  // Estado pedido en la URL (0–5); cualquier otro valor = todos.
+  const estadoPedido = typeof sp.estado === "string" && /^[0-5]$/.test(sp.estado) ? Number(sp.estado) : undefined;
+  const filtrar = (q: any) => {
+    if (!ve_todas) q = q.eq("IdUsuarioSolicitante", s.uid);
+    return estadoPedido === undefined ? q : q.eq("EstadoSolicitud", estadoPedido);
+  };
+  // Total con el mismo filtro y luego solo la página pedida (más recientes primero).
+  const { count, error: errCount } = await filtrar(db.from("Solicitudes").select("IdSolicitud", { count: "exact", head: true }));
+  if (errCount) throw new Error("No se pudo cargar las solicitudes");
+  const pg = paginar({ pagina: sp.pagina, tam: sp.tam }, count ?? 0);
+  const { data, error }: { data: any[] | null; error: unknown } = await filtrar(db.from("Solicitudes")
+    .select("IdSolicitud,NumeroSolicitud,FechaSolicitud,EstadoSolicitud,IdUsuarioSolicitante,Bodegas!inner(NombreBodega),Usuarios!Solicitudes_IdUsuarioSolicitante_fkey!inner(Nombres,Apellidos)"))
+    .order("IdSolicitud", { ascending: false }).range(pg.from, pg.to);
   if (error) throw new Error("No se pudo cargar las solicitudes");
   const puedeCrear = tienePermiso(s.permisos, "solicitudes.crear");
   return (
@@ -22,6 +34,17 @@ export default async function SolicitudesPage() {
         <h1 className="page-title">Solicitudes</h1>
         {puedeCrear && <Link href="/solicitudes/nueva" className="btn btn-primary">Nueva solicitud</Link>}
       </div>
+      <form method="get" className="flex flex-wrap items-end gap-3" aria-label="Filtrar solicitudes">
+        <Field label="Estado">
+          <select name="estado" defaultValue={estadoPedido ?? ""} className="input">
+            <option value="">Todos</option>
+            {Object.entries(ESTADOS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+          </select>
+        </Field>
+        {typeof sp.tam === "string" && <input type="hidden" name="tam" value={pg.tam} />}
+        <button className="btn btn-secondary">Filtrar</button>
+        {estadoPedido !== undefined && <Link href="/solicitudes" className="link">Limpiar</Link>}
+      </form>
       <div className="table-wrap">
         <table className="table">
           <thead><tr><th>N°</th><th>Fecha</th><th>Solicitante</th><th>Bodega destino</th><th>Estado</th><th></th></tr></thead>
@@ -36,9 +59,11 @@ export default async function SolicitudesPage() {
                 <td><Link className="link link-sm" href={`/solicitudes/${r.IdSolicitud}`}>Ver</Link></td>
               </tr>
             ))}
+            {!(data ?? []).length && <tr><td colSpan={6} className="text-muted">{estadoPedido !== undefined ? "Sin solicitudes en ese estado." : "Sin solicitudes."}</td></tr>}
           </tbody>
         </table>
       </div>
+      <Paginador pg={pg} etiqueta="solicitudes" />
     </section>
   );
 }
