@@ -2,6 +2,7 @@ import "server-only";
 import { Resend } from "resend";
 import { after } from "next/server";
 import { db, nulo } from "@/lib/db/supabase";
+import { procesarColaCon, type ColaCorreos, type Enviador } from "./cola-correos";
 
 const esc = (s: string) => s.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]!));
 
@@ -17,31 +18,34 @@ async function encolar(para: string[], asunto: string, html: string, clave: stri
   after(() => procesarCola());
 }
 
-/** Envía los correos vencidos de la cola. Sin RESEND_API_KEY no toca nada: quedan pendientes. */
+/** La cola real: las funciones SQL `reclamar_correos` y `resolver_correo`. */
+const colaSupabase: ColaCorreos = {
+  async reclamar(max) {
+    const { data, error } = await db.rpc("reclamar_correos", { p_max: max });
+    if (error) throw new Error(error.code ?? error.message);
+    return (data ?? []).map((c) => ({ id: c.IdCorreo, para: c.Para, asunto: c.Asunto, html: c.Html, intentos: c.Intentos }));
+  },
+  async resolver(id, motivoFallo) {
+    const { error } = await db.rpc("resolver_correo", { p_id: id, p_ok: motivoFallo === null, p_error: motivoFallo ?? nulo });
+    if (error) throw new Error(error.code ?? error.message);
+  },
+};
+
+/** El enviador real: Resend. La clave de idempotencia evita un duplicado si el envío salió pero no alcanzamos a registrarlo. */
+const enviadorResend = (key: string, from: string): Enviador => {
+  const resend = new Resend(key);
+  return async (c) => {
+    const { error } = await resend.emails.send({ from, to: c.para, subject: c.asunto, html: c.html }, { idempotencyKey: `correo-${c.id}` });
+    return error ? error.message : null;
+  };
+};
+
+/** Envía los correos vencidos de la cola. Sin RESEND_API_KEY ni MAIL_FROM no toca nada: quedan pendientes. */
 export async function procesarCola(max = 20): Promise<{ enviados: number; fallidos: number }> {
   const key = process.env.RESEND_API_KEY;
-  if (!key || !process.env.MAIL_FROM) return { enviados: 0, fallidos: 0 };
-  const { data, error } = await db.rpc("reclamar_correos", { p_max: max });
-  if (error) { console.error("[correo] no se pudo leer la cola:", error.code); return { enviados: 0, fallidos: 0 }; }
-  const resend = new Resend(key);
-  let enviados = 0, fallidos = 0;
-  for (const c of data ?? []) {
-    let motivo: string | null = null;
-    try {
-      // La clave de idempotencia evita un duplicado si el envío salió pero no alcanzamos a registrarlo.
-      const { error: e } = await resend.emails.send(
-        { from: process.env.MAIL_FROM, to: c.Para, subject: c.Asunto, html: c.Html },
-        { idempotencyKey: `correo-${c.IdCorreo}` },
-      );
-      if (e) motivo = e.message;
-    } catch (e) {
-      motivo = (e as Error).message;
-    }
-    if (motivo) console.error(`[correo] #${c.IdCorreo} intento ${c.Intentos} falló:`, motivo);
-    await db.rpc("resolver_correo", { p_id: c.IdCorreo, p_ok: motivo === null, p_error: motivo ?? nulo });
-    if (motivo === null) enviados++; else fallidos++;
-  }
-  return { enviados, fallidos };
+  const from = process.env.MAIL_FROM;
+  if (!key || !from) return { enviados: 0, fallidos: 0 };
+  return procesarColaCon(colaSupabase, enviadorResend(key, from), max);
 }
 
 /** Usuarios vigentes con rol vigente que tenga el permiso en RolesPermisos, más los de rol Administrador. */
