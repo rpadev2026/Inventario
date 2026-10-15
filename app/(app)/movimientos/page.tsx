@@ -6,7 +6,7 @@ export default async function MovimientosPage() {
   await requerirPaginaPermiso("movimientos.ver");
   const { data } = await db.from("MovimientosBodega")
     .select("IdMovimiento,FechaMovimiento,IdSolicitud,Cantidad,Productos!inner(Codigo,Nombre),Origen:Bodegas!MovimientosBodega_IdBodegaOrigen_fkey(NombreBodega),Destino:Bodegas!MovimientosBodega_IdBodegaDestino_fkey(NombreBodega)")
-    .order("IdMovimiento", { ascending: false }).limit(200).returns<any[]>();
+    .order("IdMovimiento", { ascending: false }).limit(200);
   return (
     <section className="space-y-4">
       <h1 className="page-title">Movimientos de bodega</h1>

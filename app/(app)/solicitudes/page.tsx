@@ -15,17 +15,17 @@ export default async function SolicitudesPage({ searchParams }: { searchParams: 
   const ve_todas = tienePermiso(s.permisos, "solicitudes.gestionar");
   // Estado pedido en la URL (0–5); cualquier otro valor = todos.
   const estadoPedido = typeof sp.estado === "string" && /^[0-5]$/.test(sp.estado) ? Number(sp.estado) : undefined;
-  const filtrar = (q: any) => {
-    if (!ve_todas) q = q.eq("IdUsuarioSolicitante", s.uid);
-    return estadoPedido === undefined ? q : q.eq("EstadoSolicitud", estadoPedido);
+  const filtro = {
+    ...(ve_todas ? {} : { IdUsuarioSolicitante: s.uid }),
+    ...(estadoPedido === undefined ? {} : { EstadoSolicitud: estadoPedido }),
   };
   // Total con el mismo filtro y luego solo la página pedida (más recientes primero).
-  const { count, error: errCount } = await filtrar(db.from("Solicitudes").select("IdSolicitud", { count: "exact", head: true }));
+  const { count, error: errCount } = await db.from("Solicitudes").select("IdSolicitud", { count: "exact", head: true }).match(filtro);
   if (errCount) throw new Error("No se pudo cargar las solicitudes");
   const pg = paginar({ pagina: sp.pagina, tam: sp.tam }, count ?? 0);
-  const { data, error }: { data: any[] | null; error: unknown } = await filtrar(db.from("Solicitudes")
-    .select("IdSolicitud,NumeroSolicitud,FechaSolicitud,EstadoSolicitud,IdUsuarioSolicitante,Bodegas!inner(NombreBodega),Usuarios!Solicitudes_IdUsuarioSolicitante_fkey!inner(Nombres,Apellidos)"))
-    .order("IdSolicitud", { ascending: false }).range(pg.from, pg.to);
+  const { data, error } = await db.from("Solicitudes")
+    .select("IdSolicitud,NumeroSolicitud,FechaSolicitud,EstadoSolicitud,IdUsuarioSolicitante,Bodegas!inner(NombreBodega),Usuarios!Solicitudes_IdUsuarioSolicitante_fkey!inner(Nombres,Apellidos)")
+    .match(filtro).order("IdSolicitud", { ascending: false }).range(pg.from, pg.to);
   if (error) throw new Error("No se pudo cargar las solicitudes");
   const puedeCrear = tienePermiso(s.permisos, "solicitudes.crear");
   return (

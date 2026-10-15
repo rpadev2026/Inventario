@@ -1,6 +1,6 @@
 "use server";
 import { revalidatePath } from "next/cache";
-import { db } from "@/lib/db/supabase";
+import { db, nulo } from "@/lib/db/supabase";
 import { requerirAdmin } from "@/lib/auth/session";
 import { rolSchema } from "@/lib/validation/schemas";
 
@@ -16,7 +16,7 @@ export async function guardarRol(_: unknown, fd: FormData): Promise<{ error?: st
   if (!p.success) return { error: p.error.issues[0].message };
   const d = p.data;
   const { error } = await db.rpc("guardar_rol", {
-    p_usuario: s.uid, p_id: d.id ?? null, p_nombre: d.nombre, p_detalle: d.detalle,
+    p_usuario: s.uid, p_id: d.id ?? nulo, p_nombre: d.nombre, p_detalle: d.detalle ?? nulo,
     p_estado: d.estado, p_permisos: d.permisos,
   });
   if (error) {

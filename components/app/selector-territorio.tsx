@@ -12,15 +12,13 @@ export default function SelectorTerritorio({ territorio, inicial }: { territorio
   const ancla = useRef<HTMLInputElement>(null);
 
   // `useAccion` limpia el formulario con form.reset(); el estado de React debe seguirlo.
-  const inicialRef = useRef(inicial);
-  inicialRef.current = inicial;
   useEffect(() => {
     const form = ancla.current?.form;
     if (!form) return;
-    const alReiniciar = () => setSel(inicialRef.current);
+    const alReiniciar = () => setSel(inicial);
     form.addEventListener("reset", alReiniciar);
     return () => form.removeEventListener("reset", alReiniciar);
-  }, []);
+  }, [inicial]);
 
   return (
     <div className="fld-full">

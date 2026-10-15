@@ -54,6 +54,7 @@ export default function FormFactura(props: {
     let ls: Linea[] = [lineaVacia()];
     if (b) {
       limpiarBorrador();
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- sessionStorage solo existe en el navegador: leerlo al inicializar el estado desfasaría la hidratación.
       setIdProv(b.idProv); setFolio(b.folio); setFechaFactura(b.fechaFactura);
       setFechaRecepcion(b.fechaRecepcion); setFormaPago(b.formaPago);
       if (b.lineas.length > 0) ls = b.lineas;

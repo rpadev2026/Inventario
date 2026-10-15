@@ -34,7 +34,12 @@ export function BottomNav({ items }: { items: MenuItem[] }) {
   const resto = conMas ? items.slice(4) : [];
   const restoActivo = resto.some((m) => activo(path, m.href));
 
-  useEffect(() => setAbierto(false), [path]); // cierra la hoja al navegar
+  // Cierra la hoja al navegar: se ajusta el estado durante el render al cambiar la ruta (sin efecto).
+  const [rutaPrevia, setRutaPrevia] = useState(path);
+  if (path !== rutaPrevia) {
+    setRutaPrevia(path);
+    setAbierto(false);
+  }
   useEffect(() => {
     if (!abierto) return;
     const onKey = (e: KeyboardEvent) => e.key === "Escape" && setAbierto(false);

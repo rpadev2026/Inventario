@@ -13,6 +13,8 @@ const eslintConfig = defineConfig([
     "build/**",
     "next-env.d.ts",
   ]),
+  // Las pruebas leen filas de PGlite/Supabase sin tipos: ahí `any` es aceptable.
+  { files: ["**/*.test.ts"], rules: { "@typescript-eslint/no-explicit-any": "off" } },
 ]);
 
 export default eslintConfig;

@@ -84,7 +84,7 @@ export default async function BodegasPage({ searchParams }: { searchParams: Prom
     const pgS = paginar({ pagina: sp.ppagina, tam: sp.ptam }, count ?? 0);
     const { data } = await db.from("StockBodega")
       .select("IdProducto,Cantidad,Productos!inner(Codigo,Nombre,UnidadBase,StockMinimo,StockCritico)")
-      .eq("IdBodega", sel.IdBodega).order("IdProducto").range(pgS.from, pgS.to).returns<any[]>();
+      .eq("IdBodega", sel.IdBodega).order("IdProducto").range(pgS.from, pgS.to);
     const stock = (data ?? []).map((r) => {
       const cant = Number(r.Cantidad);
       const nivel = cant <= Number(r.Productos.StockCritico) ? "Crítico" : cant <= Number(r.Productos.StockMinimo) ? "Bajo" : "OK";

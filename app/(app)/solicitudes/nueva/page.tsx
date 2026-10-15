@@ -8,7 +8,7 @@ export default async function NuevaSolicitudPage() {
   await requerirPaginaPermiso("solicitudes.crear");
   const [{ data: bods }, { data: prods }, unidades] = await Promise.all([
     db.from("Bodegas").select("IdBodega,NombreBodega").eq("IdEstado", 1).eq("EsCentral", false).order("NombreBodega"),
-    leerTodo<any>((a, b) => db.from("Productos").select("IdProducto,Codigo,Nombre,UnidadBase", { count: "exact" }).eq("IdEstado", 1).order("Nombre").order("IdProducto").range(a, b)),
+    leerTodo((a, b) => db.from("Productos").select("IdProducto,Codigo,Nombre,UnidadBase", { count: "exact" }).eq("IdEstado", 1).order("Nombre").order("IdProducto").range(a, b)),
     mapaNombres("UnidadesMedida"),
   ]);
   return (

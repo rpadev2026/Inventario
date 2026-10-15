@@ -83,7 +83,7 @@ describe("producto", () => {
     }
   });
   it("sin código también se acepta", () => {
-    const { codigo: _c, ...sin } = p;
+    const sin = Object.fromEntries(Object.entries(p).filter(([k]) => k !== "codigo"));
     expect(productoSchema.safeParse(sin).success).toBe(true);
   });
   it("rechaza código con caracteres no permitidos", () => expect(productoSchema.safeParse({ ...p, codigo: "a b" }).success).toBe(false));

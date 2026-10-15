@@ -24,13 +24,13 @@ export default async function FacturaPage({ params }: { params: Promise<{ id: st
 
   const { data: c } = await db.from("Compras")
     .select("*,Usuarios!Compras_IdUsuarioCreacion_fkey(Nombres,Apellidos)")
-    .eq("IdCompra", id).maybeSingle<any>();
+    .eq("IdCompra", id).maybeSingle();
   if (!c) notFound();
 
   const [{ data: det }, formas, unidades, formatos] = await Promise.all([
     db.from("ComprasDetalle")
       .select("IdDetalle,IdProducto,UnidadMedida,Precio,Cantidad,Total,Productos!inner(Codigo,Nombre,Formato)")
-      .eq("IdProveedor", c.IdProveedor).eq("Folio", c.Folio).order("IdDetalle").returns<any[]>(),
+      .eq("IdProveedor", c.IdProveedor).eq("Folio", c.Folio).order("IdDetalle"),
     mapaNombres("FormasPago"), mapaNombres("UnidadesMedida"), mapaNombres("Formatos"),
   ]);
   const lineas = det ?? [];

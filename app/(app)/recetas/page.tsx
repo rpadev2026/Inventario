@@ -70,22 +70,22 @@ export default async function RecetasPage({ searchParams }: { searchParams: Prom
   // ===== Crear / Editar: solo el formulario, con Volver =====
   if (crear || idEditar) {
     const { data: rec } = idEditar
-      ? await db.from("Recetas").select("*").eq("IdReceta", idEditar).maybeSingle<any>()
+      ? await db.from("Recetas").select("*").eq("IdReceta", idEditar).maybeSingle()
       : { data: null };
     if (crear || rec) {
       const [{ data: prods }, { data: recs }, { data: dets }] = await Promise.all([
-        leerTodo<any>((a, b) => db.from("Productos").select("IdProducto,Codigo,Nombre,UnidadBase,CostoUnitarioBase", { count: "exact" }).eq("IdEstado", 1).order("Nombre").order("IdProducto").range(a, b)),
-        leerTodo<any>((a, b) => db.from("Recetas").select("IdReceta,Nombre,RendimientoUnidad", { count: "exact" }).eq("IdEstado", 1).not("RendimientoUnidad", "is", null).order("Nombre").order("IdReceta").range(a, b)),
+        leerTodo((a, b) => db.from("Productos").select("IdProducto,Codigo,Nombre,UnidadBase,CostoUnitarioBase", { count: "exact" }).eq("IdEstado", 1).order("Nombre").order("IdProducto").range(a, b)),
+        leerTodo((a, b) => db.from("Recetas").select("IdReceta,Nombre,RendimientoUnidad", { count: "exact" }).eq("IdEstado", 1).not("RendimientoUnidad", "is", null).order("Nombre").order("IdReceta").range(a, b)),
         idEditar
-          ? db.from("RecetaDetalles").select("IdProducto,IdSubReceta,Cantidad,PorcionNeta,UnidadMedida,PorcentajeMerma").eq("IdReceta", idEditar).order("IdDetalle").returns<any[]>()
-          : Promise.resolve({ data: [] as any[] }),
+          ? db.from("RecetaDetalles").select("IdProducto,IdSubReceta,Cantidad,PorcionNeta,UnidadMedida,PorcentajeMerma").eq("IdReceta", idEditar).order("IdDetalle")
+          : Promise.resolve({ data: [] }),
       ]);
       // Ingredientes de la receta que ya no están vigentes: se ofrecen igual (marcados) para que la línea no quede en blanco.
       const faltanProd = (dets ?? []).filter((d) => d.IdProducto !== null && !(prods ?? []).some((p) => p.IdProducto === d.IdProducto)).map((d) => d.IdProducto as number);
       const faltanSub = (dets ?? []).filter((d) => d.IdSubReceta !== null && !(recs ?? []).some((r) => r.IdReceta === d.IdSubReceta)).map((d) => d.IdSubReceta as number);
       const [{ data: prodsExtra }, { data: subsExtra }] = await Promise.all([
-        faltanProd.length ? db.from("Productos").select("IdProducto,Codigo,Nombre,UnidadBase,CostoUnitarioBase").in("IdProducto", faltanProd).returns<any[]>() : Promise.resolve({ data: [] as any[] }),
-        faltanSub.length ? db.from("Recetas").select("IdReceta,Nombre,RendimientoUnidad").in("IdReceta", faltanSub).returns<any[]>() : Promise.resolve({ data: [] as any[] }),
+        faltanProd.length ? db.from("Productos").select("IdProducto,Codigo,Nombre,UnidadBase,CostoUnitarioBase").in("IdProducto", faltanProd) : Promise.resolve({ data: [] }),
+        faltanSub.length ? db.from("Recetas").select("IdReceta,Nombre,RendimientoUnidad").in("IdReceta", faltanSub) : Promise.resolve({ data: [] }),
       ]);
       const productos: ProductoOpcion[] = [...(prods ?? []), ...(prodsExtra ?? [])].map((p) => ({
         id: p.IdProducto, codigo: p.Codigo, nombre: p.Nombre, unidadBase: p.UnidadBase,
@@ -94,7 +94,7 @@ export default async function RecetasPage({ searchParams }: { searchParams: Prom
       }));
       // Sub-recetas posibles: vigentes con rendimiento (menos la que se edita); su costo por unidad base sale del RPC.
       // No se ofrecen la propia receta ni las que ya la contienen (elegirlas formaría un ciclo).
-      const { data: aristas } = idEditar ? await db.from("RecetaDetalles").select("IdReceta,IdSubReceta").not("IdSubReceta", "is", null).returns<any[]>() : { data: [] as any[] };
+      const { data: aristas } = idEditar ? await db.from("RecetaDetalles").select("IdReceta,IdSubReceta").not("IdSubReceta", "is", null) : { data: [] };
       const excluidas = idEditar ? recetasQueContienen(idEditar, (aristas ?? []).map((a) => ({ receta: a.IdReceta as number, sub: a.IdSubReceta as number }))) : new Set<number>();
       const candidatas = [...(recs ?? []).filter((r) => r.IdReceta !== idEditar && !excluidas.has(r.IdReceta)), ...(subsExtra ?? []).filter((r) => r.RendimientoUnidad)];
       const costosSub = await calcularVarias(candidatas.map((r) => r.IdReceta as number));
@@ -132,11 +132,11 @@ export default async function RecetasPage({ searchParams }: { searchParams: Prom
 
   // ===== Ver: datos, ingredientes con su costo y resumen =====
   if (idVer) {
-    const { data: rec } = await db.from("Recetas").select("*").eq("IdReceta", idVer).maybeSingle<any>();
+    const { data: rec } = await db.from("Recetas").select("*").eq("IdReceta", idVer).maybeSingle();
     if (rec) {
       const [calculo, { data: detalles }] = await Promise.all([
         calcular(idVer),
-        db.from("RecetaDetalles").select("IdDetalle,Cantidad,PorcionNeta,UnidadMedida,PorcentajeMerma").eq("IdReceta", idVer).returns<any[]>(),
+        db.from("RecetaDetalles").select("IdDetalle,Cantidad,PorcionNeta,UnidadMedida,PorcentajeMerma").eq("IdReceta", idVer),
       ]);
       const porDetalle = new Map((detalles ?? []).map((d) => [d.IdDetalle as number, d]));
       const lineas = (calculo?.lineas ?? []).map((l) => ({ ...l, d: porDetalle.get(l.detalle) }));
@@ -152,7 +152,7 @@ export default async function RecetasPage({ searchParams }: { searchParams: Prom
             <div className="form-grid form-grid-4">
               <Dato titulo="Código">{rec.CodigoReceta}</Dato>
               <Dato titulo="Porciones">{num.format(Number(rec.RendimientoPorciones))}</Dato>
-              <Dato titulo="Rendimiento">{rec.RendimientoCantidad === null ? "" : `${num.format(Number(rec.RendimientoCantidad))} ${nombreUnidad.get(rec.RendimientoUnidad) ?? rec.RendimientoUnidad}`}</Dato>
+              <Dato titulo="Rendimiento">{rec.RendimientoCantidad === null ? "" : `${num.format(Number(rec.RendimientoCantidad))} ${nombreUnidad.get(rec.RendimientoUnidad ?? "") ?? rec.RendimientoUnidad}`}</Dato>
               <Dato titulo="Estado"><Badge tone={rec.IdEstado === 1 ? "ok" : "neutral"}>{rec.IdEstado === 1 ? "Vigente" : "No vigente"}</Badge></Dato>
               <Dato titulo={`Costo total${calculo?.incompleto ? " (parcial)" : ""}`}>{calculo ? clp(calculo.total) : ""}</Dato>
               <Dato titulo={`Costo por porción${calculo?.incompleto ? " (parcial)" : ""}`}>{calculo ? clp(calculo.porcion) : ""}</Dato>

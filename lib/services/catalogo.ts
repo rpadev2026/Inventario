@@ -1,4 +1,5 @@
 import { revalidatePath } from "next/cache";
+import type { SupabaseClient } from "@supabase/supabase-js";
 import { db } from "../db/supabase";
 import { catalogoSchema, catalogoUnidadSchema } from "../validation/catalogo";
 import { textoUso } from "../uso";
@@ -123,8 +124,8 @@ export async function guardarCatalogo(
   const editando = fd.get("modo") === "editar";
   const fila = prepararFila(cfg, v.datos, uid, editando);
   const { error } = editando
-    ? await db.from(cfg.tabla).update(fila).eq("Codigo", v.datos.codigo)
-    : await db.from(cfg.tabla).insert(fila);
+    ? await db.from(cfg.tabla).update(fila as never).eq("Codigo", v.datos.codigo) // la tabla es una de seis: la fila se arma según `cfg`
+    : await db.from(cfg.tabla).insert(fila as never);
   if (error) {
     if (error.code === "P0001") return { error: error.message };
     if (error.code === "23503") return { error: "El padre elegido no existe" };
@@ -138,7 +139,8 @@ export async function guardarCatalogo(
 /** Cuántos registros usan un valor del catálogo (por cada tabla que lo referencia), ya redactado para mostrarlo. */
 export async function cargarUso(cfg: CatalogoCfg, codigo: string): Promise<{ etiqueta: string; texto: string }[]> {
   return Promise.all((cfg.uso ?? []).map(async (u) => {
-    const base = () => db.from(u.tabla).select("*", { count: "exact", head: true }).eq(u.columna, codigo);
+    // Tabla y columna dinámicas (vienen de la configuración): se consulta sin tipos.
+    const base = () => (db as unknown as SupabaseClient).from(u.tabla).select("*", { count: "exact", head: true }).eq(u.columna, codigo);
     const [{ count: total }, vigentes] = await Promise.all([base(), u.conEstado ? base().eq("IdEstado", 1) : Promise.resolve(null)]);
     return { etiqueta: u.etiqueta, texto: textoUso(total ?? 0, u.singular, u.plural, vigentes ? vigentes.count ?? 0 : undefined) };
   }));

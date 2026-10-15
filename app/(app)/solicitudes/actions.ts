@@ -36,7 +36,7 @@ export async function enviarSolicitud(fd: FormData) {
   const id = idSchema.parse(fd.get("id"));
   const { data: sol } = await db.from("Solicitudes")
     .select("NumeroSolicitud,IdUsuarioSolicitante,Bodegas!inner(NombreBodega),Usuarios!Solicitudes_IdUsuarioSolicitante_fkey!inner(Nombres,Apellidos)")
-    .eq("IdSolicitud", id).maybeSingle<any>();
+    .eq("IdSolicitud", id).maybeSingle();
   if (!sol || sol.IdUsuarioSolicitante !== s.uid) return;
   const { error } = await db.rpc("cambiar_estado_solicitud", { p_usuario: s.uid, p_solicitud: id, p_nuevo: 1 });
   if (error) return;
@@ -45,7 +45,7 @@ export async function enviarSolicitud(fd: FormData) {
 }
 
 async function correoSolicitante(id: number) {
-  const { data } = await db.from("Solicitudes").select("NumeroSolicitud,Usuarios!Solicitudes_IdUsuarioSolicitante_fkey!inner(Correo)").eq("IdSolicitud", id).single<any>();
+  const { data } = await db.from("Solicitudes").select("NumeroSolicitud,Usuarios!Solicitudes_IdUsuarioSolicitante_fkey!inner(Correo)").eq("IdSolicitud", id).single();
   return data ? { numero: data.NumeroSolicitud as number, correo: data.Usuarios.Correo as string } : null;
 }
 

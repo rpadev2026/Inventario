@@ -1,6 +1,6 @@
 "use server";
 import { revalidatePath } from "next/cache";
-import { db } from "@/lib/db/supabase";
+import { db, nulo } from "@/lib/db/supabase";
 import { requerirPermiso } from "@/lib/auth/session";
 import { recetaSchema } from "@/lib/validation/schemas";
 
@@ -14,7 +14,7 @@ export async function guardarReceta(input: unknown): Promise<R> {
   const d = p.data;
 
   const { data, error } = await db.rpc("guardar_receta", {
-    p_usuario: s.uid, p_id: d.id ?? null,
+    p_usuario: s.uid, p_id: d.id ?? nulo,
     p_cabecera: {
       codigo: d.codigo ?? null, nombre: d.nombre, porciones: d.porciones,
       rendimientoCantidad: d.rendimientoCantidad ?? null, rendimientoUnidad: d.rendimientoUnidad ?? null, estado: d.estado,

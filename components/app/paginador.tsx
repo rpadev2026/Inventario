@@ -18,7 +18,7 @@ export default function Paginador({ pg, paramPagina = "pagina", paramTam = "tam"
 
   const url = (cambios: Record<string, string | null>) => {
     const q = new URLSearchParams(actual.toString());
-    for (const [k, v] of Object.entries(cambios)) v === null ? q.delete(k) : q.set(k, v);
+    for (const [k, v] of Object.entries(cambios)) { if (v === null) q.delete(k); else q.set(k, v); }
     const s = q.toString();
     return s ? `${ruta}?${s}` : ruta;
   };
