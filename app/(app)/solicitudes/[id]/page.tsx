@@ -2,6 +2,7 @@ import { etiquetaProducto } from "@/lib/producto-etiqueta";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { db } from "@/lib/db/supabase";
+import { leerTodo } from "@/lib/db/leer-todo";
 import { requerirPaginaPermiso } from "@/lib/auth/session";
 import { mapaNombres } from "@/lib/catalogo-nombres";
 import { tienePermiso } from "@/lib/auth/permisos";
@@ -25,12 +26,16 @@ export default async function SolicitudPage({ params }: { params: Promise<{ id: 
   const esDueno = sol.IdUsuarioSolicitante === s.uid;
   if (!bodeguero && !esDueno) notFound(); // un solicitante no ve solicitudes ajenas
 
-  const [{ data: det, error: errDet }, { data: hist, error: errHist }, { data: stock, error: errStock }, unidades] = await Promise.all([
+  const [{ data: det, error: errDet }, { data: hist, error: errHist }, unidades] = await Promise.all([
     db.from("SolicitudesDetalle").select("IdProducto,Cantidad,CantidadAprobada,CantidadRecibida,Productos!inner(Codigo,Nombre,UnidadBase)").eq("IdSolicitud", id).returns<any[]>(),
     db.from("HistorialSolicitudes").select("EstadoSolicitud,FechaIngreso,Usuarios!HistorialSolicitudes_IdUsuarioCreacion_fkey(Nombres,Apellidos)").eq("IdSolicitud", id).order("IdHistorial").returns<any[]>(),
-    db.from("StockBodega").select("IdProducto,Cantidad,Bodegas!inner(EsCentral)").eq("Bodegas.EsCentral", true).returns<any[]>(),
     mapaNombres("UnidadesMedida"),
   ]);
+  // Solo el stock central de los productos de esta solicitud (no todo el inventario).
+  const idsProductos = (det ?? []).map((d) => d.IdProducto as number);
+  const { data: stock, error: errStock } = idsProductos.length
+    ? await db.from("StockBodega").select("IdProducto,Cantidad,Bodegas!inner(EsCentral)").eq("Bodegas.EsCentral", true).in("IdProducto", idsProductos).returns<any[]>()
+    : { data: [] as any[], error: null };
   // Un stock que no se pudo leer no puede mostrarse como cero: se aprueba con ese dato.
   if (errDet || errHist || errStock) throw new Error("No se pudo cargar la solicitud");
   const nombreUnidad = (c: string) => unidades.get(c) ?? c;
@@ -41,7 +46,7 @@ export default async function SolicitudPage({ params }: { params: Promise<{ id: 
   const edicion = estado === 0 && esDueno
     ? await Promise.all([
         db.from("Bodegas").select("IdBodega,NombreBodega").eq("IdEstado", 1).eq("EsCentral", false).order("NombreBodega"),
-        db.from("Productos").select("IdProducto,Codigo,Nombre,UnidadBase").eq("IdEstado", 1).order("Nombre"),
+        leerTodo<any>((a, b) => db.from("Productos").select("IdProducto,Codigo,Nombre,UnidadBase", { count: "exact" }).eq("IdEstado", 1).order("Nombre").order("IdProducto").range(a, b)),
       ])
     : null;
 
