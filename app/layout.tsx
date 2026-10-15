@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono, Poppins, Open_Sans } from "next/font/google";
+import { connection } from "next/server";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -21,7 +22,9 @@ export const metadata: Metadata = {
   description: "Control de insumos y materia prima",
 };
 
-export default function RootLayout({ children }: LayoutProps<"/">) {
+// Dinámico siempre: el nonce de la CSP (proxy.ts) cambia en cada petición y las páginas prerenderizadas no lo llevarían.
+export default async function RootLayout({ children }: LayoutProps<"/">) {
+  await connection();
   return (
     <html
       lang="es"
