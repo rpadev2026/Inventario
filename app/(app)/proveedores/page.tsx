@@ -4,9 +4,9 @@ import { requerirPaginaPermiso } from "@/lib/auth/session";
 import { tienePermiso } from "@/lib/auth/permisos";
 import { rutaVolverSegura } from "@/lib/volver";
 import { cargarTerritorio } from "@/lib/services/territorio";
-import { paginar } from "@/lib/paginacion";
+import { listarPagina } from "@/lib/services/listado";
 import { leerEstado } from "@/lib/filtro-estado";
-import { filtrarProveedores, type ProveedorFila } from "@/lib/proveedores-filtro";
+import type { ProveedorFila } from "@/lib/proveedores-filtro";
 import Aviso from "@/components/app/aviso";
 import Badge from "@/components/app/badge";
 import FiltrosListado from "@/components/app/filtros-listado";
@@ -261,11 +261,8 @@ export default async function ProveedoresPage({ searchParams }: { searchParams: 
   }
 
   // ===== Listado de proveedores: filtro por RUT/razón social/giro y estado, y paginación =====
-  const { data: todos } = await db.from("Proveedores").select("IdProveedor,Rut,RazonSocial,Giro,Telefono,Correo,IdEstado").returns<ProveedorFila[]>();
   const estado = leerEstado(estadoPedido);
-  const filtrados = filtrarProveedores(todos ?? [], { q, estado });
-  const pg = paginar({ pagina: sp.pagina, tam: sp.tam }, filtrados.length);
-  const lista = filtrados.slice(pg.from, pg.to + 1);
+  const { filas: lista, pg } = await listarPagina<ProveedorFila>("proveedores", { q, estado, pagina: sp.pagina, tam: sp.tam });
   const hayFiltro = !!q || estado !== undefined;
   const aviso = typeof sp.aviso === "string" ? AVISOS[sp.aviso] : undefined;
 

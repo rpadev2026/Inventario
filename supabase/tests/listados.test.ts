@@ -6,6 +6,7 @@ import { normalizar } from "../../lib/buscar";
 import { filtrarProductos, type ProductoFila } from "../../lib/productos-filtro";
 import { filtrarUsuarios, type UsuarioFila } from "../../lib/usuarios-filtro";
 import { filtrarBodegas, type BodegaFila } from "../../lib/bodegas-filtro";
+import { filtrarProveedores, type ProveedorFila } from "../../lib/proveedores-filtro";
 
 const dir = join(__dirname, "..");
 let db: PGlite;
@@ -20,6 +21,8 @@ beforeAll(async () => {
   await db.exec(`
     insert into "Usuarios"("Rut","Nombres","Apellidos","Correo","IdEstado") values
       ('12345678-5','María José','Muñoz Peña','maria@x.cl',1),('7654321-6','Ángel','Álvarez','angel@x.cl',0),('9999999-9','Zoe','Zúñiga','zoe@x.cl',1);
+    insert into "Proveedores"("Rut","RazonSocial","Giro","IdEstado") values
+      ('76086428-5','ÁLAMO Y CÍA','VERDURAS',1),('96.1-2','BETA SPA',null,0),('76543210-3','Ñandú Ltda','CARNES Y ABARROTES',1);
     insert into "Bodegas"("NombreBodega","EsCentral") values ('COCINA',false),('BAR ÑUBLE',false),('CENTRAL',true);
     insert into "Productos"("Codigo","Nombre","UnidadBase","Formato") values
       ('AZ-1','AZÚCAR','G','BOLSA'),(null,'ÁJÍ EN POLVO','G','BOLSA'),('P.2','PIMIENTA','G','BOLSA');
@@ -51,6 +54,15 @@ describe("listar_pagina (P01)", () => {
     const prod = (await db.query<ProductoFila>(`select "IdProducto","Codigo","Nombre","IdEstado" from "Productos"`)).rows as ProductoFila[];
     for (const q of ["", "azucar", "aji", "p2", "az1"]) {
       expect((await pagina("productos", q, null)).filas.map((p) => p.IdProducto), `q=${q}`).toEqual(filtrarProductos(prod, { q }).map((p) => p.IdProducto));
+    }
+  });
+
+  it("proveedores: mismo resultado y orden que filtrarProveedores (RUT con puntos, giro nulo, tildes)", async () => {
+    const todos = (await db.query<ProveedorFila>(`select "IdProveedor","Rut","RazonSocial","Giro","Telefono","Correo","IdEstado" from "Proveedores"`)).rows;
+    for (const [q, e] of [["", null], ["alamo", null], ["76.086.428", null], ["carnes", 1], ["nandu", null], ["beta", 0], ["zzz", null]] as const) {
+      const sql = (await pagina("proveedores", q, e)).filas.map((p) => p.IdProveedor);
+      const ts = filtrarProveedores(todos, { q, estado: e ?? undefined }).map((p) => p.IdProveedor);
+      expect(sql, `q=${q} e=${e}`).toEqual(ts);
     }
   });
 

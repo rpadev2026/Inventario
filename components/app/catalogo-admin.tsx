@@ -6,6 +6,7 @@ import FiltrosListado from "@/components/app/filtros-listado";
 import Icon from "@/components/app/icon";
 import Paginador from "@/components/app/paginador";
 import { db } from "@/lib/db/supabase";
+import { leerTodo } from "@/lib/db/leer-todo";
 import { requerirPaginaAdmin } from "@/lib/auth/session";
 import { paginar } from "@/lib/paginacion";
 import { leerEstado } from "@/lib/filtro-estado";
@@ -63,7 +64,7 @@ export async function PaginaCatalogo({ cfg, accion, searchParams }: { cfg: Catal
 
   const col = cfg.padre?.columna;
   const [{ data }, opcionesPadre] = await Promise.all([
-    db.from(cfg.tabla).select(`Codigo, Nombre, IdEstado${col ? `, ${col}` : ""}${cfg.base ? ", UnidadBase, Factor" : ""}`),
+    leerTodo<any>((a, b) => db.from(cfg.tabla).select(`Codigo, Nombre, IdEstado${col ? `, ${col}` : ""}${cfg.base ? ", UnidadBase, Factor" : ""}`, { count: "exact" }).order("Codigo").range(a, b)),
     cfg.padre ? cargarOpcionesPadre(cfg.padre.tabla) : Promise.resolve([] as OpcionPadre[]),
   ]);
   const etiquetaPadre = new Map(opcionesPadre.map((o) => [o.codigo, o.etiqueta]));
