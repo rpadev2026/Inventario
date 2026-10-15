@@ -32,6 +32,18 @@ Para probar a mano contra tu Supabase: `node --env-file=.env.local scripts/e2e-s
 - Los correos se guardan en una cola en la BD y se reintentan con espera creciente (ver «Pendiente para el despliegue»).
 - Las facturas no se editan: se anulan (revierte el stock si no fue despachado) y se vuelven a ingresar.
 
+## Rol de base de datos acotado (opcional, recomendado)
+Por defecto la aplicación habla con Supabase con la clave `service_role`: puede todo, incluidos los esquemas `auth` y `storage`, y se salta RLS. La migración `0030` crea el rol `app_servidor`, que solo puede lo que la app usa: leer, insertar y editar bodegas, proveedores, productos, catálogos, roles de usuario, datos básicos de usuarios y contadores de intentos; encolar correos; y llamar a las funciones SQL. **No borra nada y no escribe directo en facturas, solicitudes, stock, movimientos, recetas ni claves** (eso solo por funciones con reglas de negocio). La matriz exacta está en `supabase/tests/rol-app.test.ts`.
+
+Para activarlo (una vez, en su máquina):
+1. Aplique la migración `0030` en Supabase.
+2. Copie el **JWT Secret** (Panel de Supabase → Project Settings → API → JWT Settings, «Legacy JWT secret»). Es MÁS poderoso que `service_role`: no lo guarde en el despliegue ni lo comparta.
+3. Firme el token (PowerShell): `$env:SUPABASE_JWT_SECRET = "<JWT Secret>"; npm run token:app` (opcional `-- <años>`, por defecto 10). Después `Remove-Item Env:SUPABASE_JWT_SECRET`.
+4. En el entorno de la aplicación defina `SUPABASE_APP_TOKEN` (el token), `SUPABASE_ANON_KEY` (la clave anon, que es pública) y `SUPABASE_URL`. Con el token puesto ya no hace falta `SUPABASE_SERVICE_ROLE_KEY` en el despliegue (los scripts `seed:admin` y `e2e-setup` la siguen usando desde su `.env.local`).
+5. Sin `SUPABASE_APP_TOKEN` la app usa `service_role`, como antes.
+
+Costos y cuidados: el token **vence** (fecha elegida al firmarlo): anote la fecha y renuévelo antes; si vence, la app deja de conectarse. Para revocarlo de inmediato, `revoke app_servidor from authenticator;` (o rotar el JWT Secret). Una tabla o función nueva no queda accesible al rol hasta agregar su `grant` y su política en una migración y clasificarla en la matriz de `rol-app.test.ts` (la prueba falla si falta).
+
 ## Pendiente para el despliegue
 Aún no está definido dónde se desplegará la aplicación. Cuando se defina, hay que hacer esto (hoy los correos quedan en la cola `CorreosPendientes` y no se pierden):
 1. **`CRON_SECRET`**: inventar un valor de 16+ caracteres (`node -e "console.log(require('crypto').randomBytes(32).toString('base64url'))"`) y guardarlo como variable de entorno del despliegue. No va en el repositorio.
@@ -40,5 +52,6 @@ Aún no está definido dónde se desplegará la aplicación. Cuando se defina, h
    - Vercel: Cron Jobs en `vercel.json` (envía solo `Authorization: Bearer $CRON_SECRET`, pero con `GET`: habría que aceptar también `GET` en `app/api/correos/procesar/route.ts`).
    - Otro hosting: servicio externo (p. ej. cron-job.org) o GitHub Actions programado; servidor propio: `crontab` con `curl -X POST`.
 4. **Proxy / hosting**: que normalice `x-forwarded-for` (límite de login por IP).
+   **Rol acotado** (recomendado): activar `app_servidor` con `SUPABASE_APP_TOKEN` y anotar su fecha de vencimiento (ver la sección anterior).
 5. **Probar el envío real de un correo** (aprobar una solicitud) y revisar `CorreosPendientes` (`Estado` 1 = enviado, 2 = fallido tras 5 intentos).
 
