@@ -23,7 +23,7 @@ const AVISOS: Record<string, string> = { creado: "Producto creado correctamente"
 /** Cuántas recetas (distintas) usan el producto como ingrediente. */
 async function recetasQueUsan(idProducto: number): Promise<number> {
   const { data } = await db.from("RecetaDetalles").select("IdReceta").eq("IdProducto", idProducto);
-  return new Set((data ?? []).map((d: any) => d.IdReceta as number)).size;
+  return new Set((data ?? []).map((d) => d.IdReceta as number)).size;
 }
 const idValido = (v: string | undefined) => (v && /^[1-9]\d{0,14}$/.test(v) ? Number(v) : undefined);
 const clpEntero = new Intl.NumberFormat("es-CL", { style: "currency", currency: "CLP", maximumFractionDigits: 0 });
@@ -107,17 +107,17 @@ export default async function ProductosPage({ searchParams }: { searchParams: Pr
     const { count } = await db.from("StockBodega").select("IdBodega", { count: "exact", head: true }).eq("IdProducto", sel.IdProducto);
     const pgS = paginar({ pagina: sp.ppagina, tam: sp.ptam }, count ?? 0);
     const { data } = await db.from("StockBodega").select("IdBodega,Cantidad,Bodegas!inner(NombreBodega)")
-      .eq("IdProducto", sel.IdProducto).order("IdBodega").range(pgS.from, pgS.to).returns<any[]>();
+      .eq("IdProducto", sel.IdProducto).order("IdBodega").range(pgS.from, pgS.to);
     // Historial del costo (el más reciente primero), paginado aparte del stock.
     const { count: nHist } = await db.from("HistorialPreciosProducto").select("IdHistorial", { count: "exact", head: true }).eq("IdProducto", sel.IdProducto);
     const pgH = paginar({ pagina: sp.hpagina, tam: sp.htam }, nHist ?? 0);
     const { data: dataH } = await db.from("HistorialPreciosProducto")
       .select("IdHistorial,IdCompra,Origen,Anulada,Precio,UnidadMedida,CostoBaseAnterior,CostoBaseNuevo,FechaRegistro,Compras(Folio),Usuarios!HistorialPreciosProducto_IdUsuario_fkey(Nombres,Apellidos)")
-      .eq("IdProducto", sel.IdProducto).order("IdHistorial", { ascending: false }).range(pgH.from, pgH.to).returns<any[]>();
+      .eq("IdProducto", sel.IdProducto).order("IdHistorial", { ascending: false }).range(pgH.from, pgH.to);
     const historial = (dataH ?? []).map((h) => ({
       id: h.IdHistorial as number, idCompra: h.IdCompra as number, folio: h.Compras?.Folio as number | undefined,
       origen: h.Origen as string, anulada: !!h.Anulada,
-      precio: h.Precio === null ? null : `${clp.format(Number(h.Precio))} por ${nombreUnidad.get(h.UnidadMedida) ?? h.UnidadMedida}`,
+      precio: h.Precio === null ? null : `${clp.format(Number(h.Precio))} por ${nombreUnidad.get(h.UnidadMedida ?? "") ?? h.UnidadMedida}`,
       anterior: h.CostoBaseAnterior === null ? null : Number(h.CostoBaseAnterior), nuevo: h.CostoBaseNuevo === null ? null : Number(h.CostoBaseNuevo),
       fecha: fecha(h.FechaRegistro),
       usuario: h.Usuarios ? `${h.Usuarios.Nombres} ${h.Usuarios.Apellidos}` : "—",

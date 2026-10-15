@@ -1,7 +1,7 @@
 import "server-only";
 import { Resend } from "resend";
 import { after } from "next/server";
-import { db } from "@/lib/db/supabase";
+import { db, nulo } from "@/lib/db/supabase";
 
 const esc = (s: string) => s.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]!));
 
@@ -25,7 +25,7 @@ export async function procesarCola(max = 20): Promise<{ enviados: number; fallid
   if (error) { console.error("[correo] no se pudo leer la cola:", error.code); return { enviados: 0, fallidos: 0 }; }
   const resend = new Resend(key);
   let enviados = 0, fallidos = 0;
-  for (const c of (data ?? []) as any[]) {
+  for (const c of data ?? []) {
     let motivo: string | null = null;
     try {
       // La clave de idempotencia evita un duplicado si el envío salió pero no alcanzamos a registrarlo.
@@ -38,7 +38,7 @@ export async function procesarCola(max = 20): Promise<{ enviados: number; fallid
       motivo = (e as Error).message;
     }
     if (motivo) console.error(`[correo] #${c.IdCorreo} intento ${c.Intentos} falló:`, motivo);
-    await db.rpc("resolver_correo", { p_id: c.IdCorreo, p_ok: motivo === null, p_error: motivo });
+    await db.rpc("resolver_correo", { p_id: c.IdCorreo, p_ok: motivo === null, p_error: motivo ?? nulo });
     if (motivo === null) enviados++; else fallidos++;
   }
   return { enviados, fallidos };
@@ -48,13 +48,13 @@ export async function procesarCola(max = 20): Promise<{ enviados: number; fallid
 async function correosPorPermiso(permiso: string): Promise<string[]> {
   const { data: rp } = await db.from("RolesPermisos").select("IdRol").eq("Permiso", permiso);
   const { data: roles } = await db.from("Roles").select("IdRol,NombreRol").eq("IdEstado", 1);
-  const conPermiso = new Set((rp ?? []).map((r: any) => r.IdRol as number));
-  const ids = (roles ?? []).filter((r: any) => r.NombreRol === "Administrador" || conPermiso.has(r.IdRol)).map((r: any) => r.IdRol as number);
+  const conPermiso = new Set((rp ?? []).map((r) => r.IdRol));
+  const ids = (roles ?? []).filter((r) => r.NombreRol === "Administrador" || conPermiso.has(r.IdRol)).map((r) => r.IdRol);
   if (!ids.length) return [];
   const { data } = await db.from("UsuariosRoles")
     .select("Usuarios!UsuariosRoles_IdUsuario_fkey!inner(Correo,IdEstado)")
     .eq("IdEstado", 1).in("IdRol", ids).eq("Usuarios.IdEstado", 1);
-  return [...new Set((data ?? []).map((r: any) => r.Usuarios.Correo as string))];
+  return [...new Set((data ?? []).map((r) => r.Usuarios.Correo))];
 }
 
 export async function notificarEnviada(numero: number, solicitante: string, bodega: string) {

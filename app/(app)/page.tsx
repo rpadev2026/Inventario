@@ -22,8 +22,8 @@ export default async function Inicio({ searchParams }: { searchParams: Promise<{
   const [pendientes, porRecibir, stock, prods] = await Promise.all([
     bodeguero ? db.from("Solicitudes").select("IdSolicitud", { count: "exact", head: true }).eq("EstadoSolicitud", 1) : null,
     solicitante ? db.from("Solicitudes").select("IdSolicitud", { count: "exact", head: true }).in("EstadoSolicitud", [2, 4]).eq("IdUsuarioSolicitante", s.uid) : null,
-    bodeguero ? leerTodo<any>((a, b) => db.from("StockBodega").select("IdProducto,Cantidad,Bodegas!inner(EsCentral)", { count: "exact" }).eq("Bodegas.EsCentral", true).order("IdProducto").range(a, b)) : null,
-    bodeguero ? leerTodo<any>((a, b) => db.from("Productos").select("IdProducto,StockMinimo,StockCritico", { count: "exact" }).eq("IdEstado", 1).order("IdProducto").range(a, b)) : null,
+    bodeguero ? leerTodo((a, b) => db.from("StockBodega").select("IdProducto,Cantidad,Bodegas!inner(EsCentral)", { count: "exact" }).eq("Bodegas.EsCentral", true).order("IdProducto").range(a, b)) : null,
+    bodeguero ? leerTodo((a, b) => db.from("Productos").select("IdProducto,StockMinimo,StockCritico", { count: "exact" }).eq("IdEstado", 1).order("IdProducto").range(a, b)) : null,
   ]);
   const st = new Map((stock?.data ?? []).map((r) => [r.IdProducto as number, Number(r.Cantidad)]));
   const bajos = (prods?.data ?? []).filter((p) => (st.get(p.IdProducto) ?? 0) <= Number(p.StockMinimo) && Number(p.StockMinimo) > 0);

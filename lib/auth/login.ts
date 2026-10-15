@@ -36,6 +36,6 @@ export async function autenticar(correo: string, password: string): Promise<Resu
   const { data: rs } = await db
     .from("UsuariosRoles").select("Roles!inner(NombreRol, IdEstado)")
     .eq("IdUsuario", u.IdUsuario).eq("IdEstado", 1).eq("Roles.IdEstado", 1);
-  const roles = (rs ?? []).map((r: any) => r.Roles.NombreRol as string);
+  const roles = (rs ?? []).map((r) => r.Roles.NombreRol);
   return { ok: true, uid: u.IdUsuario, roles, cambiar: c.DebeCambiar };
 }

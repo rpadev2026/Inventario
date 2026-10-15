@@ -8,8 +8,8 @@ export default async function NuevaFacturaPage({ searchParams }: { searchParams:
   await requerirPaginaPermiso("compras.registrar");
   const { proveedor, producto } = await searchParams;
   const [{ data: provs }, { data: prods }, { data: formas }, unidades] = await Promise.all([
-    leerTodo<any>((a, b) => db.from("Proveedores").select("IdProveedor,RazonSocial,Rut", { count: "exact" }).eq("IdEstado", 1).order("RazonSocial").order("IdProveedor").range(a, b)),
-    leerTodo<any>((a, b) => db.from("Productos").select("IdProducto,Codigo,Nombre,UnidadBase", { count: "exact" }).eq("IdEstado", 1).order("Nombre").order("IdProducto").range(a, b)),
+    leerTodo((a, b) => db.from("Proveedores").select("IdProveedor,RazonSocial,Rut", { count: "exact" }).eq("IdEstado", 1).order("RazonSocial").order("IdProveedor").range(a, b)),
+    leerTodo((a, b) => db.from("Productos").select("IdProducto,Codigo,Nombre,UnidadBase", { count: "exact" }).eq("IdEstado", 1).order("Nombre").order("IdProducto").range(a, b)),
     db.from("FormasPago").select("Codigo,Nombre").eq("IdEstado", 1).order("Nombre"),
     cargarUnidades(),
   ]);

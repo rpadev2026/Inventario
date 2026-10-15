@@ -60,9 +60,9 @@ export default async function RolesPage({ searchParams }: { searchParams: Promis
   }
 
   const [{ data: roles }, { data: rp }, { data: ur }] = await Promise.all([
-    leerTodo<any>((a, b) => db.from("Roles").select("IdRol,NombreRol,DetalleRol,IdEstado,EsBase", { count: "exact" }).order("IdRol").range(a, b)),
-    leerTodo<any>((a, b) => db.from("RolesPermisos").select("IdRol,Permiso", { count: "exact" }).order("IdRol").order("Permiso").range(a, b)),
-    leerTodo<any>((a, b) => db.from("UsuariosRoles").select("IdUsuario,IdRol", { count: "exact" }).eq("IdEstado", 1).order("IdUsuario").order("IdRol").range(a, b)),
+    leerTodo((a, b) => db.from("Roles").select("IdRol,NombreRol,DetalleRol,IdEstado,EsBase", { count: "exact" }).order("IdRol").range(a, b)),
+    leerTodo((a, b) => db.from("RolesPermisos").select("IdRol,Permiso", { count: "exact" }).order("IdRol").order("Permiso").range(a, b)),
+    leerTodo((a, b) => db.from("UsuariosRoles").select("IdUsuario,IdRol", { count: "exact" }).eq("IdEstado", 1).order("IdUsuario").order("IdRol").range(a, b)),
   ]);
   const todos = (roles ?? []) as RolItem[];
   const permisosDe = (id: number) => (rp ?? []).filter((x) => x.IdRol === id).map((x) => x.Permiso as string);

@@ -64,7 +64,7 @@ export async function PaginaCatalogo({ cfg, accion, searchParams }: { cfg: Catal
 
   const col = cfg.padre?.columna;
   const [{ data }, opcionesPadre] = await Promise.all([
-    leerTodo<any>((a, b) => db.from(cfg.tabla).select(`Codigo, Nombre, IdEstado${col ? `, ${col}` : ""}${cfg.base ? ", UnidadBase, Factor" : ""}`, { count: "exact" }).order("Codigo").range(a, b)),
+    leerTodo((a, b) => db.from(cfg.tabla).select(`Codigo, Nombre, IdEstado${col ? `, ${col}` : ""}${cfg.base ? ", UnidadBase, Factor" : ""}`, { count: "exact" }).order("Codigo").range(a, b)),
     cfg.padre ? cargarOpcionesPadre(cfg.padre.tabla) : Promise.resolve([] as OpcionPadre[]),
   ]);
   const etiquetaPadre = new Map(opcionesPadre.map((o) => [o.codigo, o.etiqueta]));

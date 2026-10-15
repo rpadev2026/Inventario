@@ -79,7 +79,7 @@ export async function guardarVendedor(_: unknown, fd: FormData): Promise<R> {
   // Un RUT puede repetirse en otros proveedores, pero vigente en uno solo (se excluye el propio registro al editar).
   if (d.estado === 1) {
     const { data: previos } = await db.from("ProveedoresVendedores")
-      .select("IdVendedor,IdProveedor,IdEstado,Proveedores(RazonSocial)").eq("Rut", fila.Rut).eq("IdEstado", 1).returns<any[]>();
+      .select("IdVendedor,IdProveedor,IdEstado,Proveedores(RazonSocial)").eq("Rut", fila.Rut).eq("IdEstado", 1);
     const conflicto = vendedorVigenteEnOtro(
       (previos ?? []).map((r) => ({ IdVendedor: r.IdVendedor, IdProveedor: r.IdProveedor, IdEstado: r.IdEstado, RazonSocial: r.Proveedores?.RazonSocial ?? "otro proveedor" })),
       idVen ? id(idVen) : undefined);

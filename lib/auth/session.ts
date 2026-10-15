@@ -61,21 +61,21 @@ export const leerSesion = cache(async (): Promise<Sesion | null> => {
     db.from("UsuariosRoles").select("IdRol,Roles!inner(NombreRol,IdEstado)").eq("IdUsuario", uid).eq("IdEstado", 1).eq("Roles.IdEstado", 1),
   ]);
   if (!u || u.IdEstado !== 1 || !c || c.IdEstado !== 1 || c.VersionSesion !== version) return null;
-  const vigentes = (rs ?? []) as any[];
+  const vigentes = rs ?? [];
   const roles = vigentes.map((r) => r.Roles.NombreRol as string);
   const idRoles = vigentes.map((r) => r.IdRol as number);
   const porRol: Record<string, string[]> = {};
   if (idRoles.length && !roles.includes("Administrador")) {
     const nombrePorId = new Map<number, string>(vigentes.map((r) => [r.IdRol as number, r.Roles.NombreRol as string]));
     const { data: rp } = await db.from("RolesPermisos").select("IdRol,Permiso").in("IdRol", idRoles);
-    for (const x of (rp ?? []) as any[]) {
+    for (const x of rp ?? []) {
       const n = nombrePorId.get(x.IdRol);
       if (n) (porRol[n] ??= []).push(x.Permiso as string);
     }
   }
   // Administrador tiene todos los permisos de la tabla "Permisos"; el resto, los de sus roles.
   const catalogo = roles.includes("Administrador")
-    ? ((await db.from("Permisos").select("Codigo")).data ?? []).map((p: any) => p.Codigo as string)
+    ? ((await db.from("Permisos").select("Codigo")).data ?? []).map((p) => p.Codigo)
     : [];
   return { uid, roles, permisos: permisosEfectivos(roles, porRol, catalogo), cambiar: c.DebeCambiar };
 });
