@@ -13,7 +13,9 @@ import FiltrosListado from "@/components/app/filtros-listado";
 import Icon from "@/components/app/icon";
 import Paginador from "@/components/app/paginador";
 import { recetasQueContienen } from "@/lib/receta-arbol";
-import FormReceta, { type LineaForm, type ProductoOpcion, type SubrecetaOpcion } from "./form";
+import FormReceta, { type LineaForm, type SubrecetaOpcion } from "./form";
+import { productosPorId } from "../buscar/actions";
+import { opcionProducto } from "@/lib/opciones-remotas";
 
 type Params = Record<string, string | string[] | undefined>;
 type Calculo = {
@@ -73,25 +75,20 @@ export default async function RecetasPage({ searchParams }: { searchParams: Prom
       ? await db.from("Recetas").select("*").eq("IdReceta", idEditar).maybeSingle()
       : { data: null };
     if (crear || rec) {
-      const [{ data: prods }, { data: recs }, { data: dets }] = await Promise.all([
-        leerTodo((a, b) => db.from("Productos").select("IdProducto,Codigo,Nombre,UnidadBase,CostoUnitarioBase", { count: "exact" }).eq("IdEstado", 1).order("Nombre").order("IdProducto").range(a, b)),
+      const [{ data: recs }, { data: dets }] = await Promise.all([
         leerTodo((a, b) => db.from("Recetas").select("IdReceta,Nombre,RendimientoUnidad", { count: "exact" }).eq("IdEstado", 1).not("RendimientoUnidad", "is", null).order("Nombre").order("IdReceta").range(a, b)),
         idEditar
           ? db.from("RecetaDetalles").select("IdProducto,IdSubReceta,Cantidad,PorcionNeta,UnidadMedida,PorcentajeMerma").eq("IdReceta", idEditar).order("IdDetalle")
           : Promise.resolve({ data: [] }),
       ]);
       // Ingredientes de la receta que ya no están vigentes: se ofrecen igual (marcados) para que la línea no quede en blanco.
-      const faltanProd = (dets ?? []).filter((d) => d.IdProducto !== null && !(prods ?? []).some((p) => p.IdProducto === d.IdProducto)).map((d) => d.IdProducto as number);
+      const idsProductos = [...new Set((dets ?? []).filter((d) => d.IdProducto !== null).map((d) => d.IdProducto as number))];
       const faltanSub = (dets ?? []).filter((d) => d.IdSubReceta !== null && !(recs ?? []).some((r) => r.IdReceta === d.IdSubReceta)).map((d) => d.IdSubReceta as number);
-      const [{ data: prodsExtra }, { data: subsExtra }] = await Promise.all([
-        faltanProd.length ? db.from("Productos").select("IdProducto,Codigo,Nombre,UnidadBase,CostoUnitarioBase").in("IdProducto", faltanProd) : Promise.resolve({ data: [] }),
+      const [productosLineas, { data: subsExtra }] = await Promise.all([
+        productosPorId(idsProductos), // los productos de las líneas guardadas (vigentes o no); el resto se busca al escribir
         faltanSub.length ? db.from("Recetas").select("IdReceta,Nombre,RendimientoUnidad").in("IdReceta", faltanSub) : Promise.resolve({ data: [] }),
       ]);
-      const productos: ProductoOpcion[] = [...(prods ?? []), ...(prodsExtra ?? [])].map((p) => ({
-        id: p.IdProducto, codigo: p.Codigo, nombre: p.Nombre, unidadBase: p.UnidadBase,
-        costoBase: p.CostoUnitarioBase === null ? null : Number(p.CostoUnitarioBase),
-        noVigente: faltanProd.includes(p.IdProducto),
-      }));
+      const productosIniciales = productosLineas.map(opcionProducto);
       // Sub-recetas posibles: vigentes con rendimiento (menos la que se edita); su costo por unidad base sale del RPC.
       // No se ofrecen la propia receta ni las que ya la contienen (elegirlas formaría un ciclo).
       const { data: aristas } = idEditar ? await db.from("RecetaDetalles").select("IdReceta,IdSubReceta").not("IdSubReceta", "is", null) : { data: [] };
@@ -116,7 +113,7 @@ export default async function RecetasPage({ searchParams }: { searchParams: Prom
           </div>
           <div className="card">
             <FormReceta
-              key={idEditar ?? "nueva"} productos={productos} subrecetas={subrecetas} unidades={unidades} lineas={lineas}
+              key={idEditar ?? "nueva"} productosIniciales={productosIniciales} subrecetas={subrecetas} unidades={unidades} lineas={lineas}
               receta={rec ? {
                 id: rec.IdReceta, codigo: rec.CodigoReceta, nombre: rec.Nombre, porciones: Number(rec.RendimientoPorciones),
                 rendimientoCantidad: rec.RendimientoCantidad === null ? null : Number(rec.RendimientoCantidad),

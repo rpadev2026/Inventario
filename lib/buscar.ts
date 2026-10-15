@@ -1,4 +1,5 @@
-export type Opcion = { valor: string; etiqueta: string; busqueda: string };
+/** Opción de un buscador; `datos` lleva información extra de lo elegido (p. ej. la unidad base de un producto). */
+export type Opcion = { valor: string; etiqueta: string; busqueda: string; datos?: Record<string, string | null> };
 
 /** Minúsculas, sin tildes, sin puntos ni guiones y sin espacios dobles. */
 export function normalizar(s: string): string {
