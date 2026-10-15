@@ -1,9 +1,9 @@
 import Link from "next/link";
 import { db } from "@/lib/db/supabase";
 import { requerirPaginaAdmin } from "@/lib/auth/session";
-import { paginar } from "@/lib/paginacion";
 import { leerEstado } from "@/lib/filtro-estado";
-import { filtrarUsuarios, type UsuarioFila } from "@/lib/usuarios-filtro";
+import type { UsuarioFila } from "@/lib/usuarios-filtro";
+import { listarPagina } from "@/lib/services/listado";
 import Aviso from "@/components/app/aviso";
 import Badge from "@/components/app/badge";
 import FiltrosListado from "@/components/app/filtros-listado";
@@ -171,16 +171,14 @@ export default async function UsuariosPage({ searchParams }: { searchParams: Pro
   }
 
   // ===== Listado de usuarios: filtro por RUT/nombre/correo y estado, y paginación =====
-  const [{ data: todos, error: errU }, { data: ur, error: errR }] = await Promise.all([
-    db.from("Usuarios").select("IdUsuario,Rut,Nombres,Apellidos,Correo,IdEstado").returns<UsuarioFila[]>(),
-    db.from("UsuariosRoles").select("IdUsuario,IdRol").eq("IdEstado", 1),
-  ]);
-  if (errU || errR) throw new Error("No se pudo cargar los usuarios");
-  const nombreRol = new Map(roles.map((r) => [r.IdRol, r.NombreRol]));
   const estado = leerEstado(estadoPedido);
-  const filtrados = filtrarUsuarios(todos ?? [], { q, estado });
-  const pg = paginar({ pagina: sp.pagina, tam: sp.tam }, filtrados.length);
-  const lista = filtrados.slice(pg.from, pg.to + 1);
+  const { filas: lista, pg } = await listarPagina<UsuarioFila>("usuarios", { q, estado, pagina: sp.pagina, tam: sp.tam });
+  // Solo los roles de los usuarios de la página.
+  const { data: ur, error: errR } = lista.length
+    ? await db.from("UsuariosRoles").select("IdUsuario,IdRol").eq("IdEstado", 1).in("IdUsuario", lista.map((u) => u.IdUsuario))
+    : { data: [], error: null };
+  if (errR) throw new Error("No se pudo cargar los roles de los usuarios");
+  const nombreRol = new Map(roles.map((r) => [r.IdRol, r.NombreRol]));
   const hayFiltro = !!q || estado !== undefined;
   const aviso = typeof sp.aviso === "string" ? AVISOS[sp.aviso] : undefined;
 

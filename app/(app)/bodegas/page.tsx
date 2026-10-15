@@ -4,7 +4,8 @@ import { db } from "@/lib/db/supabase";
 import { requerirPaginaPermiso, esAdmin } from "@/lib/auth/session";
 import { mapaNombres } from "@/lib/catalogo-nombres";
 import { paginar } from "@/lib/paginacion";
-import { filtrarBodegas, leerEstado, type BodegaFila } from "@/lib/bodegas-filtro";
+import { leerEstado, type BodegaFila } from "@/lib/bodegas-filtro";
+import { listarPagina } from "@/lib/services/listado";
 import Badge from "@/components/app/badge";
 import Aviso from "@/components/app/aviso";
 import Icon from "@/components/app/icon";
@@ -120,12 +121,8 @@ export default async function BodegasPage({ searchParams }: { searchParams: Prom
   }
 
   // ===== Listado de bodegas: filtro por nombre y estado, y paginación =====
-  const { data: todas, error: errTodas } = await db.from("Bodegas").select("IdBodega,NombreBodega,EsCentral,IdEstado").returns<BodegaFila[]>();
-  if (errTodas) throw new Error("No se pudo cargar las bodegas");
   const estado = leerEstado(estadoPedido);
-  const filtradas = filtrarBodegas(todas ?? [], { q, estado });
-  const pgB = paginar({ pagina: sp.pagina, tam: sp.tam }, filtradas.length);
-  const lista = filtradas.slice(pgB.from, pgB.to + 1);
+  const { filas: lista, pg: pgB } = await listarPagina<BodegaFila>("bodegas", { q, estado, pagina: sp.pagina, tam: sp.tam });
   const hayFiltro = !!q || estado !== undefined;
   const aviso = typeof sp.aviso === "string" ? AVISOS[sp.aviso] : undefined;
 

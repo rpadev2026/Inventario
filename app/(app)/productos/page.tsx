@@ -7,7 +7,8 @@ import { cargarCatalogo, cargarUnidades } from "@/lib/catalogo-nombres";
 import { productoTieneMovimientos } from "@/lib/services/productos";
 import { paginar } from "@/lib/paginacion";
 import { leerEstado } from "@/lib/filtro-estado";
-import { filtrarProductos, type ProductoFila } from "@/lib/productos-filtro";
+import type { ProductoFila } from "@/lib/productos-filtro";
+import { listarPagina } from "@/lib/services/listado";
 import Aviso from "@/components/app/aviso";
 import Badge from "@/components/app/badge";
 import FiltrosListado from "@/components/app/filtros-listado";
@@ -19,7 +20,6 @@ type Params = Record<string, string | string[] | undefined>;
 const texto = (v: string | string[] | undefined) => (typeof v === "string" && v !== "" ? v : undefined);
 const tono = { Crítico: "danger", Bajo: "warn", OK: "ok" } as const;
 const AVISOS: Record<string, string> = { creado: "Producto creado correctamente", editado: "Cambios guardados correctamente" };
-const COLS = "IdProducto,Codigo,Nombre,UnidadBase,Formato,CostoUnitarioBase,StockMinimo,StockCritico,IdEstado";
 /** Cuántas recetas (distintas) usan el producto como ingrediente. */
 async function recetasQueUsan(idProducto: number): Promise<number> {
   const { data } = await db.from("RecetaDetalles").select("IdReceta").eq("IdProducto", idProducto);
@@ -194,12 +194,8 @@ export default async function ProductosPage({ searchParams }: { searchParams: Pr
   }
 
   // ===== Listado de productos: filtro por código/nombre y estado, y paginación =====
-  const { data: todos, error: errTodos } = await db.from("Productos").select(COLS).returns<ProductoFila[]>();
-  if (errTodos) throw new Error("No se pudo cargar los productos");
   const estado = leerEstado(estadoPedido);
-  const filtrados = filtrarProductos(todos ?? [], { q, estado });
-  const pg = paginar({ pagina: sp.pagina, tam: sp.tam }, filtrados.length);
-  const lista = filtrados.slice(pg.from, pg.to + 1);
+  const { filas: lista, pg } = await listarPagina<ProductoFila>("productos", { q, estado, pagina: sp.pagina, tam: sp.tam });
   const hayFiltro = !!q || estado !== undefined;
   const aviso = typeof sp.aviso === "string" ? AVISOS[sp.aviso] : undefined;
 
