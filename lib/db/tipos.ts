@@ -1893,6 +1893,7 @@ export type Database = {
         }
         Returns: Json
       }
+      listar_solicitantes: { Args: never; Returns: Json }
       normalizar_busqueda: { Args: { p: string }; Returns: string }
       producto_de_item: { Args: { d: Json }; Returns: number }
       recepcionar_solicitud: {

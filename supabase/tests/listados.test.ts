@@ -77,6 +77,17 @@ describe("listar_pagina (P01)", () => {
     expect(new Set([...(await pagina("productos", "item", null, 0, 100)).filas, ...(await pagina("productos", "item", null, 100, 100)).filas].map((p) => p.IdProducto)).size).toBe(200); // sin repetir entre páginas
   });
 
+  it("listar_solicitantes: solo quienes han hecho solicitudes, ordenados por apellidos sin tildes", async () => {
+    const [{ id: bod }] = (await db.query<any>(`select "IdBodega" id from "Bodegas" where not "EsCentral" limit 1`)).rows;
+    const us = (await db.query<any>(`select "IdUsuario" id, "Apellidos" a from "Usuarios"`)).rows;
+    const de = (a: string) => us.find((u) => u.a === a).id;
+    expect((await db.query<any>(`select listar_solicitantes() r`)).rows[0].r).toEqual([]); // nadie ha solicitado
+    await db.exec(`insert into "Solicitudes"("IdUsuarioSolicitante","IdBodegaDestino") values (${de("Zúñiga")}, ${bod}), (${de("Álvarez")}, ${bod}), (${de("Zúñiga")}, ${bod})`);
+    const r = (await db.query<any>(`select listar_solicitantes() r`)).rows[0].r as { id: number; nombre: string }[];
+    expect(r.map((x) => x.nombre)).toEqual(["Ángel Álvarez", "Zoe Zúñiga"]); // sin repetir; María (sin solicitudes) no aparece
+    expect(r[0].id).toBe(de("Álvarez"));
+  });
+
   it("rechaza tablas desconocidas y paginación inválida; el comodín % no es comodín", async () => {
     await expect(db.query(`select listar_pagina('Claves','',null,0,10)`)).rejects.toThrow(/desconocido/);
     await expect(db.query(`select listar_pagina('bodegas','',null,0,500)`)).rejects.toThrow(/Paginación/);
