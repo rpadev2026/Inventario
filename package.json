@@ -9,6 +9,7 @@
     "lint": "eslint",
     "test": "vitest run",
     "seed:admin": "node --env-file=.env.local scripts/seed-admin.ts",
+    "token:app": "node scripts/crear-token-app.ts",
     "gen:territorio": "node scripts/generar-territorio.ts"
   },
   "dependencies": {
