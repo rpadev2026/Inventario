@@ -4,13 +4,16 @@ import { useRouter } from "next/navigation";
 import { guardarSolicitud } from "./actions";
 import Field from "@/components/app/field";
 import Icon from "@/components/app/icon";
-import { etiquetaProducto } from "@/lib/producto-etiqueta";
+import ComboboxRemoto from "@/components/app/combobox-remoto";
+import { buscarOpcionesProducto } from "@/lib/opciones-remotas";
+import type { Opcion } from "@/lib/buscar";
 
 type Linea = { producto: string; cantidad: string };
 
 export default function FormSolicitud(props: {
   bodegas: { id: number; nombre: string }[];
-  productos: { id: number; codigo: string | null; nombre: string; unidad: string }[];
+  /** Productos ya elegidos al editar (para mostrar su nombre); el resto se busca en el servidor mientras se escribe. */
+  productosIniciales?: Opcion[];
   inicial?: { idSolicitud: number; idBodega: number; lineas: Linea[] };
 }) {
   const router = useRouter();
@@ -18,6 +21,8 @@ export default function FormSolicitud(props: {
   const [lineas, setLineas] = useState<Linea[]>(props.inicial?.lineas ?? [{ producto: "", cantidad: "" }]);
   const [error, setError] = useState<string | null>(null);
   const [pending, start] = useTransition();
+  // Opciones ya elegidas por valor: la lista remota solo trae las que coinciden con lo escrito.
+  const [elegidas, setElegidas] = useState<Record<string, Opcion>>(() => Object.fromEntries((props.productosIniciales ?? []).map((o) => [o.valor, o])));
   const set = (i: number, k: keyof Linea, v: string) => setLineas((ls) => ls.map((l, j) => (j === i ? { ...l, [k]: v } : l)));
 
   function guardar() {
@@ -41,12 +46,11 @@ export default function FormSolicitud(props: {
         <h2 className="section-title">Productos solicitados</h2>
         {lineas.map((l, i) => (
           <div key={i} className="line-grid line-grid-3">
-            <Field label="Producto">
-              <select value={l.producto} onChange={(e) => set(i, "producto", e.target.value)} required className="input">
-                <option value="">Seleccione…</option>
-                {props.productos.map((p) => <option key={p.id} value={p.id}>{etiquetaProducto(p.codigo, p.nombre)} ({p.unidad})</option>)}
-              </select>
-            </Field>
+            <ComboboxRemoto
+              label="Producto" required valor={l.producto} buscar={buscarOpcionesProducto} maxOpciones={20}
+              placeholder="Busque por código o nombre" elegidas={elegidas[l.producto] ? [elegidas[l.producto]] : []}
+              onCambio={(v, o) => { set(i, "producto", v); if (o) setElegidas((m) => ({ ...m, [o.valor]: o })); }}
+            />
             <Field label="Cantidad">
               <input type="number" min="0.001" step="0.001" inputMode="decimal" value={l.cantidad} onChange={(e) => set(i, "cantidad", e.target.value)} required className="input" />
             </Field>

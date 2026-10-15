@@ -19,10 +19,14 @@ type Props = {
    * al salir, un texto vacío la quita y un texto que no corresponde a una opción vuelve a la selección vigente.
    */
   limpiarAlSalir?: boolean;
+  /** Avisa del texto a buscar cada vez que se abre la lista o se escribe (vacío si lo escrito es la opción ya elegida): lo usa la búsqueda remota. */
+  onTexto?: (texto: string) => void;
+  /** La lista se está buscando fuera: se muestra «Buscando…» en vez de «Sin resultados». */
+  cargando?: boolean;
 };
 
 /** Autocompletado accesible (patrón ARIA 1.2 combobox con lista). El filtrado vive en lib/buscar.ts. */
-export default function Combobox({ label, opciones, valor, onCambio, required, placeholder, hint, maxOpciones, limpiarAlSalir }: Props) {
+export default function Combobox({ label, opciones, valor, onCambio, required, placeholder, hint, maxOpciones, limpiarAlSalir, onTexto, cargando }: Props) {
   const uid = useId();
   const idInput = `${uid}-input`;
   const idLista = `${uid}-lista`;
@@ -42,11 +46,25 @@ export default function Combobox({ label, opciones, valor, onCambio, required, p
     if (!valor && elegida === null && texto !== "" && !abierto) setTexto("");
   }
 
-  const filtradas = useMemo(() => filtrarOpciones(opciones, elegida && texto === elegida.etiqueta ? "" : texto, maxOpciones), [opciones, texto, elegida, maxOpciones]);
+  // Con búsqueda remota la etiqueta de lo elegido puede llegar después del valor (p. ej. al restaurar un borrador):
+  // si nadie está escribiendo, el texto la sigue en cuanto aparece.
+  const [etiquetaPrevia, setEtiquetaPrevia] = useState(elegida?.etiqueta);
+  if (elegida?.etiqueta !== etiquetaPrevia) {
+    setEtiquetaPrevia(elegida?.etiqueta);
+    if (elegida && !abierto && texto === "") setTexto(elegida.etiqueta);
+  }
+
+  const consulta = elegida && texto === elegida.etiqueta ? "" : texto;
+  const filtradas = useMemo(() => filtrarOpciones(opciones, consulta, maxOpciones), [opciones, consulta, maxOpciones]);
   const indiceActivo = Math.min(activo, Math.max(filtradas.length - 1, 0));
   const idOpcion = (i: number) => `${uid}-op-${i}`;
   const lista = abierto && filtradas.length > 0;
-  const sinResultados = abierto && filtradas.length === 0;
+  const sinResultados = abierto && filtradas.length === 0 && !cargando;
+
+  // Búsqueda remota: al abrir la lista y en cada cambio del texto.
+  useEffect(() => {
+    if (abierto) onTexto?.(consulta);
+  }, [abierto, consulta, onTexto]);
 
   // `required` sin selección bloquea el envío con la validación nativa, anclada al campo visible.
   useEffect(() => {
@@ -152,7 +170,7 @@ export default function Combobox({ label, opciones, valor, onCambio, required, p
       </ul>
       {/* Siempre montado (para que los lectores de pantalla lo anuncien); vacío no ocupa espacio. */}
       <p className="field-hint" role="status" style={sinResultados ? undefined : { marginTop: "-.375rem" }}>
-        {sinResultados ? "Sin resultados" : ""}
+        {sinResultados ? "Sin resultados" : abierto && cargando && filtradas.length === 0 ? "Buscando…" : ""}
       </p>
       {hint && (
         <span id={idHint} className="field-hint">

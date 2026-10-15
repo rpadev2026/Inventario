@@ -2,7 +2,6 @@ import { etiquetaProducto } from "@/lib/producto-etiqueta";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { db } from "@/lib/db/supabase";
-import { leerTodo } from "@/lib/db/leer-todo";
 import { requerirPaginaPermiso } from "@/lib/auth/session";
 import { mapaNombres } from "@/lib/catalogo-nombres";
 import { tienePermiso } from "@/lib/auth/permisos";
@@ -44,10 +43,7 @@ export default async function SolicitudPage({ params }: { params: Promise<{ id: 
   const estado: number = sol.EstadoSolicitud;
 
   const edicion = estado === 0 && esDueno
-    ? await Promise.all([
-        db.from("Bodegas").select("IdBodega,NombreBodega").eq("IdEstado", 1).eq("EsCentral", false).order("NombreBodega"),
-        leerTodo((a, b) => db.from("Productos").select("IdProducto,Codigo,Nombre,UnidadBase", { count: "exact" }).eq("IdEstado", 1).order("Nombre").order("IdProducto").range(a, b)),
-      ])
+    ? await db.from("Bodegas").select("IdBodega,NombreBodega").eq("IdEstado", 1).eq("EsCentral", false).order("NombreBodega")
     : null;
 
   return (
@@ -64,8 +60,12 @@ export default async function SolicitudPage({ params }: { params: Promise<{ id: 
       {edicion ? (
         <>
           <FormSolicitud
-            bodegas={(edicion[0].data ?? []).map((b) => ({ id: b.IdBodega, nombre: b.NombreBodega }))}
-            productos={(edicion[1].data ?? []).map((p) => ({ id: p.IdProducto as number, codigo: p.Codigo as string | null, nombre: p.Nombre as string, unidad: nombreUnidad(p.UnidadBase) }))}
+            bodegas={(edicion.data ?? []).map((b) => ({ id: b.IdBodega, nombre: b.NombreBodega }))}
+            productosIniciales={detalle.map((d) => ({
+              valor: String(d.IdProducto),
+              etiqueta: `${etiquetaProducto(d.Productos.Codigo, d.Productos.Nombre)} (${nombreUnidad(d.Productos.UnidadBase)})`,
+              busqueda: `${d.Productos.Codigo ?? ""} ${d.Productos.Nombre}`,
+            }))}
             inicial={{ idSolicitud: id, idBodega: sol.IdBodegaDestino, lineas: detalle.map((d) => ({ producto: String(d.IdProducto), cantidad: String(d.Cantidad) })) }}
           />
           <form action={enviarSolicitud}>

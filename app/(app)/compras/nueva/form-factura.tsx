@@ -1,19 +1,19 @@
 "use client";
-import { useEffect, useMemo, useRef, useState, useTransition, type FormEvent } from "react";
+import { useEffect, useRef, useState, useTransition, type FormEvent } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { registrarFactura } from "../actions";
 import Field from "@/components/app/field";
-import Combobox from "@/components/app/combobox";
+import ComboboxRemoto from "@/components/app/combobox-remoto";
 import Icon from "@/components/app/icon";
 import { aplicarPreProducto, guardarBorrador, leerBorrador, limpiarBorrador, type Borrador } from "@/lib/borrador-factura";
-import { etiquetaProducto } from "@/lib/producto-etiqueta";
+import { buscarOpcionesProducto, buscarOpcionesProveedor, opcionProducto, opcionProveedor } from "@/lib/opciones-remotas";
+import { productosPorId, proveedoresPorId, type ProductoHallado, type ProveedorHallado } from "../../buscar/actions";
+import type { Opcion } from "@/lib/buscar";
 import { calcularTotales } from "@/lib/factura-calculo";
 import { unidadDeLinea, unidadesDeFamilia, type UnidadInfo } from "@/lib/unidades";
 import { filtrarDecimal, filtrarDecimal2, parseCantidad, parseDecimal2, soloDigitos } from "@/lib/numeros";
 
-type Prov = { id: number; rut: string; nombre: string };
-type Prod = { id: number; codigo: string | null; nombre: string; unidadBase: string };
 type FormaPago = { codigo: string; nombre: string };
 type Linea = Borrador["lineas"][number];
 
@@ -22,7 +22,9 @@ const lineaVacia = (): Linea => ({ producto: "", unidad: "", precio: "", cantida
 const clp = (n: number) => n.toLocaleString("es-CL", { style: "currency", currency: "CLP", maximumFractionDigits: 0 });
 
 export default function FormFactura(props: {
-  proveedores: Prov[]; productos: Prod[]; unidades: UnidadInfo[]; formasPago: FormaPago[]; preProveedor?: string; preProducto?: string;
+  unidades: UnidadInfo[]; formasPago: FormaPago[];
+  /** Proveedor y producto recién creados (o pedidos por la URL), ya validados en el servidor. */
+  provInicial?: ProveedorHallado | null; prodInicial?: ProductoHallado | null;
 }) {
   const router = useRouter();
   const [idProv, setIdProv] = useState("");
@@ -34,15 +36,11 @@ export default function FormFactura(props: {
   const [error, setError] = useState<string | null>(null);
   const [pending, start] = useTransition();
   const iniciado = useRef(false);
-
-  const opcionesProv = useMemo(
-    () => props.proveedores.map((p) => ({ valor: String(p.id), etiqueta: `${p.rut} — ${p.nombre}`, busqueda: `${p.rut} ${p.nombre}` })),
-    [props.proveedores],
-  );
-  const opcionesProd = useMemo(
-    () => props.productos.map((p) => ({ valor: String(p.id), etiqueta: etiquetaProducto(p.codigo, p.nombre), busqueda: `${p.codigo ?? ""} ${p.nombre}` })),
-    [props.productos],
-  );
+  // Opciones ya elegidas por valor: la lista remota solo trae las que coinciden con lo escrito (y llevan, p. ej., la unidad base).
+  const [provs, setProvs] = useState<Record<string, Opcion>>({});
+  const [prods, setProds] = useState<Record<string, Opcion>>({});
+  const recordarProvs = (os: Opcion[]) => setProvs((m) => ({ ...m, ...Object.fromEntries(os.map((o) => [o.valor, o])) }));
+  const recordarProds = (os: Opcion[]) => setProds((m) => ({ ...m, ...Object.fromEntries(os.map((o) => [o.valor, o])) }));
 
   // Al montar: restaura el borrador guardado antes de salir a crear un proveedor/producto y aplica lo recién creado.
   // sessionStorage no existe en el servidor, por eso es un efecto (el primer render coincide con el SSR).
@@ -59,12 +57,20 @@ export default function FormFactura(props: {
       setFechaRecepcion(b.fechaRecepcion); setFormaPago(b.formaPago);
       if (b.lineas.length > 0) ls = b.lineas;
     }
-    const prov = props.preProveedor;
-    if (prov && props.proveedores.some((p) => String(p.id) === prov)) setIdProv(prov);
-    const prod = props.preProducto;
-    if (prod && props.productos.some((p) => String(p.id) === prod)) ls = aplicarPreProducto(ls, prod);
+    const { provInicial, prodInicial } = props;
+    if (provInicial) { setIdProv(String(provInicial.id)); recordarProvs([opcionProveedor(provInicial)]); }
+    if (prodInicial) { ls = aplicarPreProducto(ls, String(prodInicial.id)); recordarProds([opcionProducto(prodInicial)]); }
     setLineas(ls);
-  }, [props.preProveedor, props.preProducto, props.proveedores, props.productos]);
+    // Del borrador solo se guardaron los id: se traen del servidor los datos de lo elegido (nombre, unidad base).
+    if (b) {
+      const idsProd = [...new Set(b.lineas.map((l) => Number(l.producto)).filter((n) => n > 0))];
+      const idProveedor = Number(b.idProv);
+      Promise.all([productosPorId(idsProd), idProveedor > 0 ? proveedoresPorId([idProveedor]) : Promise.resolve([])])
+        .then(([ps, vs]) => { recordarProds(ps.map(opcionProducto)); recordarProvs(vs.map(opcionProveedor)); })
+        .catch(() => { /* sin los datos, el campo queda sin texto: se vuelve a elegir */ });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- solo al montar (el ref evita repetirlo en StrictMode); recordar* solo escriben estado.
+  }, [props.provInicial, props.prodInicial]);
 
   // El precio de cada línea ya incluye IVA: el total es la suma y el neto/IVA se calculan hacia atrás.
   const { total, neto, iva } = calcularTotales(lineas.map((l) => ({ precio: parseDecimal2(l.precio) ?? 0, cantidad: parseCantidad(l.cantidad) ?? 0 })));
@@ -74,7 +80,7 @@ export default function FormFactura(props: {
   const setLinea = (i: number, k: keyof Linea, v: string) =>
     setLineas((ls) => ls.map((l, j) => (j === i ? { ...l, [k]: v } : l)));
   // Unidad de la línea: la elegida o, mientras no se elija, la unidad base del producto.
-  const baseDe = (producto: string) => props.productos.find((p) => String(p.id) === producto)?.unidadBase ?? "";
+  const baseDe = (producto: string) => prods[producto]?.datos?.unidadBase ?? "";
   const unidadDe = (l: Linea) => unidadDeLinea(props.unidades, baseDe(l.producto), l.unidad);
   const cambiarProducto = (i: number, producto: string) =>
     setLineas((ls) => ls.map((l, j) => (j === i ? { ...l, producto, unidad: "" } : l)));
@@ -115,7 +121,11 @@ export default function FormFactura(props: {
     <form onSubmit={enviar} className="card grid gap-5">
       <div className="form-grid form-grid-4">
         <div className="fld-3 grid gap-1">
-          <Combobox label="Proveedor" required opciones={opcionesProv} valor={idProv} onCambio={setIdProv} placeholder="Busque por RUT o razón social" />
+          <ComboboxRemoto
+            label="Proveedor" required valor={idProv} buscar={buscarOpcionesProveedor} maxOpciones={20} placeholder="Busque por RUT o razón social"
+            elegidas={provs[idProv] ? [provs[idProv]] : []}
+            onCambio={(v, o) => { setIdProv(v); if (o) recordarProvs([o]); }}
+          />
           <Link href="/proveedores?volver=/compras/nueva" onClick={guardarAntesDeSalir} className="link link-sm justify-self-start">+ Crear proveedor nuevo</Link>
         </div>
         <Field label="Folio">
@@ -146,7 +156,11 @@ export default function FormFactura(props: {
         </div>
         {lineas.map((l, i) => (
           <div key={i} className="line-grid line-grid-5">
-            <Combobox label="Producto" required opciones={opcionesProd} valor={l.producto} onCambio={(v) => cambiarProducto(i, v)} placeholder="Busque por código o nombre" />
+            <ComboboxRemoto
+              label="Producto" required valor={l.producto} buscar={buscarOpcionesProducto} maxOpciones={20} placeholder="Busque por código o nombre"
+              elegidas={prods[l.producto] ? [prods[l.producto]] : []}
+              onCambio={(v, o) => { cambiarProducto(i, v); if (o) recordarProds([o]); }}
+            />
             <Field label="Unidad de medida">
               <select value={unidadDe(l)} onChange={(e) => setLinea(i, "unidad", e.target.value)} disabled={!l.producto} required className="input">
                 {!l.producto && <option value="">—</option>}
