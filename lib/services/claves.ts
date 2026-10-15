@@ -10,18 +10,19 @@ export async function fijarClave(uid: number, nueva: string, actor: number, debe
   const err = validarPolitica(nueva);
   if (err) return err;
 
-  const { data: hist } = await db.from("HistorialClaves").select("Password")
-    .eq("IdUsuario", uid).order("FechaRegistroCreacion", { ascending: false }).limit(HISTORIAL);
-  for (const h of hist ?? [])
-    if (await verifyPassword(h.Password, nueva)) return `No puede reutilizar sus últimas ${HISTORIAL} claves`;
+  const [{ data: hist, error: eh }, { data: actual, error: ea }] = await Promise.all([
+    db.from("HistorialClaves").select("Password")
+      .eq("IdUsuario", uid).order("FechaRegistroCreacion", { ascending: false }).limit(HISTORIAL),
+    db.from("Claves").select("Password").eq("IdUsuario", uid).maybeSingle(),
+  ]);
+  // Sin poder consultar el historial no se puede garantizar la política: se rechaza.
+  if (eh || ea) return "No se pudo guardar la clave";
+  // La clave vigente cuenta aunque falte en el historial.
+  const previas = [...(hist ?? []).map((h) => h.Password), ...(actual ? [actual.Password] : [])];
+  for (const p of previas)
+    if (await verifyPassword(p, nueva)) return `No puede reutilizar sus últimas ${HISTORIAL} claves`;
 
-  const hash = await hashPassword(nueva);
-  const { error: e1 } = await db.from("Claves").upsert({
-    IdUsuario: uid, Password: hash, IdEstado: 1, DebeCambiar: debeCambiar,
-    IntentosFallidos: 0, BloqueadoHasta: null,
-    IdUsuarioCreacion: actor, IdUsuarioModificacion: actor,
-  }, { onConflict: "IdUsuario" });
-  if (e1) return "No se pudo guardar la clave";
-  await db.from("HistorialClaves").insert({ IdUsuario: uid, Password: hash, IdUsuarioCreacion: actor, IdUsuarioModificacion: actor });
-  return null;
+  // Clave, versión de sesión (invalida los tokens anteriores) e historial en una transacción.
+  const { error } = await db.rpc("fijar_clave", { p_usuario: uid, p_hash: await hashPassword(nueva), p_actor: actor, p_debe_cambiar: debeCambiar });
+  return error ? "No se pudo guardar la clave" : null;
 }

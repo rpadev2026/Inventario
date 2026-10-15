@@ -120,7 +120,8 @@ export default async function BodegasPage({ searchParams }: { searchParams: Prom
   }
 
   // ===== Listado de bodegas: filtro por nombre y estado, y paginación =====
-  const { data: todas } = await db.from("Bodegas").select("IdBodega,NombreBodega,EsCentral,IdEstado").returns<BodegaFila[]>();
+  const { data: todas, error: errTodas } = await db.from("Bodegas").select("IdBodega,NombreBodega,EsCentral,IdEstado").returns<BodegaFila[]>();
+  if (errTodas) throw new Error("No se pudo cargar las bodegas");
   const estado = leerEstado(estadoPedido);
   const filtradas = filtrarBodegas(todas ?? [], { q, estado });
   const pgB = paginar({ pagina: sp.pagina, tam: sp.tam }, filtradas.length);

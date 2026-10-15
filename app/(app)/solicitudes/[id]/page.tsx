@@ -25,12 +25,14 @@ export default async function SolicitudPage({ params }: { params: Promise<{ id: 
   const esDueno = sol.IdUsuarioSolicitante === s.uid;
   if (!bodeguero && !esDueno) notFound(); // un solicitante no ve solicitudes ajenas
 
-  const [{ data: det }, { data: hist }, { data: stock }, unidades] = await Promise.all([
+  const [{ data: det, error: errDet }, { data: hist, error: errHist }, { data: stock, error: errStock }, unidades] = await Promise.all([
     db.from("SolicitudesDetalle").select("IdProducto,Cantidad,CantidadAprobada,CantidadRecibida,Productos!inner(Codigo,Nombre,UnidadBase)").eq("IdSolicitud", id).returns<any[]>(),
     db.from("HistorialSolicitudes").select("EstadoSolicitud,FechaIngreso,Usuarios!HistorialSolicitudes_IdUsuarioCreacion_fkey(Nombres,Apellidos)").eq("IdSolicitud", id).order("IdHistorial").returns<any[]>(),
     db.from("StockBodega").select("IdProducto,Cantidad,Bodegas!inner(EsCentral)").eq("Bodegas.EsCentral", true).returns<any[]>(),
     mapaNombres("UnidadesMedida"),
   ]);
+  // Un stock que no se pudo leer no puede mostrarse como cero: se aprueba con ese dato.
+  if (errDet || errHist || errStock) throw new Error("No se pudo cargar la solicitud");
   const nombreUnidad = (c: string) => unidades.get(c) ?? c;
   const detalle = det ?? [];
   const stockCentral = new Map((stock ?? []).map((r) => [r.IdProducto as number, Number(r.Cantidad)]));
