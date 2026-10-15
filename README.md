@@ -26,8 +26,19 @@ Para probar a mano contra tu Supabase: `node --env-file=.env.local scripts/e2e-s
 `npm test` — validadores, esquemas y las funciones SQL (migraciones ejecutadas en Postgres en memoria con PGlite).
 
 ## Seguridad: puntos a considerar en producción
-- El límite de intentos de login es en memoria y por IP (`x-forwarded-for`); detrás de varios servidores o un proxy no confiable use un almacén compartido o el límite del proveedor de hosting.
+- El límite de intentos de login es por IP y vive en la base de datos (compartido entre instancias, con vencimiento). La IP sale del primer valor de `x-forwarded-for`: el proxy o hosting debe normalizar esa cabecera.
 - La CSP permite `'unsafe-inline'` en scripts (requerido por Next sin nonces). Se puede endurecer con nonces vía proxy.
-- La sesión es stateless (8 h). Los roles y el estado del usuario se revalidan en cada petición, pero un token robado sigue válido hasta expirar aunque se cierre sesión.
-- Los correos fallidos se reintentan una vez y se registran en el log; no hay cola persistente.
+- La sesión dura 8 h. Los roles y el estado del usuario se revalidan en cada petición, y cambiar o restablecer la clave invalida los tokens anteriores; cerrar sesión solo borra la cookie local (un token robado sigue válido hasta que se cambie la clave o expire).
+- Los correos se guardan en una cola en la BD y se reintentan con espera creciente (ver «Pendiente para el despliegue»).
 - Las facturas no se editan: se anulan (revierte el stock si no fue despachado) y se vuelven a ingresar.
+
+## Pendiente para el despliegue
+Aún no está definido dónde se desplegará la aplicación. Cuando se defina, hay que hacer esto (hoy los correos quedan en la cola `CorreosPendientes` y no se pierden):
+1. **`CRON_SECRET`**: inventar un valor de 16+ caracteres (`node -e "console.log(require('crypto').randomBytes(32).toString('base64url'))"`) y guardarlo como variable de entorno del despliegue. No va en el repositorio.
+2. **`RESEND_API_KEY`, `MAIL_FROM` (dominio verificado en Resend) y `APP_URL`**: configurarlos en el entorno de despliegue.
+3. **Programar el reintento de correos**: un cron cada 5–10 minutos que llame `POST https://<dominio>/api/correos/procesar` con la cabecera `Authorization: Bearer <CRON_SECRET>`. Respuesta esperada: `{"enviados":N,"fallidos":N}` (401 = valor distinto; 503 = falta `CRON_SECRET` en la app). Según el hosting:
+   - Vercel: Cron Jobs en `vercel.json` (envía solo `Authorization: Bearer $CRON_SECRET`, pero con `GET`: habría que aceptar también `GET` en `app/api/correos/procesar/route.ts`).
+   - Otro hosting: servicio externo (p. ej. cron-job.org) o GitHub Actions programado; servidor propio: `crontab` con `curl -X POST`.
+4. **Proxy / hosting**: que normalice `x-forwarded-for` (límite de login por IP).
+5. **Probar el envío real de un correo** (aprobar una solicitud) y revisar `CorreosPendientes` (`Estado` 1 = enviado, 2 = fallido tras 5 intentos).
+
