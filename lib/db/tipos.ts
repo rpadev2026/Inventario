@@ -1819,6 +1819,10 @@ export type Database = {
         Args: { p_items: Json; p_solicitud: number; p_usuario: number }
         Returns: undefined
       }
+      buscar_subrecetas: {
+        Args: { p_excluir: number; p_lim: number; p_q: string }
+        Returns: Json
+      }
       calcular_receta: { Args: { p_receta: number }; Returns: Json }
       calcular_receta_n: {
         Args: { p_nivel: number; p_receta: number }
