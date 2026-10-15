@@ -15,8 +15,14 @@ export default async function SolicitudesPage({ searchParams }: { searchParams: 
   const ve_todas = tienePermiso(s.permisos, "solicitudes.gestionar");
   // Estado pedido en la URL (0–5); cualquier otro valor = todos.
   const estadoPedido = typeof sp.estado === "string" && /^[0-5]$/.test(sp.estado) ? Number(sp.estado) : undefined;
+  // Solicitante pedido (solo quien ve todas las solicitudes puede filtrar por él; los demás ven solo las suyas).
+  const solicitantePedido = ve_todas && typeof sp.solicitante === "string" && /^\d{1,15}$/.test(sp.solicitante) ? Number(sp.solicitante) : undefined;
+  const { data: sols, error: errSols } = ve_todas ? await db.rpc("listar_solicitantes") : { data: null, error: null };
+  if (errSols) throw new Error("No se pudo cargar los solicitantes");
+  const solicitantes = (sols ?? []) as { id: number; nombre: string }[];
   const filtro = {
     ...(ve_todas ? {} : { IdUsuarioSolicitante: s.uid }),
+    ...(solicitantePedido === undefined ? {} : { IdUsuarioSolicitante: solicitantePedido }),
     ...(estadoPedido === undefined ? {} : { EstadoSolicitud: estadoPedido }),
   };
   // Total con el mismo filtro y luego solo la página pedida (más recientes primero).
@@ -41,9 +47,17 @@ export default async function SolicitudesPage({ searchParams }: { searchParams: 
             {Object.entries(ESTADOS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
           </select>
         </Field>
+        {ve_todas && (
+          <Field label="Solicitante">
+            <select name="solicitante" defaultValue={solicitantePedido ?? ""} className="input">
+              <option value="">Todos</option>
+              {solicitantes.map((u) => <option key={u.id} value={u.id}>{u.nombre}</option>)}
+            </select>
+          </Field>
+        )}
         {typeof sp.tam === "string" && <input type="hidden" name="tam" value={pg.tam} />}
         <button className="btn btn-secondary">Filtrar</button>
-        {estadoPedido !== undefined && <Link href="/solicitudes" className="link">Limpiar</Link>}
+        {(estadoPedido !== undefined || solicitantePedido !== undefined) && <Link href="/solicitudes" className="link">Limpiar</Link>}
       </form>
       <div className="table-wrap">
         <table className="table">
@@ -59,7 +73,7 @@ export default async function SolicitudesPage({ searchParams }: { searchParams: 
                 <td><Link className="link link-sm" href={`/solicitudes/${r.IdSolicitud}`}>Ver</Link></td>
               </tr>
             ))}
-            {!(data ?? []).length && <tr><td colSpan={6} className="text-muted">{estadoPedido !== undefined ? "Sin solicitudes en ese estado." : "Sin solicitudes."}</td></tr>}
+            {!(data ?? []).length && <tr><td colSpan={6} className="text-muted">{estadoPedido !== undefined || solicitantePedido !== undefined ? "Sin solicitudes con ese filtro." : "Sin solicitudes."}</td></tr>}
           </tbody>
         </table>
       </div>
