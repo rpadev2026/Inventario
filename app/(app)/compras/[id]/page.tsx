@@ -9,6 +9,8 @@ import Badge from "@/components/app/badge";
 const clp = new Intl.NumberFormat("es-CL", { style: "currency", currency: "CLP", maximumFractionDigits: 2 });
 const cant = new Intl.NumberFormat("es-CL", { maximumFractionDigits: 3 });
 
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 const Dato = ({ titulo, children }: { titulo: string; children: React.ReactNode }) => (
   <div>
     <div className="label-block">{titulo}</div>
@@ -19,12 +21,12 @@ const Dato = ({ titulo, children }: { titulo: string; children: React.ReactNode 
 /** Detalle de una factura de compra en solo lectura (no hay formularios ni acciones). */
 export default async function FacturaPage({ params }: { params: Promise<{ id: string }> }) {
   await requerirPaginaPermiso("compras.ver");
-  const id = Number((await params).id);
-  if (!Number.isInteger(id) || id <= 0) notFound();
+  const token = (await params).id;
+  if (!UUID.test(token)) notFound();
 
   const { data: c } = await db.from("Compras")
     .select("*,Usuarios!Compras_IdUsuarioCreacion_fkey(Nombres,Apellidos)")
-    .eq("IdCompra", id).maybeSingle();
+    .eq("Token", token).maybeSingle();
   if (!c) notFound();
 
   const [{ data: det }, formas, unidades, formatos] = await Promise.all([

@@ -13,7 +13,7 @@ export default async function ComprasPage() {
   const puedeRegistrar = tienePermiso(sesion.permisos, "compras.registrar");
   const nombreForma = await mapaNombres("FormasPago");
   const { data } = await db.from("Compras")
-    .select("IdCompra,NombreProveedor,RutProveedor,Folio,FechaFactura,FechaRecepcion,FormaPago,Total,IdEstado,MotivoAnulacion")
+    .select("IdCompra,Token,NombreProveedor,RutProveedor,Folio,FechaFactura,FechaRecepcion,FormaPago,Total,IdEstado,MotivoAnulacion")
     .order("IdCompra", { ascending: false }).limit(100);
   return (
     <section className="space-y-4">
@@ -33,7 +33,7 @@ export default async function ComprasPage() {
                 <td>{c.IdEstado === 1 ? <Badge tone="ok">Vigente</Badge> : <span title={c.MotivoAnulacion ?? ""}><Badge tone="danger">Anulada</Badge></span>}</td>
                 <td>
                   <div className="flex flex-wrap items-start gap-x-4 gap-y-1">
-                    <Link className="link link-sm" href={`/compras/${c.IdCompra}`} aria-label={`Ver factura folio ${c.Folio}`}>Ver</Link>
+                    <Link className="link link-sm" href={`/compras/${c.Token}`} aria-label={`Ver factura folio ${c.Folio}`}>Ver</Link>
                     {c.IdEstado === 1 && <AnularFactura id={c.IdCompra} folio={c.Folio} />}
                   </div>
                 </td>
