@@ -44,6 +44,12 @@ Para activarlo (una vez, en su máquina):
 
 Costos y cuidados: el token **vence** (fecha elegida al firmarlo): anote la fecha y renuévelo antes; si vence, la app deja de conectarse. Para revocarlo de inmediato, `revoke app_servidor from authenticator;` (o rotar el JWT Secret). Una tabla o función nueva no queda accesible al rol hasta agregar su `grant` y su política en una migración y clasificarla en la matriz de `rol-app.test.ts` (la prueba falla si falta).
 
+## Integración con Fudo (precio de venta de las recetas)
+
+- Cada receta se puede vincular a un producto de Fudo desde su vista «Ver» (sección «Fudo», con `recetas.gestionar`). El detalle muestra el precio de venta (leído en vivo de la API), el margen por porción y el costo como porcentaje del precio; en la base solo se guarda el id (`Recetas."IdProductoFudo"`).
+- Credenciales: `FUDO_API_KEY` y `FUDO_API_SECRET` en el entorno del servidor (se piden a soporte@fu.do indicando la cuenta y un usuario dedicado a la API). Sin ellas la aplicación funciona igual y la sección avisa que Fudo no está configurado.
+- API `v1alpha1` (puede cambiar). **Por confirmar con credenciales reales:** el comodín `*` del filtro `ilike` en la búsqueda por nombre, y si `price` incluye IVA (la pantalla lo rotula «con IVA», igual que los costos).
+
 ## Pendiente para el despliegue
 Aún no está definido dónde se desplegará la aplicación. Cuando se defina, hay que hacer esto (hoy los correos quedan en la cola `CorreosPendientes` y no se pierden):
 1. **`CRON_SECRET`**: inventar un valor de 16+ caracteres (`node -e "console.log(require('crypto').randomBytes(32).toString('base64url'))"`) y guardarlo como variable de entorno del despliegue. No va en el repositorio.
