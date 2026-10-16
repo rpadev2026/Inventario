@@ -81,6 +81,12 @@ export const leerSesion = cache(async (): Promise<Sesion | null> => {
 });
 
 export async function cerrarSesion() {
+  // Subir la versión invalida en el servidor todos los tokens del usuario; borrar solo la cookie dejaría una copia válida 8 h.
+  const s = await leerSesion();
+  if (s) {
+    const { error } = await db.rpc("revocar_sesiones", { p_usuario: s.uid });
+    if (error) console.error("[sesion] no se pudo revocar:", error.code); // igual se cierra la sesión del navegador
+  }
   (await cookies()).delete(COOKIE);
 }
 

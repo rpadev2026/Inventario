@@ -2045,6 +2045,7 @@ export type Database = {
         Args: { p_error: string; p_id: number; p_max?: number; p_ok: boolean }
         Returns: undefined
       }
+      revocar_sesiones: { Args: { p_usuario: number }; Returns: undefined }
     }
     Enums: {
       [_ in never]: never
