@@ -1,6 +1,7 @@
 import { db } from "@/lib/db/supabase";
 import { requerirPaginaAdmin } from "@/lib/auth/session";
-import { entero, href, texto, type Contexto, type Params } from "./comun";
+import { tokenValido } from "@/lib/token";
+import { href, texto, type Contexto, type Params } from "./comun";
 import { VistaCrear, VistaEditar } from "./vista-formulario";
 import { VistaDetalle } from "./vista-detalle";
 import { VistaListado } from "./vista-listado";
@@ -10,8 +11,8 @@ export default async function UsuariosPage({ searchParams }: { searchParams: Pro
   const sesion = await requerirPaginaAdmin();
   const sp = await searchParams;
   const crear = sp.crear === "1";
-  const idEditar = crear ? undefined : entero(sp.editar);
-  const idVer = crear || idEditar ? undefined : entero(sp.ver);
+  const idEditar = crear ? undefined : tokenValido(sp.editar);
+  const idVer = crear || idEditar ? undefined : tokenValido(sp.ver);
 
   // Parámetros del listado (página, tamaño y filtros) que se conservan al ir a una vista y volver.
   const base = { pagina: texto(sp.pagina), tam: texto(sp.tam), q: texto(sp.q), estado: texto(sp.estado) };
@@ -22,7 +23,7 @@ export default async function UsuariosPage({ searchParams }: { searchParams: Pro
 
   const idPanel = idEditar ?? idVer;
   const { data: sel } = idPanel
-    ? await db.from("Usuarios").select("IdUsuario,Rut,Nombres,Apellidos,Correo,IdEstado,FechaRegistroCreacion").eq("IdUsuario", idPanel).maybeSingle()
+    ? await db.from("Usuarios").select("Token,IdUsuario,Rut,Nombres,Apellidos,Correo,IdEstado,FechaRegistroCreacion").eq("Token", idPanel).maybeSingle()
     : { data: null };
   if (idEditar && sel) return <VistaEditar ctx={ctx} sel={sel} />;
   if (idVer && sel) return <VistaDetalle ctx={ctx} sel={sel} />;

@@ -17,7 +17,6 @@ export type Contexto = {
 /** Columnas del usuario que usan las vistas de detalle y edición. */
 export type UsuarioSel = Pick<Database["public"]["Tables"]["Usuarios"]["Row"], "IdUsuario" | "Rut" | "Nombres" | "Apellidos" | "Correo" | "IdEstado" | "FechaRegistroCreacion">;
 
-export const entero = (v: unknown) => (typeof v === "string" && /^\d+$/.test(v) && Number(v) > 0 ? Number(v) : undefined);
 export const texto = (v: string | string[] | undefined) => (typeof v === "string" && v !== "" ? v : undefined);
 export const AVISOS: Record<string, string> = {
   creado: "Usuario creado correctamente. Deberá cambiar su clave al ingresar.",

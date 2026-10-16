@@ -4,7 +4,7 @@ import { useAccion } from "@/lib/use-accion";
 import Field from "@/components/app/field";
 import { agruparPermisos, type PermisoCatalogo } from "@/lib/auth/permisos";
 
-export type RolItem = { IdRol: number; NombreRol: string; DetalleRol: string | null; IdEstado: number; EsBase: boolean };
+export type RolItem = { Token: string; IdRol: number; NombreRol: string; DetalleRol: string | null; IdEstado: number; EsBase: boolean };
 type Accion = (prev: unknown, fd: FormData) => Promise<{ error?: string; ok?: boolean }>;
 
 export default function FormRol({ rol, permisos = [], catalogo, accion, despuesDeGuardar }: {

@@ -48,8 +48,8 @@ export async function VistaListado({ ctx }: { ctx: Contexto }) {
                   <td><Badge tone={p.IdEstado === 1 ? "ok" : "neutral"}>{p.IdEstado === 1 ? "Vigente" : "No vigente"}</Badge></td>
                   <td>
                     <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
-                      <Link className="link link-sm" href={href({ ...base, ver: String(p.IdProducto) })} aria-label={`Ver ${p.Nombre}`}>Ver</Link>
-                      {puedeGestionar && <Link className="link link-sm" href={href({ ...base, editar: String(p.IdProducto) })} aria-label={`Editar ${p.Nombre}`}>Editar</Link>}
+                      <Link className="link link-sm" href={href({ ...base, ver: p.Token })} aria-label={`Ver ${p.Nombre}`}>Ver</Link>
+                      {puedeGestionar && <Link className="link link-sm" href={href({ ...base, editar: p.Token })} aria-label={`Editar ${p.Nombre}`}>Editar</Link>}
                     </div>
                   </td>
                 </tr>

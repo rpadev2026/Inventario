@@ -1,6 +1,6 @@
 import { normalizar } from "./buscar";
 
-export type RecetaFila = { IdReceta: number; CodigoReceta: string | null; Nombre: string; RendimientoPorciones: number; IdEstado: number };
+export type RecetaFila = { Token: string; IdReceta: number; CodigoReceta: string | null; Nombre: string; RendimientoPorciones: number; IdEstado: number };
 
 /** Filtra por código o nombre (sin distinguir mayúsculas ni tildes) y por estado; ordena por nombre. */
 export function filtrarRecetas(recetas: RecetaFila[], f: { q?: string; estado?: 0 | 1 }): RecetaFila[] {

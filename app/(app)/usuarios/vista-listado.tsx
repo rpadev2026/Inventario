@@ -52,8 +52,8 @@ export async function VistaListado({ ctx }: { ctx: Contexto }) {
                     <td>{estadoBadge(u.IdEstado)}</td>
                     <td>
                       <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
-                        <Link className="link link-sm" href={href({ ...base, ver: String(u.IdUsuario) })} aria-label={`Ver ${u.Nombres} ${u.Apellidos}`}>Ver</Link>
-                        <Link className="link link-sm" href={href({ ...base, editar: String(u.IdUsuario) })} aria-label={`Editar ${u.Nombres} ${u.Apellidos}`}>Editar</Link>
+                        <Link className="link link-sm" href={href({ ...base, ver: u.Token })} aria-label={`Ver ${u.Nombres} ${u.Apellidos}`}>Ver</Link>
+                        <Link className="link link-sm" href={href({ ...base, editar: u.Token })} aria-label={`Editar ${u.Nombres} ${u.Apellidos}`}>Editar</Link>
                       </div>
                     </td>
                   </tr>

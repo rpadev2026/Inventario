@@ -9,7 +9,7 @@ import { verificarTerritorio } from "@/lib/services/territorio";
 import { proveedorSchema, sucursalSchema, vendedorSchema } from "@/lib/validation/schemas";
 import { vendedorVigenteEnOtro } from "@/lib/vendedor-rut";
 
-type R = { error?: string; ok?: boolean; id?: number; razonSocial?: string };
+type R = { error?: string; ok?: boolean; id?: number; token?: string; razonSocial?: string };
 const id = (v: FormDataEntryValue | null) => z.coerce.number().int().positive().parse(v);
 
 export async function guardarProveedor(_: unknown, fd: FormData): Promise<R> {
@@ -31,12 +31,12 @@ export async function guardarProveedor(_: unknown, fd: FormData): Promise<R> {
   const errT = await verificarTerritorio({ region: d.region, ciudad: d.ciudad, comuna: d.comuna }, actual);
   if (errT) return { error: errT };
   const q = editId
-    ? db.from("Proveedores").update(fila).eq("IdProveedor", id(editId)).select("IdProveedor").single()
-    : db.from("Proveedores").insert(fila).select("IdProveedor").single();
+    ? db.from("Proveedores").update(fila).eq("IdProveedor", id(editId)).select("IdProveedor,Token").single()
+    : db.from("Proveedores").insert(fila).select("IdProveedor,Token").single();
   const { data, error } = await q;
   if (error) return { error: error.code === "P0001" ? error.message : error.code === "23505" ? "El RUT ya está registrado" : "No se pudo guardar el proveedor" };
   revalidatePath("/proveedores");
-  return { ok: true, id: data.IdProveedor, razonSocial: d.razonSocial };
+  return { ok: true, id: data.IdProveedor, token: data.Token, razonSocial: d.razonSocial };
 }
 
 export async function guardarSucursal(_: unknown, fd: FormData): Promise<R> {

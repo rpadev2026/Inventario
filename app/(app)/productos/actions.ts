@@ -12,7 +12,7 @@ const MSG_UNIDAD_BASE = "Unidad base no válida";
 const MSG_FORMATO = "Formato no válido";
 const MSG_STOCK_UNIDAD = "La unidad del stock debe ser de la misma familia que la unidad base";
 
-type R = { error?: string; ok?: boolean; id?: number };
+type R = { error?: string; ok?: boolean; id?: number; token?: string };
 
 export async function guardarProducto(_: unknown, fd: FormData): Promise<R> {
   const s = await requerirPermiso("productos.gestionar");
@@ -47,8 +47,8 @@ export async function guardarProducto(_: unknown, fd: FormData): Promise<R> {
     StockMinimo: minimo, StockCritico: critico, IdEstado: d.estado, IdUsuarioModificacion: s.uid,
   };
   const { data, error } = editando
-    ? await db.from("Productos").update(fila).eq("IdProducto", d.id!).select("IdProducto").single()
-    : await db.from("Productos").insert({ ...fila, IdUsuarioCreacion: s.uid }).select("IdProducto").single();
+    ? await db.from("Productos").update(fila).eq("IdProducto", d.id!).select("IdProducto,Token").single()
+    : await db.from("Productos").insert({ ...fila, IdUsuarioCreacion: s.uid }).select("IdProducto,Token").single();
   if (error || !data) {
     const detalle = `${error?.message} ${error?.details}`;
     if (error?.code === "P0001") return { error: error.message };
@@ -61,5 +61,5 @@ export async function guardarProducto(_: unknown, fd: FormData): Promise<R> {
     return { error: "No se pudo guardar el producto" };
   }
   revalidatePath("/productos");
-  return { ok: true, id: data.IdProducto as number };
+  return { ok: true, id: data.IdProducto as number, token: data.Token };
 }

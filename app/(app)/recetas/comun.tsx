@@ -23,7 +23,6 @@ export type Calculo = {
 type Resumen = Omit<Calculo, "lineas">;
 
 export const texto = (v: string | string[] | undefined) => (typeof v === "string" && v !== "" ? v : undefined);
-export const idValido = (v: string | undefined) => (v && /^[1-9]\d{0,14}$/.test(v) ? Number(v) : undefined);
 export const AVISOS: Record<string, string> = { creado: "Receta creada correctamente", editado: "Cambios guardados correctamente" };
 
 const clpEntero = new Intl.NumberFormat("es-CL", { style: "currency", currency: "CLP", maximumFractionDigits: 0 });

@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { filtrarRoles, type RolFila } from "./roles-filtro";
 
-const R = (IdRol: number, NombreRol: string, DetalleRol: string | null, IdEstado = 1, EsBase = false): RolFila => ({ IdRol, NombreRol, DetalleRol, IdEstado, EsBase });
+const R = (IdRol: number, NombreRol: string, DetalleRol: string | null, IdEstado = 1, EsBase = false): RolFila => ({ Token: "t", IdRol, NombreRol, DetalleRol, IdEstado, EsBase });
 const datos = [
   R(1, "Administrador", "Gestiona usuarios, roles y todo el sistema", 1, true),
   R(2, "Compras", "Registra facturas, proveedores y productos", 0, true),

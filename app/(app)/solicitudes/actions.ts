@@ -5,7 +5,7 @@ import { db } from "@/lib/db/supabase";
 import { requerirPermiso } from "@/lib/auth/session";
 import { notificarEnviada, notificarResuelta } from "@/lib/services/correo";
 
-type R = { error?: string; ok?: boolean; id?: number };
+type R = { error?: string; ok?: boolean; id?: number; token?: string };
 
 const items = z.array(z.object({ producto: z.coerce.number().int().positive(), cantidad: z.coerce.number().min(0) })).min(1).max(200);
 const idSchema = z.coerce.number().int().positive();
@@ -28,7 +28,9 @@ export async function guardarSolicitud(input: unknown): Promise<R> {
     : await db.rpc("crear_solicitud", { p_usuario: s.uid, p_bodega: p.data.idBodega, p_items: p.data.items });
   if (error) return { error: mapError(error) };
   revalidatePath("/solicitudes");
-  return { ok: true, id: idSol ? Number(idSol) : (data as number) };
+  const id = idSol ? Number(idSol) : (data as number);
+  const { data: sol } = await db.from("Solicitudes").select("Token").eq("IdSolicitud", id).single();
+  return { ok: true, id, token: sol?.Token };
 }
 
 export async function enviarSolicitud(fd: FormData) {

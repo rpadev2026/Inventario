@@ -39,7 +39,7 @@ export async function VistaListado({ ctx }: { ctx: Contexto }) {
             <thead><tr><th>Código</th><th>Nombre</th><th className="num">Porciones</th><th className="num">Costo por porción</th><th>Estado</th><th>Acciones</th></tr></thead>
             <tbody>
               {lista.map((r) => {
-                const c = costos[String(r.IdReceta)];
+                const c = costos[r.Token];
                 return (
                   <tr key={r.IdReceta}>
                     <td>{r.CodigoReceta ?? "—"}</td><td>{r.Nombre}</td>
@@ -53,8 +53,8 @@ export async function VistaListado({ ctx }: { ctx: Contexto }) {
                     <td><Badge tone={r.IdEstado === 1 ? "ok" : "neutral"}>{r.IdEstado === 1 ? "Vigente" : "No vigente"}</Badge></td>
                     <td>
                       <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
-                        <Link className="link link-sm" href={href({ ...base, ver: String(r.IdReceta) })} aria-label={`Ver ${r.Nombre}`}>Ver</Link>
-                        {puedeGestionar && <Link className="link link-sm" href={href({ ...base, editar: String(r.IdReceta) })} aria-label={`Editar ${r.Nombre}`}>Editar</Link>}
+                        <Link className="link link-sm" href={href({ ...base, ver: r.Token })} aria-label={`Ver ${r.Nombre}`}>Ver</Link>
+                        {puedeGestionar && <Link className="link link-sm" href={href({ ...base, editar: r.Token })} aria-label={`Editar ${r.Nombre}`}>Editar</Link>}
                       </div>
                     </td>
                   </tr>

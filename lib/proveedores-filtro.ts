@@ -1,6 +1,7 @@
 import { normalizar } from "./buscar";
 
 export type ProveedorFila = {
+  Token: string;
   IdProveedor: number; Rut: string; RazonSocial: string; Giro: string | null;
   Telefono: string | null; Correo: string | null; IdEstado: number;
 };

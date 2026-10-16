@@ -1,5 +1,6 @@
 import { etiquetaProducto } from "@/lib/producto-etiqueta";
 import Link from "next/link";
+import { tokenValido } from "@/lib/token";
 import { notFound } from "next/navigation";
 import { db } from "@/lib/db/supabase";
 import { requerirPaginaPermiso } from "@/lib/auth/session";
@@ -13,13 +14,14 @@ import FormSolicitud from "../form-solicitud";
 
 export default async function SolicitudPage({ params }: { params: Promise<{ id: string }> }) {
   const s = await requerirPaginaPermiso("solicitudes.ver_propias", "solicitudes.gestionar");
-  const id = Number((await params).id);
-  if (!Number.isInteger(id) || id <= 0) notFound();
+  const token = tokenValido((await params).id);
+  if (!token) notFound();
 
   const { data: sol } = await db.from("Solicitudes")
     .select("*,Bodegas!inner(NombreBodega),Usuarios!Solicitudes_IdUsuarioSolicitante_fkey!inner(Nombres,Apellidos)")
-    .eq("IdSolicitud", id).maybeSingle();
+    .eq("Token", token).maybeSingle();
   if (!sol) notFound();
+  const id = sol.IdSolicitud;
 
   const bodeguero = tienePermiso(s.permisos, "solicitudes.gestionar");
   const esDueno = sol.IdUsuarioSolicitante === s.uid;

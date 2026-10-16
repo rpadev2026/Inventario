@@ -3,7 +3,8 @@ import { requerirPaginaPermiso } from "@/lib/auth/session";
 import { tienePermiso } from "@/lib/auth/permisos";
 import { rutaVolverSegura } from "@/lib/volver";
 import type { Proveedor } from "./forms";
-import { entero, href, texto, type Contexto, type Params } from "./comun";
+import { tokenValido } from "@/lib/token";
+import { href, texto, type Contexto, type Params } from "./comun";
 import { VistaCrear } from "./vista-crear";
 import { VistaEditar } from "./vista-editar";
 import { VistaDetalle } from "./vista-detalle";
@@ -18,8 +19,8 @@ export default async function ProveedoresPage({ searchParams }: { searchParams: 
   // Crear/editar solo con «proveedores.gestionar» (las acciones del servidor lo exigen igualmente).
   // Venir desde una factura (?volver=) abre directo la vista Crear.
   const crear = puedeGestionar && (sp.crear === "1" || !!rutaVolver);
-  const idEditar = puedeGestionar && !crear ? entero(sp.editar) : undefined;
-  const idVer = crear || idEditar ? undefined : entero(sp.ver);
+  const idEditar = puedeGestionar && !crear ? tokenValido(sp.editar) : undefined;
+  const idVer = crear || idEditar ? undefined : tokenValido(sp.ver);
 
   // Parámetros del listado (página, tamaño y filtros) que se conservan al ir a una vista y volver.
   const base = { pagina: texto(sp.pagina), tam: texto(sp.tam), q: texto(sp.q), estado: texto(sp.estado) };
@@ -29,7 +30,7 @@ export default async function ProveedoresPage({ searchParams }: { searchParams: 
 
   const idPanel = idEditar ?? idVer;
   const { data: sel } = idPanel
-    ? await db.from("Proveedores").select("*").eq("IdProveedor", idPanel).maybeSingle<Proveedor>()
+    ? await db.from("Proveedores").select("*").eq("Token", idPanel).maybeSingle<Proveedor>()
     : { data: null };
   if (idEditar && sel) return <VistaEditar ctx={ctx} sel={sel} />;
   if (idVer && sel) return <VistaDetalle ctx={ctx} sel={sel} />;

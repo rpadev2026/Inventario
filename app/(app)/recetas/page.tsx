@@ -2,7 +2,8 @@ import { db } from "@/lib/db/supabase";
 import { requerirPaginaPermiso } from "@/lib/auth/session";
 import { tienePermiso } from "@/lib/auth/permisos";
 import { cargarUnidades } from "@/lib/catalogo-nombres";
-import { href, idValido, texto, type Contexto, type Params } from "./comun";
+import { tokenValido } from "@/lib/token";
+import { href, texto, type Contexto, type Params } from "./comun";
 import { VistaFormulario } from "./vista-formulario";
 import { VistaDetalle } from "./vista-detalle";
 import { VistaListado } from "./vista-listado";
@@ -14,8 +15,8 @@ export default async function RecetasPage({ searchParams }: { searchParams: Prom
   const sp = await searchParams;
   // Crear/editar solo con «recetas.gestionar» (la acción del servidor lo exige igualmente).
   const crear = puedeGestionar && sp.crear === "1";
-  const idEditar = puedeGestionar && !crear ? idValido(texto(sp.editar)) : undefined;
-  const idVer = crear || idEditar ? undefined : idValido(texto(sp.ver));
+  const idEditar = puedeGestionar && !crear ? tokenValido(texto(sp.editar)) : undefined;
+  const idVer = crear || idEditar ? undefined : tokenValido(texto(sp.ver));
 
   // Parámetros del listado (página, tamaño y filtros) que se conservan al ir a una vista y volver.
   const base = { pagina: texto(sp.pagina), tam: texto(sp.tam), q: texto(sp.q), estado: texto(sp.estado) };
@@ -27,12 +28,12 @@ export default async function RecetasPage({ searchParams }: { searchParams: Prom
 
   if (crear || idEditar) {
     const { data: rec } = idEditar
-      ? await db.from("Recetas").select("*").eq("IdReceta", idEditar).maybeSingle()
+      ? await db.from("Recetas").select("*").eq("Token", idEditar).maybeSingle()
       : { data: null };
-    if (crear || rec) return <VistaFormulario ctx={ctx} crear={crear} idEditar={idEditar} rec={rec} />;
+    if (crear || rec) return <VistaFormulario ctx={ctx} crear={crear} idEditar={rec?.IdReceta} rec={rec} />;
   }
   if (idVer) {
-    const { data: rec } = await db.from("Recetas").select("*").eq("IdReceta", idVer).maybeSingle();
+    const { data: rec } = await db.from("Recetas").select("*").eq("Token", idVer).maybeSingle();
     if (rec) return <VistaDetalle ctx={ctx} rec={rec} />;
   }
   return <VistaListado ctx={ctx} />;

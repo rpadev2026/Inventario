@@ -15,7 +15,7 @@ import { CrearBodega, EditarBodega } from "./editar";
 
 
 type Params = Record<string, string | string[] | undefined>;
-const entero = (v: unknown) => (typeof v === "string" && /^\d+$/.test(v) && Number(v) > 0 ? Number(v) : undefined);
+import { tokenValido } from "@/lib/token";
 const texto = (v: string | string[] | undefined) => (typeof v === "string" && v !== "" ? v : undefined);
 const tono = { Crítico: "danger", Bajo: "warn", OK: "ok" } as const;
 const AVISOS: Record<string, string> = { creada: "Bodega creada correctamente", editada: "Cambios guardados correctamente" };
@@ -31,8 +31,8 @@ export default async function BodegasPage({ searchParams }: { searchParams: Prom
   const admin = esAdmin(s);
   const sp = await searchParams;
   const crear = admin && sp.crear === "1"; // solo el Administrador ve los formularios de crear y editar
-  const idEditar = admin && !crear ? entero(sp.editar) : undefined;
-  const idVer = crear || idEditar ? undefined : entero(sp.ver);
+  const idEditar = admin && !crear ? tokenValido(sp.editar) : undefined;
+  const idVer = crear || idEditar ? undefined : tokenValido(sp.ver);
 
   // Parámetros del listado (página, tamaño y filtros) que se conservan al ir a una vista y volver.
   const q = texto(sp.q);
@@ -57,7 +57,7 @@ export default async function BodegasPage({ searchParams }: { searchParams: Prom
 
   const idPanel = idEditar ?? idVer;
   const { data: sel } = idPanel
-    ? await db.from("Bodegas").select("IdBodega,NombreBodega,EsCentral,IdEstado").eq("IdBodega", idPanel).maybeSingle()
+    ? await db.from("Bodegas").select("IdBodega,NombreBodega,EsCentral,IdEstado").eq("Token", idPanel).maybeSingle()
     : { data: null };
 
   // ===== Editar: solo los datos de la bodega, con Volver =====
@@ -151,8 +151,8 @@ export default async function BodegasPage({ searchParams }: { searchParams: Prom
                   <td><Badge tone={b.IdEstado === 1 ? "ok" : "neutral"}>{b.IdEstado === 1 ? "Vigente" : "No vigente"}</Badge></td>
                   <td>
                     <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
-                      <Link className="link link-sm" href={href({ ...base, ver: String(b.IdBodega) })} aria-label={`Ver productos de ${b.NombreBodega}`}>Ver</Link>
-                      {admin && <Link className="link link-sm" href={href({ ...base, editar: String(b.IdBodega) })} aria-label={`Editar ${b.NombreBodega}`}>Editar</Link>}
+                      <Link className="link link-sm" href={href({ ...base, ver: b.Token })} aria-label={`Ver productos de ${b.NombreBodega}`}>Ver</Link>
+                      {admin && <Link className="link link-sm" href={href({ ...base, editar: b.Token })} aria-label={`Editar ${b.NombreBodega}`}>Editar</Link>}
                     </div>
                   </td>
                 </tr>

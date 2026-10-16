@@ -2,15 +2,19 @@ import { db } from "@/lib/db/supabase";
 import { requerirPaginaPermiso } from "@/lib/auth/session";
 import { cargarUnidades } from "@/lib/catalogo-nombres";
 import { productosPorId, proveedoresPorId } from "../../buscar/actions";
+import { tokenValido } from "@/lib/token";
 import FormFactura from "./form-factura";
-
-/** Id positivo de la URL (?proveedor= / ?producto=); cualquier otra cosa se ignora. */
-const idDe = (v: unknown) => (typeof v === "string" && /^\d{1,15}$/.test(v) && Number(v) > 0 ? Number(v) : undefined);
 
 export default async function NuevaFacturaPage({ searchParams }: { searchParams: Promise<{ proveedor?: string; producto?: string }> }) {
   await requerirPaginaPermiso("compras.registrar");
   const { proveedor, producto } = await searchParams;
-  const idProveedor = idDe(proveedor), idProducto = idDe(producto);
+  // ?proveedor= / ?producto= traen el token del registro recién creado; cualquier otra cosa se ignora.
+  const tProveedor = tokenValido(proveedor), tProducto = tokenValido(producto);
+  const [{ data: rp }, { data: rd }] = await Promise.all([
+    tProveedor ? db.from("Proveedores").select("IdProveedor").eq("Token", tProveedor).maybeSingle() : { data: null },
+    tProducto ? db.from("Productos").select("IdProducto").eq("Token", tProducto).maybeSingle() : { data: null },
+  ]);
+  const idProveedor = rp?.IdProveedor, idProducto = rd?.IdProducto;
   const [{ data: formas }, unidades, provs, prods] = await Promise.all([
     db.from("FormasPago").select("Codigo,Nombre").eq("IdEstado", 1).order("Nombre"),
     cargarUnidades(),

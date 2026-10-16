@@ -97,6 +97,7 @@ export type Database = {
           IdUsuarioCreacion: number | null
           IdUsuarioModificacion: number | null
           NombreBodega: string
+          Token: string
         }
         Insert: {
           EsCentral?: boolean
@@ -107,6 +108,7 @@ export type Database = {
           IdUsuarioCreacion?: number | null
           IdUsuarioModificacion?: number | null
           NombreBodega: string
+          Token?: string
         }
         Update: {
           EsCentral?: boolean
@@ -117,6 +119,7 @@ export type Database = {
           IdUsuarioCreacion?: number | null
           IdUsuarioModificacion?: number | null
           NombreBodega?: string
+          Token?: string
         }
         Relationships: [
           {
@@ -862,6 +865,7 @@ export type Database = {
           StockCritico: number
           StockMinimo: number
           UnidadBase: string
+          Token: string
         }
         Insert: {
           Codigo?: string | null
@@ -877,6 +881,7 @@ export type Database = {
           StockCritico?: number
           StockMinimo?: number
           UnidadBase: string
+          Token?: string
         }
         Update: {
           Codigo?: string | null
@@ -892,6 +897,7 @@ export type Database = {
           StockCritico?: number
           StockMinimo?: number
           UnidadBase?: string
+          Token?: string
         }
         Relationships: [
           {
@@ -942,6 +948,7 @@ export type Database = {
           Rut: string
           RutRepresentanteLegal: string | null
           Telefono: string | null
+          Token: string
         }
         Insert: {
           Ciudad?: string | null
@@ -960,6 +967,7 @@ export type Database = {
           Rut: string
           RutRepresentanteLegal?: string | null
           Telefono?: string | null
+          Token?: string
         }
         Update: {
           Ciudad?: string | null
@@ -978,6 +986,7 @@ export type Database = {
           Rut?: string
           RutRepresentanteLegal?: string | null
           Telefono?: string | null
+          Token?: string
         }
         Relationships: [
           {
@@ -1025,6 +1034,7 @@ export type Database = {
           IdUsuario: number | null
           Region: string | null
           Telefono: string | null
+          Token: string
         }
         Insert: {
           Ciudad?: string | null
@@ -1040,6 +1050,7 @@ export type Database = {
           IdUsuario?: number | null
           Region?: string | null
           Telefono?: string | null
+          Token?: string
         }
         Update: {
           Ciudad?: string | null
@@ -1055,6 +1066,7 @@ export type Database = {
           IdUsuario?: number | null
           Region?: string | null
           Telefono?: string | null
+          Token?: string
         }
         Relationships: [
           {
@@ -1107,6 +1119,7 @@ export type Database = {
           Nombres: string
           Rut: string
           Telefono: string | null
+          Token: string
         }
         Insert: {
           Apellidos: string
@@ -1120,6 +1133,7 @@ export type Database = {
           Nombres: string
           Rut: string
           Telefono?: string | null
+          Token?: string
         }
         Update: {
           Apellidos?: string
@@ -1133,6 +1147,7 @@ export type Database = {
           Nombres?: string
           Rut?: string
           Telefono?: string | null
+          Token?: string
         }
         Relationships: [
           {
@@ -1284,6 +1299,7 @@ export type Database = {
           RendimientoCantidad: number | null
           RendimientoPorciones: number
           RendimientoUnidad: string | null
+          Token: string
         }
         Insert: {
           CodigoReceta?: string | null
@@ -1297,6 +1313,7 @@ export type Database = {
           RendimientoCantidad?: number | null
           RendimientoPorciones?: number
           RendimientoUnidad?: string | null
+          Token?: string
         }
         Update: {
           CodigoReceta?: string | null
@@ -1310,6 +1327,7 @@ export type Database = {
           RendimientoCantidad?: number | null
           RendimientoPorciones?: number
           RendimientoUnidad?: string | null
+          Token?: string
         }
         Relationships: [
           {
@@ -1394,6 +1412,7 @@ export type Database = {
           IdUsuarioCreacion: number | null
           IdUsuarioModificacion: number | null
           NombreRol: string
+          Token: string
         }
         Insert: {
           DetalleRol?: string | null
@@ -1405,6 +1424,7 @@ export type Database = {
           IdUsuarioCreacion?: number | null
           IdUsuarioModificacion?: number | null
           NombreRol: string
+          Token?: string
         }
         Update: {
           DetalleRol?: string | null
@@ -1416,6 +1436,7 @@ export type Database = {
           IdUsuarioCreacion?: number | null
           IdUsuarioModificacion?: number | null
           NombreRol?: string
+          Token?: string
         }
         Relationships: [
           {
@@ -1501,6 +1522,7 @@ export type Database = {
           IdUsuarioAprobador: number | null
           IdUsuarioSolicitante: number
           NumeroSolicitud: number
+          Token: string
         }
         Insert: {
           EstadoSolicitud?: number
@@ -1512,6 +1534,7 @@ export type Database = {
           IdUsuarioAprobador?: number | null
           IdUsuarioSolicitante: number
           NumeroSolicitud?: number
+          Token?: string
         }
         Update: {
           EstadoSolicitud?: number
@@ -1523,6 +1546,7 @@ export type Database = {
           IdUsuarioAprobador?: number | null
           IdUsuarioSolicitante?: number
           NumeroSolicitud?: number
+          Token?: string
         }
         Relationships: [
           {
@@ -1699,6 +1723,7 @@ export type Database = {
           IdUsuarioModificacion: number | null
           Nombres: string
           Rut: string
+          Token: string
         }
         Insert: {
           Apellidos: string
@@ -1711,6 +1736,7 @@ export type Database = {
           IdUsuarioModificacion?: number | null
           Nombres: string
           Rut: string
+          Token?: string
         }
         Update: {
           Apellidos?: string
@@ -1723,6 +1749,7 @@ export type Database = {
           IdUsuarioModificacion?: number | null
           Nombres?: string
           Rut?: string
+          Token?: string
         }
         Relationships: [
           {

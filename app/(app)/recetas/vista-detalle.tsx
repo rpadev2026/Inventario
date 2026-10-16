@@ -12,6 +12,9 @@ export async function VistaDetalle({ ctx, rec }: { ctx: Contexto; rec: RecetaRow
     db.from("RecetaDetalles").select("IdDetalle,Cantidad,PorcionNeta,UnidadMedida,PorcentajeMerma").eq("IdReceta", idVer),
   ]);
   const porDetalle = new Map((detalles ?? []).map((d) => [d.IdDetalle as number, d]));
+  const idsSub = (calculo?.lineas ?? []).filter((l) => l.tipo === "subreceta").map((l) => l.id);
+  const { data: toks } = idsSub.length ? await db.from("Recetas").select("IdReceta,Token").in("IdReceta", idsSub) : { data: [] };
+  const tokenSub = new Map((toks ?? []).map((t) => [t.IdReceta, t.Token]));
   const lineas = (calculo?.lineas ?? []).map((l) => ({ ...l, d: porDetalle.get(l.detalle) }));
   const sinFactura = lineas.filter((l) => l.sinCosto && l.tipo === "producto").map((l) => l.nombre);
   const subIncompletas = lineas.filter((l) => l.sinCosto && l.tipo === "subreceta").map((l) => l.nombre);
@@ -52,7 +55,7 @@ export async function VistaDetalle({ ctx, rec }: { ctx: Contexto; rec: RecetaRow
                 <td>
                   <div className="flex flex-wrap items-center gap-2">
                     {l.tipo === "subreceta"
-                      ? <Link className="link link-sm" href={href({ ...base, ver: String(l.id) })}>{l.nombre}</Link>
+                      ? <Link className="link link-sm" href={href({ ...base, ver: tokenSub.get(l.id) })}>{l.nombre}</Link>
                       : l.nombre}
                     {l.tipo === "subreceta" && <Badge tone="info">Sub-receta</Badge>}
                   </div>

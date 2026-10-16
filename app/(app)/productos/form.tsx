@@ -9,7 +9,7 @@ import { opcionesCatalogo, type ItemCatalogo } from "@/lib/catalogo-opciones";
 import { unidadesBase, unidadesDeFamilia, type UnidadInfo } from "@/lib/unidades";
 
 export type Producto = {
-  IdProducto: number; Codigo: string | null; Nombre: string; UnidadBase: string; Formato: string;
+  Token: string; IdProducto: number; Codigo: string | null; Nombre: string; UnidadBase: string; Formato: string;
   CostoUnitarioBase: number | null; StockMinimo: number; StockCritico: number; IdEstado: number;
 };
 
@@ -35,7 +35,7 @@ export default function FormProducto({ p, unidades, formatos, unidadBaseBloquead
     onOk: (r) => {
       // Solo al crear: vuelve a la pantalla de origen (ruta interna segura) con el nuevo producto elegido.
       const ruta = rutaVolverSegura(volver);
-      if (!p && r.id && ruta) router.push(`${ruta}?producto=${r.id}`);
+      if (!p && r.token && ruta) router.push(`${ruta}?producto=${r.token}`);
       else if (despuesDeGuardar) router.push(despuesDeGuardar);
     },
   });

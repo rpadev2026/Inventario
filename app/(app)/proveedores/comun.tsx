@@ -14,7 +14,6 @@ export type Contexto = {
 };
 export type Territorio = Awaited<ReturnType<typeof cargarTerritorio>>;
 
-export const entero = (v: unknown) => (typeof v === "string" && /^\d+$/.test(v) && Number(v) > 0 ? Number(v) : undefined);
 export const texto = (v: string | string[] | undefined) => (typeof v === "string" && v !== "" ? v : undefined);
 export const AVISOS: Record<string, string> = {
   creado: "Proveedor creado correctamente", editado: "Cambios guardados correctamente",

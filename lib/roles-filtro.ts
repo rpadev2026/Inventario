@@ -1,6 +1,6 @@
 import { normalizar } from "./buscar";
 
-export type RolFila = { IdRol: number; NombreRol: string; DetalleRol: string | null; IdEstado: number; EsBase: boolean };
+export type RolFila = { Token: string; IdRol: number; NombreRol: string; DetalleRol: string | null; IdEstado: number; EsBase: boolean };
 
 /** Filtra por nombre o detalle (sin distinguir mayúsculas ni tildes) y por estado; mantiene el orden de creación. */
 export function filtrarRoles(roles: RolFila[], f: { q?: string; estado?: 0 | 1 }): RolFila[] {

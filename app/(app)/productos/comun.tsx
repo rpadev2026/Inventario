@@ -20,7 +20,6 @@ export type Contexto = {
 };
 
 export const texto = (v: string | string[] | undefined) => (typeof v === "string" && v !== "" ? v : undefined);
-export const idValido = (v: string | undefined) => (v && /^[1-9]\d{0,14}$/.test(v) ? Number(v) : undefined);
 export const tono = { Crítico: "danger", Bajo: "warn", OK: "ok" } as const;
 export const AVISOS: Record<string, string> = { creado: "Producto creado correctamente", editado: "Cambios guardados correctamente" };
 

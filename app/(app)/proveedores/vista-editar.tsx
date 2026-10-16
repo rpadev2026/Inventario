@@ -17,18 +17,18 @@ export async function VistaEditar({ ctx, sel }: { ctx: Contexto; sel: Proveedor 
   ]);
   const sucursales = (sucs ?? []) as Sucursal[];
   const vendedores = (vens ?? []) as Vendedor[];
-  const urlEdicion = (extra: Record<string, string | undefined> = {}) => href({ ...base, editar: String(sel.IdProveedor), ...extra });
+  const urlEdicion = (extra: Record<string, string | undefined> = {}) => href({ ...base, editar: sel.Token, ...extra });
 
   // Sucursal: editar una existente o agregar una nueva.
   const pSuc = texto(sp.sucursal);
   if (pSuc) {
-    const suc = pSuc === "nueva" ? undefined : sucursales.find((x) => String(x.IdSucursal) === pSuc);
+    const suc = pSuc === "nueva" ? undefined : sucursales.find((x) => x.Token === pSuc);
     if (pSuc === "nueva" || suc) return <VistaSucursal sel={sel} suc={suc} territorio={territorio} urlEdicion={urlEdicion} />;
   }
   // Vendedor: editar uno existente o agregar uno nuevo.
   const pVen = texto(sp.vendedor);
   if (pVen) {
-    const ven = pVen === "nuevo" ? undefined : vendedores.find((x) => String(x.IdVendedor) === pVen);
+    const ven = pVen === "nuevo" ? undefined : vendedores.find((x) => x.Token === pVen);
     if (pVen === "nuevo" || ven) return <VistaVendedor sel={sel} ven={ven} urlEdicion={urlEdicion} />;
   }
 
@@ -60,7 +60,7 @@ export async function VistaEditar({ ctx, sel }: { ctx: Contexto; sel: Proveedor 
                 <tr key={x.IdSucursal}>
                   <td>{x.Direccion}</td><td>{region(x.Region)}</td><td>{ciudad(x.Ciudad)}</td><td>{comuna(x.Comuna)}</td>
                   <td>{x.Telefono}</td><td>{x.Correo}</td><td>{x.EncargadoSucursal}</td><td>{estadoBadge(x.IdEstado)}</td>
-                  <td><Link className="link link-sm" href={urlEdicion({ sucursal: String(x.IdSucursal) })} aria-label={`Editar sucursal ${x.Direccion}`}>Editar</Link></td>
+                  <td><Link className="link link-sm" href={urlEdicion({ sucursal: x.Token })} aria-label={`Editar sucursal ${x.Direccion}`}>Editar</Link></td>
                 </tr>
               ))}
               {!sucursales.length && <tr><td colSpan={9} className="text-muted">Este proveedor no tiene sucursales.</td></tr>}
@@ -81,7 +81,7 @@ export async function VistaEditar({ ctx, sel }: { ctx: Contexto; sel: Proveedor 
               {vendedores.map((v) => (
                 <tr key={v.IdVendedor}>
                   <td>{v.Rut}</td><td>{v.Nombres}</td><td>{v.Apellidos}</td><td>{v.Telefono}</td><td>{v.Correo}</td><td>{estadoBadge(v.IdEstado)}</td>
-                  <td><Link className="link link-sm" href={urlEdicion({ vendedor: String(v.IdVendedor) })} aria-label={`Editar vendedor ${v.Nombres} ${v.Apellidos}`}>Editar</Link></td>
+                  <td><Link className="link link-sm" href={urlEdicion({ vendedor: v.Token })} aria-label={`Editar vendedor ${v.Nombres} ${v.Apellidos}`}>Editar</Link></td>
                 </tr>
               ))}
               {!vendedores.length && <tr><td colSpan={7} className="text-muted">Este proveedor no tiene vendedores.</td></tr>}

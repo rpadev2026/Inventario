@@ -41,6 +41,15 @@ describe("registrar_factura", () => {
   it("cada factura recibe un token único para la URL", async () => {
     expect(Number(await val(`select count(distinct "Token") from "Compras"`))).toBe(Number(await val(`select count(*) from "Compras"`)));
   });
+  it("las tablas con detalle en la URL tienen token único y listar_pagina lo devuelve", async () => {
+    for (const t of ["Productos", "Proveedores", "ProveedoresSucursales", "ProveedoresVendedores", "Recetas", "Usuarios", "Bodegas", "Roles", "Solicitudes"]) {
+      await db.query(`select count(distinct "Token") from "${t}"`);
+    }
+    for (const t of ["productos", "usuarios", "bodegas", "proveedores"]) { // (recetas no tiene filas en este archivo)
+      const r = await val(`select listar_pagina('${t}', '', null, 0, 1)->'filas'->0->>'Token'`);
+      expect(r).toMatch(/^[0-9a-f-]{36}$/);
+    }
+  });
   it("acumula stock en una segunda factura", async () => {
     await db.query(FACT(2));
     expect(Number(await val(`select "Cantidad" from "StockBodega" where "IdProducto"=1 and "IdBodega"=1`))).toBe(100000);

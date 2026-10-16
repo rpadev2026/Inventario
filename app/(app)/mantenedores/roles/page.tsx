@@ -17,7 +17,7 @@ import { guardarRol } from "./actions";
 
 type Params = Record<string, string | string[] | undefined>;
 const RUTA = "/mantenedores/roles";
-const entero = (v: unknown) => (typeof v === "string" && /^\d+$/.test(v) && Number(v) > 0 ? Number(v) : undefined);
+import { tokenValido } from "@/lib/token";
 const texto = (v: string | string[] | undefined) => (typeof v === "string" && v !== "" ? v : undefined);
 const AVISOS: Record<string, string> = { creado: "Rol creado correctamente", editado: "Cambios guardados correctamente" };
 const estadoBadge = (e: number) => <Badge tone={e === 1 ? "ok" : "neutral"}>{e === 1 ? "Vigente" : "No vigente"}</Badge>;
@@ -35,8 +35,8 @@ export default async function RolesPage({ searchParams }: { searchParams: Promis
   await requerirPaginaAdmin();
   const [sp, catalogo] = await Promise.all([searchParams, cargarPermisos()]);
   const crear = sp.crear === "1";
-  const idEditar = crear ? undefined : entero(sp.editar);
-  const idVer = crear || idEditar ? undefined : entero(sp.ver);
+  const idEditar = crear ? undefined : tokenValido(sp.editar);
+  const idVer = crear || idEditar ? undefined : tokenValido(sp.ver);
 
   // Parámetros del listado (página, tamaño y filtros) que se conservan al ir a una vista y volver.
   const q = texto(sp.q);
@@ -60,7 +60,7 @@ export default async function RolesPage({ searchParams }: { searchParams: Promis
   }
 
   const [{ data: roles }, { data: rp }, { data: ur }] = await Promise.all([
-    leerTodo((a, b) => db.from("Roles").select("IdRol,NombreRol,DetalleRol,IdEstado,EsBase", { count: "exact" }).order("IdRol").range(a, b)),
+    leerTodo((a, b) => db.from("Roles").select("Token,IdRol,NombreRol,DetalleRol,IdEstado,EsBase", { count: "exact" }).order("IdRol").range(a, b)),
     leerTodo((a, b) => db.from("RolesPermisos").select("IdRol,Permiso", { count: "exact" }).order("IdRol").order("Permiso").range(a, b)),
     leerTodo((a, b) => db.from("UsuariosRoles").select("IdUsuario,IdRol", { count: "exact" }).eq("IdEstado", 1).order("IdUsuario").order("IdRol").range(a, b)),
   ]);
@@ -70,7 +70,7 @@ export default async function RolesPage({ searchParams }: { searchParams: Promis
   const cantPermisos = (r: RolItem) => (r.NombreRol === "Administrador" ? "Todos" : String(permisosDe(r.IdRol).length));
 
   // ===== Editar: el formulario del rol con la matriz de permisos, con Volver =====
-  const enEdicion = idEditar ? todos.find((r) => r.IdRol === idEditar) : undefined;
+  const enEdicion = idEditar ? todos.find((r) => r.Token === idEditar) : undefined;
   if (enEdicion) {
     return (
       <section className="space-y-4">
@@ -87,7 +87,7 @@ export default async function RolesPage({ searchParams }: { searchParams: Promis
   }
 
   // ===== Ver: datos del rol y sus permisos por módulo (solo lectura) =====
-  const enVista = idVer ? todos.find((r) => r.IdRol === idVer) : undefined;
+  const enVista = idVer ? todos.find((r) => r.Token === idVer) : undefined;
   if (enVista) {
     const asignados = new Set(permisosDe(enVista.IdRol));
     const esAdmin = enVista.NombreRol === "Administrador";
@@ -163,8 +163,8 @@ export default async function RolesPage({ searchParams }: { searchParams: Promis
                   <td>{estadoBadge(r.IdEstado)}</td>
                   <td>
                     <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
-                      <Link className="link link-sm" href={href({ ...base, ver: String(r.IdRol) })} aria-label={`Ver ${r.NombreRol}`}>Ver</Link>
-                      <Link className="link link-sm" href={href({ ...base, editar: String(r.IdRol) })} aria-label={`Editar ${r.NombreRol}`}>Editar</Link>
+                      <Link className="link link-sm" href={href({ ...base, ver: r.Token })} aria-label={`Ver ${r.NombreRol}`}>Ver</Link>
+                      <Link className="link link-sm" href={href({ ...base, editar: r.Token })} aria-label={`Editar ${r.NombreRol}`}>Editar</Link>
                     </div>
                   </td>
                 </tr>

@@ -2,7 +2,7 @@ import { describe, it, expect } from "vitest";
 import { filtrarProveedores, type ProveedorFila } from "./proveedores-filtro";
 
 const P = (IdProveedor: number, Rut: string, RazonSocial: string, Giro: string | null = null, IdEstado = 1): ProveedorFila => ({
-  IdProveedor, Rut, RazonSocial, Giro, Telefono: null, Correo: null, IdEstado,
+  Token: "t", IdProveedor, Rut, RazonSocial, Giro, Telefono: null, Correo: null, IdEstado,
 });
 const datos = [
   P(1, "76086428-5", "Distribuidora Andina SpA", "Alimentos y bebidas"),

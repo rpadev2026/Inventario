@@ -22,7 +22,7 @@ const EstadoSelect = ({ valor }: { valor?: number }) => (
 );
 
 export type Proveedor = {
-  IdProveedor: number; Rut: string; RazonSocial: string; Direccion: string | null; Region: string | null; Comuna: string | null;
+  Token: string; IdProveedor: number; Rut: string; RazonSocial: string; Direccion: string | null; Region: string | null; Comuna: string | null;
   Ciudad: string | null; Giro: string | null; RutRepresentanteLegal: string | null; NombreRepresentanteLegal: string | null;
   Telefono: string | null; Correo: string | null; IdEstado: number;
 };
@@ -40,7 +40,7 @@ export function FormProveedor({ p, volver, territorio, despuesDeGuardar }: {
     onOk: (r) => {
       // Solo al crear: vuelve a la pantalla de origen (ruta interna segura) con el nuevo proveedor elegido.
       const ruta = rutaVolverSegura(volver);
-      if (!p && r.id && ruta) router.push(`${ruta}?proveedor=${encodeURIComponent(String(r.id))}`);
+      if (!p && r.token && ruta) router.push(`${ruta}?proveedor=${r.token}`);
       else if (despuesDeGuardar) router.push(despuesDeGuardar);
     },
   });
@@ -68,7 +68,7 @@ export function FormProveedor({ p, volver, territorio, despuesDeGuardar }: {
 }
 
 export type Sucursal = {
-  IdSucursal: number; Region: string | null; Comuna: string | null; Ciudad: string | null; Direccion: string | null;
+  Token: string; IdSucursal: number; Region: string | null; Comuna: string | null; Ciudad: string | null; Direccion: string | null;
   Telefono: string | null; Correo: string | null; EncargadoSucursal: string | null; IdEstado: number;
 };
 
@@ -103,7 +103,7 @@ export function FormSucursal({ idProveedor, s, territorio, despuesDeGuardar }: {
 }
 
 export type Vendedor = {
-  IdVendedor: number; Rut: string; Nombres: string; Apellidos: string; Telefono: string | null; Correo: string | null; IdEstado: number;
+  Token: string; IdVendedor: number; Rut: string; Nombres: string; Apellidos: string; Telefono: string | null; Correo: string | null; IdEstado: number;
 };
 
 export function FormVendedor({ idProveedor, v, despuesDeGuardar }: {

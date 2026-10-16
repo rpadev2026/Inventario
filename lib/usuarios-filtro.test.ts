@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { filtrarUsuarios, type UsuarioFila } from "./usuarios-filtro";
 
-const U = (IdUsuario: number, Rut: string, Nombres: string, Apellidos: string, Correo: string, IdEstado = 1): UsuarioFila => ({ IdUsuario, Rut, Nombres, Apellidos, Correo, IdEstado });
+const U = (IdUsuario: number, Rut: string, Nombres: string, Apellidos: string, Correo: string, IdEstado = 1): UsuarioFila => ({ Token: "t", IdUsuario, Rut, Nombres, Apellidos, Correo, IdEstado });
 const datos = [
   U(1, "12345678-5", "Ana María", "Pérez Soto", "ana.perez@empresa.cl"),
   U(2, "76086428-5", "Carlos", "Álvarez Núñez", "carlos@empresa.cl", 0),

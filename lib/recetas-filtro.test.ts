@@ -2,7 +2,7 @@ import { describe, it, expect } from "vitest";
 import { filtrarRecetas, type RecetaFila } from "./recetas-filtro";
 
 let n = 0;
-const R = (CodigoReceta: string | null, Nombre: string, IdEstado = 1): RecetaFila => ({ IdReceta: ++n, CodigoReceta, Nombre, RendimientoPorciones: 1, IdEstado });
+const R = (CodigoReceta: string | null, Nombre: string, IdEstado = 1): RecetaFila => ({ Token: "t", IdReceta: ++n, CodigoReceta, Nombre, RendimientoPorciones: 1, IdEstado });
 const datos = [R("TIR-01", "Tira asada"), R(null, "Crema pastelera"), R("PAN-02", "Panqueque", 0), R("E2E-R1", "Salsa criolla")];
 
 describe("filtrarRecetas", () => {

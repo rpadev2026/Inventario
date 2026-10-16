@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { filtrarBodegas, leerEstado, type BodegaFila } from "./bodegas-filtro";
 
-const B = (IdBodega: number, NombreBodega: string, IdEstado = 1, EsCentral = false): BodegaFila => ({ IdBodega, NombreBodega, IdEstado, EsCentral });
+const B = (IdBodega: number, NombreBodega: string, IdEstado = 1, EsCentral = false): BodegaFila => ({ Token: "t", IdBodega, NombreBodega, IdEstado, EsCentral });
 const datos = [
   B(3, "Cocina Norte"), B(1, "Bodega Central", 1, true), B(4, "Cócina Sur", 0), B(2, "Barra"), B(5, "Ñandú", 0), B(6, "Terraza 2"),
 ];

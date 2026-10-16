@@ -3,7 +3,7 @@ import { filtrarProductos, type ProductoFila } from "./productos-filtro";
 
 let n = 0;
 const P = (Codigo: string | null, Nombre: string, IdEstado = 1): ProductoFila => ({
-  IdProducto: ++n, Codigo, Nombre, UnidadBase: "G", Formato: "CAJA",
+  Token: "t", IdProducto: ++n, Codigo, Nombre, UnidadBase: "G", Formato: "CAJA",
   CostoUnitarioBase: n % 2 ? null : 1, StockMinimo: 10, StockCritico: 5, IdEstado,
 });
 const datos = [

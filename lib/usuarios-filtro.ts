@@ -1,6 +1,6 @@
 import { normalizar } from "./buscar";
 
-export type UsuarioFila = { IdUsuario: number; Rut: string; Nombres: string; Apellidos: string; Correo: string; IdEstado: number };
+export type UsuarioFila = { Token: string; IdUsuario: number; Rut: string; Nombres: string; Apellidos: string; Correo: string; IdEstado: number };
 
 /** Filtra por RUT (con o sin puntos y guion), nombre completo o correo, sin distinguir mayúsculas ni tildes, y por estado; ordena por apellidos y nombres. */
 export function filtrarUsuarios(usuarios: UsuarioFila[], f: { q?: string; estado?: 0 | 1 }): UsuarioFila[] {

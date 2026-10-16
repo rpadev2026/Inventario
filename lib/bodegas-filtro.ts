@@ -1,6 +1,6 @@
 import { normalizar } from "./buscar";
 
-export type BodegaFila = { IdBodega: number; NombreBodega: string; EsCentral: boolean; IdEstado: number };
+export type BodegaFila = { Token: string; IdBodega: number; NombreBodega: string; EsCentral: boolean; IdEstado: number };
 
 export { leerEstado } from "./filtro-estado";
 

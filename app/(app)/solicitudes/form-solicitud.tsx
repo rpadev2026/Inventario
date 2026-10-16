@@ -30,7 +30,7 @@ export default function FormSolicitud(props: {
     start(async () => {
       const r = await guardarSolicitud({ idSolicitud: props.inicial?.idSolicitud, idBodega, items: lineas });
       if (r.error) setError(r.error);
-      else router.push(`/solicitudes/${r.id}`);
+      else router.push(`/solicitudes/${r.token}`);
     });
   }
 

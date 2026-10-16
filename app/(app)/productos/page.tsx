@@ -4,7 +4,8 @@ import { tienePermiso } from "@/lib/auth/permisos";
 import { rutaVolverSegura } from "@/lib/volver";
 import { cargarCatalogo, cargarUnidades } from "@/lib/catalogo-nombres";
 import type { Producto } from "./form";
-import { href, idValido, texto, type Contexto, type Params } from "./comun";
+import { tokenValido } from "@/lib/token";
+import { href, texto, type Contexto, type Params } from "./comun";
 import { VistaCrear, VistaEditar } from "./vista-formulario";
 import { VistaDetalle } from "./vista-detalle";
 import { VistaListado } from "./vista-listado";
@@ -18,9 +19,9 @@ export default async function ProductosPage({ searchParams }: { searchParams: Pr
   // Crear/editar solo con «productos.gestionar» (la acción del servidor lo exige igualmente).
   // Venir desde una factura (?volver=) abre directo la vista Crear.
   const crear = puedeGestionar && (sp.crear === "1" || !!rutaVolver);
-  // Un id inválido (texto, 0, negativo) se ignora y se muestra el listado.
-  const idEditar = puedeGestionar && !crear ? idValido(texto(sp.editar)) : undefined;
-  const idVer = crear || idEditar ? undefined : idValido(texto(sp.ver));
+  // Un token inválido se ignora y se muestra el listado.
+  const idEditar = puedeGestionar && !crear ? tokenValido(texto(sp.editar)) : undefined;
+  const idVer = crear || idEditar ? undefined : tokenValido(texto(sp.ver));
 
   // Parámetros del listado (página, tamaño y filtros) que se conservan al ir a una vista y volver.
   const base = { pagina: texto(sp.pagina), tam: texto(sp.tam), q: texto(sp.q), estado: texto(sp.estado) };
@@ -37,7 +38,7 @@ export default async function ProductosPage({ searchParams }: { searchParams: Pr
 
   const idPanel = idEditar ?? idVer;
   const { data: sel } = idPanel
-    ? await db.from("Productos").select("*").eq("IdProducto", idPanel).maybeSingle<Producto>()
+    ? await db.from("Productos").select("*").eq("Token", idPanel).maybeSingle<Producto>()
     : { data: null };
   if (idEditar && sel) return <VistaEditar ctx={ctx} sel={sel} />;
   if (idVer && sel) return <VistaDetalle ctx={ctx} sel={sel} />;
