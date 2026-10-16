@@ -39,11 +39,13 @@ export default function VinculoFudo({ idReceta, idFudo, nombreActual }: { idRece
         onCambio={(v, o) => { setValor(v); if (o) setElegida(o); }}
       />
       {error && <p role="alert" className="alert alert-error">{error}</p>}
-      <div className="flex flex-wrap gap-3">
-        <button type="button" className="btn btn-primary" disabled={pendiente || valor === (idFudo ?? "")} onClick={() => guardar(valor)}>
-          {pendiente ? "Guardando…" : valor ? "Guardar vínculo" : "Quitar vínculo"}
-        </button>
-      </div>
+      {(valor || idFudo) && (
+        <div className="flex flex-wrap gap-3">
+          <button type="button" className="btn btn-primary" disabled={pendiente || valor === (idFudo ?? "")} onClick={() => guardar(valor)}>
+            {pendiente ? "Guardando…" : valor ? "Guardar vínculo" : "Quitar vínculo"}
+          </button>
+        </div>
+      )}
     </div>
   );
 }
