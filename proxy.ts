@@ -2,7 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { jwtVerify } from "jose";
 
 // /api/correos/procesar se autentica con CRON_SECRET (lo llama un programador, sin sesión).
-const PUBLICAS = ["/login", "/api/correos/procesar"];
+const PUBLICAS = ["/login", "/api/correos/procesar", "/api/fudo/sincronizar"];
 
 /** CSP con nonce por petición: solo se ejecutan los scripts que Next marca con él ('strict-dynamic' cubre los que estos cargan). */
 function politica(nonce: string): string {

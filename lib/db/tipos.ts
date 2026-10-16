@@ -1301,6 +1301,7 @@ export type Database = {
           RendimientoUnidad: string | null
           Token: string
           IdProductoFudo: string | null
+          IdBodegaConsumo: number | null
         }
         Insert: {
           CodigoReceta?: string | null
@@ -1316,6 +1317,7 @@ export type Database = {
           RendimientoUnidad?: string | null
           Token?: string
           IdProductoFudo?: string | null
+          IdBodegaConsumo?: number | null
         }
         Update: {
           CodigoReceta?: string | null
@@ -1331,6 +1333,7 @@ export type Database = {
           RendimientoUnidad?: string | null
           Token?: string
           IdProductoFudo?: string | null
+          IdBodegaConsumo?: number | null
         }
         Relationships: [
           {
@@ -1714,6 +1717,54 @@ export type Database = {
           },
         ]
       }
+      ConsumosVenta: {
+        Row: {
+          Cantidad: number
+          IdBodega: number
+          IdConsumo: number
+          IdProducto: number
+          IdReceta: number
+          IdVentaFudo: string
+        }
+        Insert: {
+          Cantidad: number
+          IdBodega: number
+          IdConsumo?: number
+          IdProducto: number
+          IdReceta: number
+          IdVentaFudo: string
+        }
+        Update: {
+          Cantidad?: number
+          IdBodega?: number
+          IdConsumo?: number
+          IdProducto?: number
+          IdReceta?: number
+          IdVentaFudo?: string
+        }
+        Relationships: []
+      }
+      VentasFudo: {
+        Row: {
+          FechaCierre: string
+          FechaProceso: string
+          IdVentaFudo: string
+          Omitidos: Json
+        }
+        Insert: {
+          FechaCierre: string
+          FechaProceso?: string
+          IdVentaFudo: string
+          Omitidos?: Json
+        }
+        Update: {
+          FechaCierre?: string
+          FechaProceso?: string
+          IdVentaFudo?: string
+          Omitidos?: Json
+        }
+        Relationships: []
+      }
       Usuarios: {
         Row: {
           Apellidos: string
@@ -1938,8 +1989,12 @@ export type Database = {
         Returns: number
       }
       vincular_receta_fudo: {
-        Args: { p_fudo: string; p_receta: number; p_usuario: number }
+        Args: { p_bodega: number; p_fudo: string; p_receta: number; p_usuario: number }
         Returns: undefined
+      }
+      procesar_venta_fudo: {
+        Args: { p_cierre: string; p_lineas: Json; p_venta: string }
+        Returns: Json
       }
       reclamar_correos: {
         Args: { p_max: number }

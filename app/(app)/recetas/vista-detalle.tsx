@@ -24,6 +24,9 @@ export async function VistaDetalle({ ctx, rec }: { ctx: Contexto; rec: RecetaRow
       try { pf = (await cliente.porId([rec.IdProductoFudo]))[0] ?? null; } catch (e) { console.error("[fudo] detalle:", (e as Error).message); errorFudo = MSG_FUDO_CAIDO; }
     }
   }
+  const { data: bodegasVigentes } = puedeGestionar ? await db.from("Bodegas").select("IdBodega,NombreBodega").eq("IdEstado", 1).order("NombreBodega") : { data: null };
+  const bodegas = (bodegasVigentes ?? []).map((b) => ({ id: b.IdBodega, nombre: b.NombreBodega }));
+  const nombreBodega = rec.IdBodegaConsumo ? (await db.from("Bodegas").select("NombreBodega").eq("IdBodega", rec.IdBodegaConsumo).maybeSingle()).data?.NombreBodega : undefined;
   const idsSub = (calculo?.lineas ?? []).filter((l) => l.tipo === "subreceta").map((l) => l.id);
   const { data: toks } = idsSub.length ? await db.from("Recetas").select("IdReceta,Token").in("IdReceta", idsSub) : { data: [] };
   const tokenSub = new Map((toks ?? []).map((t) => [t.IdReceta, t.Token]));
@@ -54,12 +57,13 @@ export async function VistaDetalle({ ctx, rec }: { ctx: Contexto; rec: RecetaRow
           {pf && (
             <div className="form-grid form-grid-4">
               <Dato titulo="Producto en Fudo">{pf.nombre}</Dato>
+              <Dato titulo="Descuenta stock de">{nombreBodega}</Dato>
               <Dato titulo="Precio de venta (con IVA)">{clp(pf.precio)}</Dato>
               <Dato titulo={`Margen por porción${calculo?.incompleto ? " (parcial)" : ""}`}>{calculo ? clp(pf.precio - calculo.porcion) : ""}</Dato>
               <Dato titulo={`Costo sobre el precio${calculo?.incompleto ? " (parcial)" : ""}`}>{calculo && pf.precio > 0 ? `${num.format((calculo.porcion / pf.precio) * 100)} %` : ""}</Dato>
             </div>
           )}
-          {puedeGestionar && <VinculoFudo idReceta={rec.IdReceta} idFudo={rec.IdProductoFudo} nombreActual={pf?.nombre} />}
+          {puedeGestionar && <VinculoFudo idReceta={rec.IdReceta} idFudo={rec.IdProductoFudo} nombreActual={pf?.nombre} idBodega={rec.IdBodegaConsumo} bodegas={bodegas} />}
         </div>
       )}
       {!calculo && <p role="alert" className="alert alert-error">No se pudo calcular el costo de la receta. Revise sus ingredientes e inténtelo de nuevo.</p>}

@@ -10,7 +10,7 @@ import { join } from "node:path";
  */
 const SOLO_LEER = [
   "Compras", "ComprasDetalle", "HistorialClaves", "HistorialPreciosProducto", "HistorialSolicitudes", "MovimientosBodega", "Permisos",
-  "RecetaDetalles", "Recetas", "Roles", "RolesPermisos", "Solicitudes", "SolicitudesDetalle", "StockBodega", "BodegaCentral",
+  "RecetaDetalles", "Recetas", "Roles", "RolesPermisos", "Solicitudes", "SolicitudesDetalle", "StockBodega", "BodegaCentral", "VentasFudo", "ConsumosVenta",
 ];
 const LEER_INSERTAR_ACTUALIZAR = [
   "Bodegas", "Proveedores", "ProveedoresSucursales", "ProveedoresVendedores", "Productos", "UsuariosRoles",
@@ -103,7 +103,8 @@ describe("rol app_servidor: lo que la aplicación hace, funciona", () => {
     await permitido(`select listar_pagina('bodegas','',null,0,10)`);
     await permitido(`select buscar_subrecetas('', null, 10)`);
     await db.exec(`insert into "Recetas"("Nombre") values ('PLATO')`);
-    await permitido(`select vincular_receta_fudo(1, (select "IdReceta" from "Recetas" limit 1), '1')`);
+    await permitido(`select vincular_receta_fudo(1, (select "IdReceta" from "Recetas" limit 1), '1', 1)`);
+    await permitido(`select procesar_venta_fudo('V-1', now(), '[]'::jsonb)`);
     await permitido(`select registrar_intento_login('1.1.1.1', 10, 60)`);
     await permitido(`select registrar_fallo_login(1, 5, 15)`);
     await permitido(`select calcular_recetas(array[]::bigint[])`);
