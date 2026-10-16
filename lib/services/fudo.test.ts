@@ -23,6 +23,47 @@ function falso(opciones: { productos?: unknown[]; estados?: number[]; exp?: numb
 }
 const autenticaciones = (l: { url: string }[]) => l.filter((x) => x.url.includes("auth.fu.do")).length;
 
+const venta = (id: number, items: { id: number; q: number; producto: number; canceled?: boolean }[]) => ({
+  id: String(id), type: "Sale", attributes: { closedAt: "2026-10-15T20:00:00Z", saleState: "CLOSED" },
+  relationships: { items: { data: items.map((i) => ({ id: String(i.id), type: "Item" })) } },
+});
+const item = (id: number, producto: number, quantity: number, canceled = false) => ({
+  id: String(id), type: "Item", attributes: { quantity, canceled }, relationships: { product: { data: { id: String(producto), type: "Product" } } },
+});
+const prod = (id: number, name: string) => ({ id: String(id), type: "Product", attributes: { name } });
+
+/** Servidor falso de ventas: devuelve las páginas programadas, en orden. */
+function ventasFalso(paginas: { data: unknown[]; included?: unknown[] }[]) {
+  const urls: string[] = [];
+  const fetchFalso = (async (url: string) => {
+    urls.push(decodeURIComponent(url));
+    if (url.includes("auth.fu.do")) return new Response(JSON.stringify({ token: "t", exp: "9999999999" }), { status: 200 });
+    return new Response(JSON.stringify(paginas.shift() ?? { data: [] }), { status: 200 });
+  }) as unknown as typeof fetch;
+  return { cliente: crearClienteFudo({ apiKey: "k", apiSecret: "s", fetch: fetchFalso }), urls };
+}
+
+describe("ventas cerradas de Fudo", () => {
+  it("arma el filtro por estado y rango de cierre, y trae las líneas con su producto (sin las anuladas)", async () => {
+    const { cliente, urls } = ventasFalso([{
+      data: [venta(1, [{ id: 11, q: 2, producto: 5 }, { id: 12, q: 1, producto: 6 }, { id: 13, q: 1, producto: 5 }])],
+      included: [item(11, 5, 2), item(12, 6, 1, true), item(13, 5, 1), prod(5, "Pizza"), prod(6, "Café")],
+    }]);
+    const r = await cliente.ventasCerradas(new Date("2026-10-15T00:00:00Z"), new Date("2026-10-16T00:00:00Z"));
+    expect(urls.at(-1)).toContain("filter[saleState]=eq.CLOSED&filter[closedAt]=and(gte.2026-10-15T00:00:00.000Z,lt.2026-10-16T00:00:00.000Z)");
+    expect(urls.at(-1)).toContain("include=items,items.product");
+    expect(r).toEqual([{ id: "1", cierre: "2026-10-15T20:00:00Z", lineas: [{ producto: "5", nombre: "Pizza", cantidad: 2 }, { producto: "5", nombre: "Pizza", cantidad: 1 }] }]);
+  });
+  it("pagina hasta que una página viene incompleta", async () => {
+    const llena = Array.from({ length: 100 }, (_, i) => venta(i + 1, []));
+    const { cliente, urls } = ventasFalso([{ data: llena }, { data: [venta(101, [])] }]);
+    const r = await cliente.ventasCerradas(new Date(0), new Date());
+    expect(r).toHaveLength(101);
+    expect(urls.filter((u) => u.includes("/sales?"))).toHaveLength(2);
+    expect(urls.at(-1)).toContain("page[number]=2");
+  });
+});
+
 describe("cliente de Fudo", () => {
   it("autentica una vez y reutiliza el token", async () => {
     const { cliente, llamadas } = falso({ productos: [recurso(1, "Pizza", 9990)] });

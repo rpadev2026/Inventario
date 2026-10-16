@@ -50,6 +50,14 @@ Costos y cuidados: el token **vence** (fecha elegida al firmarlo): anote la fech
 - Credenciales: `FUDO_API_KEY` y `FUDO_API_SECRET` en el entorno del servidor (se piden a soporte@fu.do indicando la cuenta y un usuario dedicado a la API). Sin ellas la aplicación funciona igual y la sección avisa que Fudo no está configurado.
 - API `v1alpha1` (puede cambiar). **Por confirmar con credenciales reales:** el comodín `*` del filtro `ilike` en la búsqueda por nombre, y si `price` incluye IVA (la pantalla lo rotula «con IVA», igual que los costos).
 
+### Ventas de Fudo que descuentan stock
+
+- Cada venta **cerrada** en Fudo descuenta, de la bodega indicada en la receta, los ingredientes de la receta vinculada a ese producto (bruto con merma, convertido a unidad base, por porciones vendidas ÷ porciones de la receta; las sub-recetas se expanden con la proporción de su rendimiento). La bodega se elige al vincular la receta (cada bodega es un tipo de preparación: cuarto frío, cuarto caliente). Cada venta se descuenta **una sola vez** (`VentasFudo`) y queda el detalle en `ConsumosVenta`.
+- El stock **puede quedar negativo** por una venta (ya ocurrió); es la única operación que lo permite. Las líneas vendidas sin receta vinculada o sin bodega no descuentan y se listan en `/mantenedores/ventas-fudo` («Vendido sin descontar stock»), pantalla solo Administrador con el botón «Sincronizar ventas ahora».
+- Variables: `FUDO_API_KEY`, `FUDO_API_SECRET` y `FUDO_VENTAS_DESDE` (AAAA-MM-DD: desde cuándo se procesan ventas; evita traer el historial). Para sincronizar solo: programar un cron que llame `POST /api/fudo/sincronizar` con `Authorization: Bearer <CRON_SECRET>` (igual que los correos), p. ej. cada 15 minutos.
+- **Límites actuales:** una venta cerrada que luego se anula en Fudo no se revierte; los modificadores y subítems (extras, combos) no descuentan; cada venta redondea sus consumos a 3 decimales de la unidad base. Se vuelve a leer desde 2 días antes de la última venta por si alguna cerró tarde.
+- **Por confirmar con credenciales reales:** el formato del filtro `closedAt=and(gte…,lt…)`, que la lista de ventas traiga `items` y `items.product` con `include`, y los nombres de los tipos JSON:API.
+
 ## Facturas desde Bsale (nivel A: solo cabecera)
 
 - `/compras/bsale` lista las facturas de proveedores recibidas en el SII que Bsale tiene (`GET /v1/third_party_documents.json`, códigos 33 y 34, las más recientes primero). Cada fila indica si ya está registrada (mismo proveedor y folio), si el proveedor no existe aquí (se busca por RUT) o si está disponible; «Registrar» abre «Nueva factura» con proveedor, folio y fecha, y muestra el total de Bsale como referencia. La API **no entrega las líneas** (productos, cantidades, precios): se ingresan a mano. Leer el XML del DTE (`urlXml`) para proponerlas es el nivel B, pendiente.

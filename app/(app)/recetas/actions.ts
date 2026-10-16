@@ -55,13 +55,14 @@ export async function buscarProductosFudo(q: string): Promise<{ error?: string; 
   }
 }
 
-/** Vincula la receta con un producto de Fudo, o la desvincula (`idFudo` vacío). */
-export async function vincularFudo(idReceta: number, idFudo: string): Promise<R> {
+/** Vincula la receta con un producto de Fudo y la bodega de la que se descuentan sus ingredientes al venderse; con `idFudo` vacío la desvincula. */
+export async function vincularFudo(idReceta: number, idFudo: string, idBodega: number | null): Promise<R> {
   const s = await requerirPermiso("recetas.gestionar");
   const id = z.coerce.number().int().positive().safeParse(idReceta);
   const fudoId = z.string().regex(/^(\d{1,15})?$/).safeParse(idFudo);
-  if (!id.success || !fudoId.success) return { error: "Datos inválidos" };
-  const { error } = await db.rpc("vincular_receta_fudo", { p_usuario: s.uid, p_receta: id.data, p_fudo: fudoId.data });
+  const bodega = z.coerce.number().int().positive().nullable().safeParse(idBodega);
+  if (!id.success || !fudoId.success || !bodega.success) return { error: "Datos inválidos" };
+  const { error } = await db.rpc("vincular_receta_fudo", { p_usuario: s.uid, p_receta: id.data, p_fudo: fudoId.data, p_bodega: bodega.data ?? nulo });
   if (error) return { error: error.code === "P0001" ? error.message : "No se pudo guardar el vínculo" };
   revalidatePath("/recetas");
   return { ok: true };

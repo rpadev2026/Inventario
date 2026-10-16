@@ -8,10 +8,16 @@ export type ClienteFudo = {
   buscar(q: string): Promise<ProductoFudo[]>;
   /** Productos por id de Fudo (activos o no); los que no existen se omiten. */
   porId(ids: string[]): Promise<ProductoFudo[]>;
+  /** Ventas cerradas entre `desde` (incluida) y `hasta` (excluida) con sus líneas vigentes (sin las anuladas). */
+  ventasCerradas(desde: Date, hasta: Date): Promise<VentaFudo[]>;
 };
+/** Una venta cerrada; `lineas` trae el id de Fudo del producto y la cantidad vendida. */
+export type VentaFudo = { id: string; cierre: string; lineas: { producto: string; nombre: string; cantidad: number }[] };
 type Deps = { apiKey: string; apiSecret: string; fetch?: typeof fetch; ahora?: () => number; base?: string; auth?: string };
 type Recurso = { id: string; attributes: { name: string; code?: string | null; price: number; cost?: number | null; active: boolean } };
+type Respuesta = { data: any[]; included?: any[] }; // eslint-disable-line @typescript-eslint/no-explicit-any -- JSON:API genérico: se lee solo lo necesario más abajo
 
+const PAGINA_VENTAS = 100; // las ventas traen sus líneas incluidas: páginas más chicas que el máximo de la API (500)
 const MARGEN_S = 60; // se renueva el token si le quedan menos segundos
 
 export function crearClienteFudo(d: Deps): ClienteFudo {
@@ -33,14 +39,15 @@ export function crearClienteFudo(d: Deps): ClienteFudo {
   }
   const vigente = () => (token && token.exp - ahora() / 1000 > MARGEN_S ? token.valor : null);
 
-  async function pedir(ruta: string, reintento = true): Promise<Recurso[]> {
+  async function pedirTodo(ruta: string, reintento = true): Promise<Respuesta> {
     const t = vigente() ?? (await autenticar());
     const r = await f(`${base}${ruta}`, { headers: { Authorization: `Bearer ${t}`, Accept: "application/json" } });
-    if (r.status === 401 && reintento) { token = null; return pedir(ruta, false); }
+    if (r.status === 401 && reintento) { token = null; return pedirTodo(ruta, false); }
     if (r.status === 429) throw new Error(`Fudo limitó las consultas: reintente en ${r.headers.get("Retry-After") ?? "unos"} segundos`);
     if (!r.ok) throw new Error(`Fudo respondió con error ${r.status}`);
-    return ((await r.json()) as { data: Recurso[] }).data;
+    return (await r.json()) as Respuesta;
   }
+  const pedir = async (ruta: string) => (await pedirTodo(ruta)).data as Recurso[];
 
   const aProducto = (r: Recurso): ProductoFudo => ({
     id: String(r.id), nombre: r.attributes.name, codigo: r.attributes.code ?? null,
@@ -58,6 +65,29 @@ export function crearClienteFudo(d: Deps): ClienteFudo {
       const validos = [...new Set(ids)].filter((i) => /^\d{1,15}$/.test(i)).slice(0, 100);
       if (!validos.length) return [];
       return (await pedir(`/products?filter[id]=in.(${validos.join(",")})&page[size]=${validos.length}`)).map(aProducto);
+    },
+    async ventasCerradas(desde, hasta) {
+      const ventas: VentaFudo[] = [];
+      const rango = encodeURIComponent(`and(gte.${desde.toISOString()},lt.${hasta.toISOString()})`);
+      for (let pagina = 1; ; pagina++) { // sin conteo total: se sigue hasta que una página venga incompleta
+        const { data, included = [] } = await pedirTodo(
+          `/sales?filter[saleState]=eq.CLOSED&filter[closedAt]=${rango}&include=items,items.product&sort=closedAt&page[size]=${PAGINA_VENTAS}&page[number]=${pagina}`);
+        // Se busca por (tipo, id) tal como lo declara cada referencia, sin suponer cómo se llaman los tipos.
+        const incluido = new Map(included.map((x) => [`${x.type}:${x.id}`, x]));
+        const buscar = (ref?: { type: string; id: string }) => (ref ? incluido.get(`${ref.type}:${ref.id}`) : undefined);
+        for (const v of data) {
+          const lineas = ((v.relationships?.items?.data ?? []) as { type: string; id: string }[])
+            .map(buscar)
+            .filter((it) => it && !it.attributes?.canceled)
+            .map((it) => {
+              const ref = it.relationships?.product?.data;
+              return { producto: String(ref?.id ?? ""), nombre: String(buscar(ref)?.attributes?.name ?? ""), cantidad: Number(it.attributes?.quantity) };
+            })
+            .filter((l) => l.producto && l.cantidad > 0);
+          ventas.push({ id: String(v.id), cierre: String(v.attributes.closedAt), lineas });
+        }
+        if (data.length < PAGINA_VENTAS) return ventas;
+      }
     },
   };
 }

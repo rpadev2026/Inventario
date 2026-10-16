@@ -10,6 +10,7 @@ const TARJETAS = [
   { ...CATALOGOS.ciudades, desc: "Ciudades = provincias de cada región." },
   { ...CATALOGOS.comunas, desc: "Comunas de cada ciudad." },
   { ruta: "/mantenedores/roles", titulo: "Roles y permisos", desc: "Permisos asignados a cada rol." },
+  { ruta: "/mantenedores/ventas-fudo", titulo: "Ventas de Fudo", desc: "Descuento de stock por las ventas, según los ingredientes de cada receta." },
 ];
 
 export default async function MantenedoresPage() {
