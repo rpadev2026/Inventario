@@ -1,17 +1,29 @@
 import Link from "next/link";
 import { db } from "@/lib/db/supabase";
 import Badge from "@/components/app/badge";
+import { fudo, type ProductoFudo } from "@/lib/services/fudo";
+import { MSG_FUDO_CAIDO, MSG_SIN_FUDO } from "@/lib/fudo-mensajes";
 import { calcular, clp, Dato, href, num, type Contexto, type RecetaRow } from "./comun";
+import VinculoFudo from "./vinculo-fudo";
 
 /** Ver: datos de la receta, sus ingredientes con su costo y el resumen. */
 export async function VistaDetalle({ ctx, rec }: { ctx: Contexto; rec: RecetaRow }) {
-  const { base, volverListado, nombreUnidad } = ctx;
+  const { base, volverListado, nombreUnidad, puedeGestionar } = ctx;
   const idVer = rec.IdReceta;
   const [calculo, { data: detalles }] = await Promise.all([
     calcular(idVer),
     db.from("RecetaDetalles").select("IdDetalle,Cantidad,PorcionNeta,UnidadMedida,PorcentajeMerma").eq("IdReceta", idVer),
   ]);
   const porDetalle = new Map((detalles ?? []).map((d) => [d.IdDetalle as number, d]));
+  // Producto vinculado en Fudo (precio de venta); si Fudo no responde, la receta se muestra igual con un aviso.
+  let pf: ProductoFudo | null = null, errorFudo: string | undefined;
+  if (rec.IdProductoFudo) {
+    const cliente = fudo();
+    if (!cliente) errorFudo = MSG_SIN_FUDO;
+    else {
+      try { pf = (await cliente.porId([rec.IdProductoFudo]))[0] ?? null; } catch (e) { console.error("[fudo] detalle:", (e as Error).message); errorFudo = MSG_FUDO_CAIDO; }
+    }
+  }
   const idsSub = (calculo?.lineas ?? []).filter((l) => l.tipo === "subreceta").map((l) => l.id);
   const { data: toks } = idsSub.length ? await db.from("Recetas").select("IdReceta,Token").in("IdReceta", idsSub) : { data: [] };
   const tokenSub = new Map((toks ?? []).map((t) => [t.IdReceta, t.Token]));
@@ -34,6 +46,22 @@ export async function VistaDetalle({ ctx, rec }: { ctx: Contexto; rec: RecetaRow
           <Dato titulo={`Costo por porción${calculo?.incompleto ? " (parcial)" : ""}`}>{calculo ? clp(calculo.porcion) : ""}</Dato>
         </div>
       </div>
+      {(puedeGestionar || rec.IdProductoFudo) && (
+        <div className="card space-y-4">
+          <h2 className="section-title">Fudo</h2>
+          {errorFudo && <p role="status" className="alert alert-warn">{errorFudo}</p>}
+          {rec.IdProductoFudo && !pf && !errorFudo && <p role="status" className="alert alert-warn">El producto vinculado ya no existe en Fudo.</p>}
+          {pf && (
+            <div className="form-grid form-grid-4">
+              <Dato titulo="Producto en Fudo">{pf.nombre}</Dato>
+              <Dato titulo="Precio de venta (con IVA)">{clp(pf.precio)}</Dato>
+              <Dato titulo={`Margen por porción${calculo?.incompleto ? " (parcial)" : ""}`}>{calculo ? clp(pf.precio - calculo.porcion) : ""}</Dato>
+              <Dato titulo={`Costo sobre el precio${calculo?.incompleto ? " (parcial)" : ""}`}>{calculo && pf.precio > 0 ? `${num.format((calculo.porcion / pf.precio) * 100)} %` : ""}</Dato>
+            </div>
+          )}
+          {puedeGestionar && <VinculoFudo idReceta={rec.IdReceta} idFudo={rec.IdProductoFudo} nombreActual={pf?.nombre} />}
+        </div>
+      )}
       {!calculo && <p role="alert" className="alert alert-error">No se pudo calcular el costo de la receta. Revise sus ingredientes e inténtelo de nuevo.</p>}
       {sinFactura.length > 0 && (
         <p role="status" className="alert alert-warn">

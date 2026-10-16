@@ -356,3 +356,26 @@ describe("buscar_subrecetas (sub-recetas remotas)", () => {
     await fails(`select buscar_subrecetas('', null, 500)`, /Paginación/);
   });
 });
+
+describe("vincular_receta_fudo", () => {
+  const nueva = (nombre: string) => val(`insert into "Recetas"("Nombre") values ('${nombre}') returning "IdReceta"`).then(Number);
+  const fudo = (id: number) => val(`select "IdProductoFudo" from "Recetas" where "IdReceta" = ${id}`);
+
+  it("vincula, cambia y desvincula (texto vacío)", async () => {
+    const r = await nueva("FUDO uno");
+    await db.query(`select vincular_receta_fudo(1, ${r}, ' 123 ')`);
+    expect(await fudo(r)).toBe("123");
+    await db.query(`select vincular_receta_fudo(1, ${r}, '456')`);
+    expect(await fudo(r)).toBe("456");
+    await db.query(`select vincular_receta_fudo(1, ${r}, '')`);
+    expect(await fudo(r)).toBeNull();
+  });
+  it("un producto de Fudo no se vincula a dos recetas", async () => {
+    const [a, b] = [await nueva("FUDO dos"), await nueva("FUDO tres")];
+    await db.query(`select vincular_receta_fudo(1, ${a}, '777')`);
+    await fails(`select vincular_receta_fudo(1, ${b}, '777')`, /ya está vinculado/);
+  });
+  it("rechaza una receta que no existe", async () => {
+    await fails(`select vincular_receta_fudo(1, 999999, '1')`, /no existe/);
+  });
+});

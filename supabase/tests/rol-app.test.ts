@@ -102,6 +102,8 @@ describe("rol app_servidor: lo que la aplicación hace, funciona", () => {
   it("llama a las funciones SQL de la aplicación", async () => {
     await permitido(`select listar_pagina('bodegas','',null,0,10)`);
     await permitido(`select buscar_subrecetas('', null, 10)`);
+    await db.exec(`insert into "Recetas"("Nombre") values ('PLATO')`);
+    await permitido(`select vincular_receta_fudo(1, (select "IdReceta" from "Recetas" limit 1), '1')`);
     await permitido(`select registrar_intento_login('1.1.1.1', 10, 60)`);
     await permitido(`select registrar_fallo_login(1, 5, 15)`);
     await permitido(`select calcular_recetas(array[]::bigint[])`);

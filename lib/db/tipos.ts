@@ -1300,6 +1300,7 @@ export type Database = {
           RendimientoPorciones: number
           RendimientoUnidad: string | null
           Token: string
+          IdProductoFudo: string | null
         }
         Insert: {
           CodigoReceta?: string | null
@@ -1314,6 +1315,7 @@ export type Database = {
           RendimientoPorciones?: number
           RendimientoUnidad?: string | null
           Token?: string
+          IdProductoFudo?: string | null
         }
         Update: {
           CodigoReceta?: string | null
@@ -1328,6 +1330,7 @@ export type Database = {
           RendimientoPorciones?: number
           RendimientoUnidad?: string | null
           Token?: string
+          IdProductoFudo?: string | null
         }
         Relationships: [
           {
@@ -1933,6 +1936,10 @@ export type Database = {
       recepcionar_solicitud: {
         Args: { p_items: Json; p_solicitud: number; p_usuario: number }
         Returns: number
+      }
+      vincular_receta_fudo: {
+        Args: { p_fudo: string; p_receta: number; p_usuario: number }
+        Returns: undefined
       }
       reclamar_correos: {
         Args: { p_max: number }
