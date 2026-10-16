@@ -19,7 +19,12 @@ export default async function ComprasPage() {
     <section className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h1 className="page-title">Compras</h1>
-        {puedeRegistrar && <Link href="/compras/nueva" className="btn btn-primary">Nueva factura</Link>}
+        {puedeRegistrar && (
+          <div className="flex flex-wrap gap-3">
+            <Link href="/compras/bsale" className="btn btn-secondary">Facturas en Bsale</Link>
+            <Link href="/compras/nueva" className="btn btn-primary">Nueva factura</Link>
+          </div>
+        )}
       </div>
       <div className="table-wrap">
         <table className="table">
