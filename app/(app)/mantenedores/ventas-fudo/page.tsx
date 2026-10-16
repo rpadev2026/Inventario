@@ -35,7 +35,7 @@ export default async function VentasFudoPage() {
       {!configurado && <p role="status" className="alert alert-warn">Fudo no está configurado (faltan FUDO_API_KEY y FUDO_API_SECRET).</p>}
       {configurado && !process.env.FUDO_VENTAS_DESDE && <p role="status" className="alert alert-warn">{MSG_SIN_DESDE}</p>}
       <div className="card space-y-3">
-        <p>Última venta descontada: {ventas[0] ? fechaHora(ventas[0].FechaCierre) : "ninguna aún"}.</p>
+        <p>Última venta descontada: {ventas[0] ? fechaHora(ventas[0].FechaCierre) : "ninguna aún"}</p>
         <Sincronizar />
       </div>
 
