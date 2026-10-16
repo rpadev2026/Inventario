@@ -50,6 +50,12 @@ Costos y cuidados: el token **vence** (fecha elegida al firmarlo): anote la fech
 - Credenciales: `FUDO_API_KEY` y `FUDO_API_SECRET` en el entorno del servidor (se piden a soporte@fu.do indicando la cuenta y un usuario dedicado a la API). Sin ellas la aplicación funciona igual y la sección avisa que Fudo no está configurado.
 - API `v1alpha1` (puede cambiar). **Por confirmar con credenciales reales:** el comodín `*` del filtro `ilike` en la búsqueda por nombre, y si `price` incluye IVA (la pantalla lo rotula «con IVA», igual que los costos).
 
+## Facturas desde Bsale (nivel A: solo cabecera)
+
+- `/compras/bsale` lista las facturas de proveedores recibidas en el SII que Bsale tiene (`GET /v1/third_party_documents.json`, códigos 33 y 34, las más recientes primero). Cada fila indica si ya está registrada (mismo proveedor y folio), si el proveedor no existe aquí (se busca por RUT) o si está disponible; «Registrar» abre «Nueva factura» con proveedor, folio y fecha, y muestra el total de Bsale como referencia. La API **no entrega las líneas** (productos, cantidades, precios): se ingresan a mano. Leer el XML del DTE (`urlXml`) para proponerlas es el nivel B, pendiente.
+- Credencial: `BSALE_ACCESS_TOKEN` en el entorno del servidor (token del usuario de Bsale). Sin él la pantalla avisa que no está configurado.
+- **Por confirmar con un token real:** que la lista venga ordenada por id ascendente (se lee desde el final con `count`), que la respuesta use `items`, y que `clientCode` sea el RUT del proveedor.
+
 ## Pendiente para el despliegue
 Aún no está definido dónde se desplegará la aplicación. Cuando se defina, hay que hacer esto (hoy los correos quedan en la cola `CorreosPendientes` y no se pierden):
 1. **`CRON_SECRET`**: inventar un valor de 16+ caracteres (`node -e "console.log(require('crypto').randomBytes(32).toString('base64url'))"`) y guardarlo como variable de entorno del despliegue. No va en el repositorio.

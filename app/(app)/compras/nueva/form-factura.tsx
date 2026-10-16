@@ -25,6 +25,8 @@ export default function FormFactura(props: {
   unidades: UnidadInfo[]; formasPago: FormaPago[];
   /** Proveedor y producto recién creados (o pedidos por la URL), ya validados en el servidor. */
   provInicial?: ProveedorHallado | null; prodInicial?: ProductoHallado | null;
+  /** Cabecera de una factura de Bsale: precarga folio y fecha, y el total sirve de referencia para cuadrar las líneas. */
+  desdeBsale?: { folio: string; fecha: string; total: number };
 }) {
   const router = useRouter();
   const [idProv, setIdProv] = useState("");
@@ -57,7 +59,8 @@ export default function FormFactura(props: {
       setFechaRecepcion(b.fechaRecepcion); setFormaPago(b.formaPago);
       if (b.lineas.length > 0) ls = b.lineas;
     }
-    const { provInicial, prodInicial } = props;
+    const { provInicial, prodInicial, desdeBsale } = props;
+    if (desdeBsale) { setFolio(desdeBsale.folio); setFechaFactura(desdeBsale.fecha); }
     if (provInicial) { setIdProv(String(provInicial.id)); recordarProvs([opcionProveedor(provInicial)]); }
     if (prodInicial) { ls = aplicarPreProducto(ls, String(prodInicial.id)); recordarProds([opcionProducto(prodInicial)]); }
     setLineas(ls);
@@ -184,6 +187,12 @@ export default function FormFactura(props: {
         <div><dt className="text-muted">IVA 19%</dt><dd>{clp(iva)}</dd></div>
         <div className="resumen-total"><dt>Total</dt><dd>{clp(total)}</dd></div>
       </dl>
+      {props.desdeBsale && (
+        <p role="status" className={`alert ${Math.abs(props.desdeBsale.total - total) <= 1 ? "alert-ok" : "alert-warn"}`}>
+          Total según Bsale: {clp(props.desdeBsale.total)}
+          {Math.abs(props.desdeBsale.total - total) <= 1 ? " — coincide con las líneas." : ` — las líneas suman ${clp(total)}; el total debe coincidir (±$1).`}
+        </p>
+      )}
 
       {error && <p role="alert" className="alert alert-error">{error}</p>}
       <div><button disabled={pending} className="btn btn-primary">{pending ? "Registrando…" : "Registrar factura"}</button></div>
