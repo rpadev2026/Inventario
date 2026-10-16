@@ -218,6 +218,7 @@ export type Database = {
           Neto: number
           NombreProveedor: string
           RutProveedor: string
+          Token: string
           Total: number
         }
         Insert: {
@@ -238,6 +239,7 @@ export type Database = {
           Neto: number
           NombreProveedor: string
           RutProveedor: string
+          Token?: string
           Total: number
         }
         Update: {
@@ -258,6 +260,7 @@ export type Database = {
           Neto?: number
           NombreProveedor?: string
           RutProveedor?: string
+          Token?: string
           Total?: number
         }
         Relationships: [

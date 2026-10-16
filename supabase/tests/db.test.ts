@@ -38,6 +38,9 @@ describe("registrar_factura", () => {
     expect(Number(await val(`select count(*) from "BodegaCentral"`))).toBe(1);
     expect(Number(await val(`select "Cantidad" from "StockBodega" sb join "Bodegas" b using("IdBodega") where b."EsCentral" and "IdProducto"=1`))).toBe(50000);
   });
+  it("cada factura recibe un token único para la URL", async () => {
+    expect(Number(await val(`select count(distinct "Token") from "Compras"`))).toBe(Number(await val(`select count(*) from "Compras"`)));
+  });
   it("acumula stock en una segunda factura", async () => {
     await db.query(FACT(2));
     expect(Number(await val(`select "Cantidad" from "StockBodega" where "IdProducto"=1 and "IdBodega"=1`))).toBe(100000);

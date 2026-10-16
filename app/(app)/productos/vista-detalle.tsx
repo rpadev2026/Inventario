@@ -18,10 +18,10 @@ export async function VistaDetalle({ ctx, sel }: { ctx: Contexto; sel: Producto 
   const { count: nHist } = await db.from("HistorialPreciosProducto").select("IdHistorial", { count: "exact", head: true }).eq("IdProducto", sel.IdProducto);
   const pgH = paginar({ pagina: sp.hpagina, tam: sp.htam }, nHist ?? 0);
   const { data: dataH } = await db.from("HistorialPreciosProducto")
-    .select("IdHistorial,IdCompra,Origen,Anulada,Precio,UnidadMedida,CostoBaseAnterior,CostoBaseNuevo,FechaRegistro,Compras(Folio),Usuarios!HistorialPreciosProducto_IdUsuario_fkey(Nombres,Apellidos)")
+    .select("IdHistorial,IdCompra,Origen,Anulada,Precio,UnidadMedida,CostoBaseAnterior,CostoBaseNuevo,FechaRegistro,Compras(Folio,Token),Usuarios!HistorialPreciosProducto_IdUsuario_fkey(Nombres,Apellidos)")
     .eq("IdProducto", sel.IdProducto).order("IdHistorial", { ascending: false }).range(pgH.from, pgH.to);
   const historial = (dataH ?? []).map((h) => ({
-    id: h.IdHistorial as number, idCompra: h.IdCompra as number, folio: h.Compras?.Folio as number | undefined,
+    id: h.IdHistorial as number, idCompra: h.IdCompra as number, folio: h.Compras?.Folio as number | undefined, token: h.Compras?.Token as string | undefined,
     origen: h.Origen as string, anulada: !!h.Anulada,
     precio: h.Precio === null ? null : `${clp.format(Number(h.Precio))} por ${nombreUnidad.get(h.UnidadMedida ?? "") ?? h.UnidadMedida}`,
     anterior: h.CostoBaseAnterior === null ? null : Number(h.CostoBaseAnterior), nuevo: h.CostoBaseNuevo === null ? null : Number(h.CostoBaseNuevo),
@@ -83,7 +83,7 @@ export async function VistaDetalle({ ctx, sel }: { ctx: Contexto; sel: Producto 
                     {h.anulada && <Badge tone="neutral">Anulada</Badge>}
                   </div>
                 </td>
-                <td>{puedeVerCompras ? <Link className="link link-sm" href={`/compras/${h.idCompra}`}>Folio {h.folio ?? h.idCompra}</Link> : `Folio ${h.folio ?? h.idCompra}`}</td>
+                <td>{puedeVerCompras && h.token ? <Link className="link link-sm" href={`/compras/${h.token}`}>Folio {h.folio ?? h.idCompra}</Link> : `Folio ${h.folio ?? h.idCompra}`}</td>
                 <td>{h.precio ?? "—"}</td>
                 <td className="num">{h.anterior === null ? "—" : clpBase.format(h.anterior)}</td>
                 <td className="num">{h.nuevo === null ? "—" : clpBase.format(h.nuevo)}</td>
