@@ -26,7 +26,7 @@ Para probar a mano contra tu Supabase: `node --env-file=.env.local scripts/e2e-s
 `npm test` — validadores, esquemas y las funciones SQL (migraciones ejecutadas en Postgres en memoria con PGlite).
 
 ## Seguridad: puntos a considerar en producción
-- El límite de intentos de login es por IP y vive en la base de datos (compartido entre instancias, con vencimiento). La IP sale del primer valor de `x-forwarded-for`: el proxy o hosting debe normalizar esa cabecera.
+- El límite de intentos de login es por IP y vive en la base de datos (compartido entre instancias, con vencimiento). La IP sale de `x-forwarded-for` tomando el valor de la DERECHA que agregó el último proxy de confianza (`lib/auth/ip.ts`; el de la izquierda lo elige el cliente y no se usa): `PROXY_CONFIABLES` = cuántos proxies hay delante de la app (por defecto 1; con 0 la cabecera se ignora y todos comparten un solo contador). Sin proxy delante no hay forma segura de saber la IP.
 - La CSP se fija en `proxy.ts` con un nonce por petición (`script-src 'self' 'nonce-…' 'strict-dynamic'`, sin `'unsafe-inline'` en scripts); por eso el layout raíz es dinámico (`await connection()`) y ninguna página se prerenderiza. `style-src` conserva `'unsafe-inline'` (los atributos `style` de React no admiten nonce). Una librería que cargue scripts desde otro origen sin pasar por Next quedará bloqueada: revisar la consola del navegador ("Refused to execute…") tras agregar una.
 - La sesión dura 8 h. Los roles y el estado del usuario se revalidan en cada petición, y cambiar o restablecer la clave invalida los tokens anteriores; cerrar sesión también invalida en el servidor los tokens del usuario (sube `VersionSesion` con `revocar_sesiones`, migración 0036), así que cierra todos sus dispositivos.
 - Los correos se guardan en una cola en la BD y se reintentan con espera creciente (ver «Pendiente para el despliegue»).
@@ -71,7 +71,7 @@ Aún no está definido dónde se desplegará la aplicación. Cuando se defina, h
 3. **Programar el reintento de correos**: un cron cada 5–10 minutos que llame `POST https://<dominio>/api/correos/procesar` con la cabecera `Authorization: Bearer <CRON_SECRET>`. Respuesta esperada: `{"enviados":N,"fallidos":N}` (401 = valor distinto; 503 = falta `CRON_SECRET` en la app). Según el hosting:
    - Vercel: Cron Jobs en `vercel.json` (envía solo `Authorization: Bearer $CRON_SECRET`, pero con `GET`: habría que aceptar también `GET` en `app/api/correos/procesar/route.ts`).
    - Otro hosting: servicio externo (p. ej. cron-job.org) o GitHub Actions programado; servidor propio: `crontab` con `curl -X POST`.
-4. **Proxy / hosting**: que normalice `x-forwarded-for` (límite de login por IP).
+4. **Proxy / hosting**: fijar `PROXY_CONFIABLES` con el número de proxies que agregan a `x-forwarded-for` delante de la app (límite de login por IP) y comprobar en staging que un `X-Forwarded-For` enviado por el cliente no cambia el contador.
    **Rol acotado** (recomendado): activar `app_servidor` con `SUPABASE_APP_TOKEN` y anotar su fecha de vencimiento (ver la sección anterior).
 5. **Probar el envío real de un correo** (aprobar una solicitud) y revisar `CorreosPendientes` (`Estado` 1 = enviado, 2 = fallido tras 5 intentos).
 

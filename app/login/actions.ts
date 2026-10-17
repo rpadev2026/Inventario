@@ -5,6 +5,7 @@ import { z } from "zod";
 import { db } from "@/lib/db/supabase";
 import { autenticar } from "@/lib/auth/login";
 import { esCorreoValido } from "@/lib/validation/correo";
+import { ipCliente } from "@/lib/auth/ip";
 import { crearSesion, cerrarSesion } from "@/lib/auth/session";
 
 const schema = z.object({ correo: z.string().trim().max(254).refine(esCorreoValido), password: z.string().min(1).max(128) });
@@ -14,7 +15,7 @@ const VENTANA_S = 60;
 const MAX = 10;
 
 export async function login(_: unknown, fd: FormData): Promise<{ error: string } | undefined> {
-  const ip = (await headers()).get("x-forwarded-for")?.split(",")[0]?.trim() ?? "local";
+  const ip = ipCliente(await headers());
   const { data: permitido, error } = await db.rpc("registrar_intento_login", { p_clave: ip, p_max: MAX, p_ventana_seg: VENTANA_S });
   if (error) return { error: "Servicio no disponible. Intente nuevamente." }; // sin contador no se deja pasar
   if (!permitido) return { error: "Demasiados intentos. Espere un minuto." };
