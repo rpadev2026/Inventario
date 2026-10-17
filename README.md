@@ -28,7 +28,7 @@ Para probar a mano contra tu Supabase: `node --env-file=.env.local scripts/e2e-s
 ## Seguridad: puntos a considerar en producción
 - El límite de intentos de login es por IP y vive en la base de datos (compartido entre instancias, con vencimiento). La IP sale del primer valor de `x-forwarded-for`: el proxy o hosting debe normalizar esa cabecera.
 - La CSP se fija en `proxy.ts` con un nonce por petición (`script-src 'self' 'nonce-…' 'strict-dynamic'`, sin `'unsafe-inline'` en scripts); por eso el layout raíz es dinámico (`await connection()`) y ninguna página se prerenderiza. `style-src` conserva `'unsafe-inline'` (los atributos `style` de React no admiten nonce). Una librería que cargue scripts desde otro origen sin pasar por Next quedará bloqueada: revisar la consola del navegador ("Refused to execute…") tras agregar una.
-- La sesión dura 8 h. Los roles y el estado del usuario se revalidan en cada petición, y cambiar o restablecer la clave invalida los tokens anteriores; cerrar sesión solo borra la cookie local (un token robado sigue válido hasta que se cambie la clave o expire).
+- La sesión dura 8 h. Los roles y el estado del usuario se revalidan en cada petición, y cambiar o restablecer la clave invalida los tokens anteriores; cerrar sesión también invalida en el servidor los tokens del usuario (sube `VersionSesion` con `revocar_sesiones`, migración 0036), así que cierra todos sus dispositivos.
 - Los correos se guardan en una cola en la BD y se reintentan con espera creciente (ver «Pendiente para el despliegue»).
 - Las facturas no se editan: se anulan (revierte el stock si no fue despachado) y se vuelven a ingresar.
 
