@@ -122,3 +122,23 @@ describe("el stock sigue sin poder quedar negativo fuera de las ventas", () => {
     await fails(`update "StockBodega" set "Cantidad" = -5 where "IdBodega" = ${frio} and "IdProducto" = (select "IdProducto" from "Productos" where "Codigo" = 'ACE')`, /Stock insuficiente/);
   });
 });
+
+/** Regresión (auditoría de seguridad): una fila que una venta dejó negativa debe poder recibir stock aunque siga negativa. */
+describe("sumar stock a una fila que una venta dejó negativa (0035)", () => {
+  const har = `(select "IdProducto" from "Productos" where "Codigo" = 'HAR')`;
+  it("una suma parcial que sigue bajo cero se acepta (como recepcionar_solicitud / registrar_factura)", async () => {
+    expect(await stock(caliente, "HAR")).toBe(-120); // lo dejó V2
+    await db.query(`insert into "StockBodega"("IdBodega","IdProducto","Cantidad") values (${caliente}, ${har}, 50)
+      on conflict ("IdBodega","IdProducto") do update set "Cantidad" = "StockBodega"."Cantidad" + excluded."Cantidad"`);
+    expect(await stock(caliente, "HAR")).toBe(-70);
+  });
+  it("restarle a una fila negativa sigue rechazándose", async () => {
+    await fails(`update "StockBodega" set "Cantidad" = "Cantidad" - 10 where "IdBodega" = ${caliente} and "IdProducto" = ${har}`, /Stock insuficiente/);
+    expect(await stock(caliente, "HAR")).toBe(-70);
+  });
+  it("una fila nueva negativa sigue rechazándose y una suma que la deja positiva se acepta", async () => {
+    await fails(`insert into "StockBodega"("IdBodega","IdProducto","Cantidad") select ${caliente}, 99998, -1`, /./);
+    await db.query(`update "StockBodega" set "Cantidad" = "Cantidad" + 100 where "IdBodega" = ${caliente} and "IdProducto" = ${har}`);
+    expect(await stock(caliente, "HAR")).toBe(30);
+  });
+});
