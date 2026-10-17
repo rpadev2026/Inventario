@@ -1744,6 +1744,41 @@ export type Database = {
         }
         Relationships: []
       }
+      VentasFudoLineas: {
+        Row: {
+          Cantidad: number
+          IdLinea: number
+          IdProductoFudo: string
+          IdVentaFudo: string
+          Monto: number | null
+          Nombre: string
+        }
+        Insert: {
+          Cantidad: number
+          IdLinea?: never
+          IdProductoFudo: string
+          IdVentaFudo: string
+          Monto?: number | null
+          Nombre: string
+        }
+        Update: {
+          Cantidad?: number
+          IdLinea?: never
+          IdProductoFudo?: string
+          IdVentaFudo?: string
+          Monto?: number | null
+          Nombre?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "VentasFudoLineas_IdVentaFudo_fkey"
+            columns: ["IdVentaFudo"]
+            isOneToOne: false
+            referencedRelation: "VentasFudo"
+            referencedColumns: ["IdVentaFudo"]
+          },
+        ]
+      }
       VentasFudo: {
         Row: {
           FechaCierre: string
@@ -2040,6 +2075,14 @@ export type Database = {
       registrar_intento_login: {
         Args: { p_clave: string; p_max: number; p_ventana_seg: number }
         Returns: boolean
+      }
+      reporte_ventas_periodo: {
+        Args: { p_agrupar: string; p_desde: string; p_hasta: string }
+        Returns: Json
+      }
+      reporte_ventas_producto: {
+        Args: { p_desde: string; p_hasta: string; p_lim: number; p_off: number; p_q: string }
+        Returns: Json
       }
       reporte_stock: {
         Args: { p_bodega: number; p_lim: number; p_off: number; p_q: string; p_solo_con_stock: boolean }

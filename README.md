@@ -64,6 +64,14 @@ Costos y cuidados: el token **vence** (fecha elegida al firmarlo): anote la fech
 - Credencial: `BSALE_ACCESS_TOKEN` en el entorno del servidor (token del usuario de Bsale). Sin él la pantalla avisa que no está configurado.
 - **Por confirmar con un token real:** que la lista venga ordenada por id ascendente (se lee desde el final con `count`), que la respuesta use `items`, y que `clientCode` sea el RUT del proveedor.
 
+## Reportes
+
+Menú **Reportes** (permiso `reportes.ver`: lo tiene el Administrador y el rol Compras; se asigna a otros roles desde la matriz de roles). Cada reporte se ve en pantalla con filtros y se descarga en CSV para Excel (separador `;`, coma decimal).
+
+- **Stock valorizado** (`/reportes/stock`): cada producto en cada bodega (un mismo producto puede estar en varias) con su valor = cantidad en unidad base × costo unitario base (último precio de factura, con IVA). Un producto con stock y sin costo no suma y se avisa que el total es parcial; el stock negativo (ventas de Fudo) se valoriza en negativo.
+- **Ventas por producto** (`/reportes/ventas-producto`) y **Ventas por período** (`/reportes/ventas`: por día, semana de lunes a domingo o mes, con rangos rápidos): salen de las líneas de las ventas de Fudo que se guardan al sincronizar (Mantenedores → Ventas de Fudo, o el cron `/api/fudo/sincronizar`). Las fechas son las de Chile. **Las ventas procesadas antes de la migración 0042 no tienen líneas** y no aparecen.
+- **Por confirmar con credenciales reales de Fudo:** el monto de cada línea se calcula como `price` de la línea × `quantity` (si la línea no trae precio, el precio actual del producto); los descuentos o propinas de la venta completa no se reparten entre líneas, así que el total puede diferir del cierre de caja de Fudo.
+
 ## Pendiente para el despliegue
 Aún no está definido dónde se desplegará la aplicación. Cuando se defina, hay que hacer esto (hoy los correos quedan en la cola `CorreosPendientes` y no se pierden):
 1. **`CRON_SECRET`**: inventar un valor de 16+ caracteres (`node -e "console.log(require('crypto').randomBytes(32).toString('base64url'))"`) y guardarlo como variable de entorno del despliegue. No va en el repositorio.
