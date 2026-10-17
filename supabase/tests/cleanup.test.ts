@@ -79,7 +79,10 @@ describe("e2e-cleanup.sql", () => {
   });
 
   it("borra también los productos E2E sin código (nombre terminado en ' E2E')", async () => {
+    // Productos antiguos sin código (hoy no se pueden crear: trigger 0040): se insertan sin el trigger, como existen en una base vieja.
+    await db.exec(`alter table "Productos" disable trigger trg_exigir_codigo_producto`);
     await db.exec(`insert into "Productos"("Codigo","Nombre","UnidadBase","Formato") values (null,'Sal E2E','G','CAJA'),(null,'Sal Real','G','CAJA')`);
+    await db.exec(`alter table "Productos" enable trigger trg_exigir_codigo_producto`);
     await db.exec(cleanup);
     expect((await db.query<any>(`select "Nombre" from "Productos" order by 1`)).rows.map((r) => r.Nombre)).toEqual(["REAL", "SAL REAL"]);
   });

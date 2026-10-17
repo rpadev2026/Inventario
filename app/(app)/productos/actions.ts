@@ -43,7 +43,7 @@ export async function guardarProducto(_: unknown, fd: FormData): Promise<R> {
 
   // CostoUnitarioBase no se envía: lo escriben las facturas.
   const fila = {
-    Codigo: d.codigo ?? null, Nombre: d.nombre, UnidadBase: unidadBase, Formato: d.formato,
+    Codigo: d.codigo, Nombre: d.nombre, UnidadBase: unidadBase, Formato: d.formato,
     StockMinimo: minimo, StockCritico: critico, IdEstado: d.estado, IdUsuarioModificacion: s.uid,
   };
   const { data, error } = editando
