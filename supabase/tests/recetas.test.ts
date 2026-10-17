@@ -305,9 +305,9 @@ describe("calcular_receta: tope de anidación", () => {
     const id = await cadena(21, "cad a");
     expect((await db.query<any>(`select calcular_receta(${id}) as r`)).rows[0].r.incompleto).toBe(false);
   });
-  it("22 recetas encadenadas superan el tope: 'Receta demasiado anidada'", async () => {
-    const id = await cadena(22, "cad b");
-    await fails(`select calcular_receta(${id})`, /Receta demasiado anidada/);
+  // Desde la 0039 el tope de niveles se exige al guardar (antes la receta se guardaba y fallaba al calcularse).
+  it("22 recetas encadenadas superan el tope y se rechazan al guardar", async () => {
+    await expect(cadena(22, "cad b")).rejects.toThrow(/demasiados niveles/);
   });
 });
 
