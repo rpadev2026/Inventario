@@ -64,6 +64,8 @@ export default function FormFactura(props: {
     if (provInicial) { setIdProv(String(provInicial.id)); recordarProvs([opcionProveedor(provInicial)]); }
     if (prodInicial) { ls = aplicarPreProducto(ls, String(prodInicial.id)); recordarProds([opcionProducto(prodInicial)]); }
     setLineas(ls);
+    // Los parámetros (token de lo recién creado, datos de Bsale) ya se aplicaron al estado: la URL queda limpia, sin tokens ni valores a la vista.
+    if (window.location.search) window.history.replaceState(null, "", window.location.pathname);
     // Del borrador solo se guardaron los id: se traen del servidor los datos de lo elegido (nombre, unidad base).
     if (b) {
       const idsProd = [...new Set(b.lineas.map((l) => Number(l.producto)).filter((n) => n > 0))];
@@ -129,7 +131,7 @@ export default function FormFactura(props: {
             elegidas={provs[idProv] ? [provs[idProv]] : []}
             onCambio={(v, o) => { setIdProv(v); if (o) recordarProvs([o]); }}
           />
-          <Link href="/proveedores?volver=/compras/nueva" onClick={guardarAntesDeSalir} className="link link-sm justify-self-start">+ Crear proveedor nuevo</Link>
+          <Link href="/compras/nueva/proveedor" onClick={guardarAntesDeSalir} className="link link-sm justify-self-start">+ Crear proveedor nuevo</Link>
         </div>
         <Field label="Folio">
           <input value={folio} onChange={(e) => setFolio(soloDigitos(e.target.value).slice(0, 15))} type="text" inputMode="numeric" autoComplete="off" required className="input" />
@@ -155,7 +157,7 @@ export default function FormFactura(props: {
       <div className="grid gap-3">
         <div className="flex items-center justify-between gap-3">
           <h2 className="section-title">Detalle de la factura</h2>
-          <Link href="/productos?volver=/compras/nueva" onClick={guardarAntesDeSalir} className="link link-sm">+ Crear producto nuevo</Link>
+          <Link href="/compras/nueva/producto" onClick={guardarAntesDeSalir} className="link link-sm">+ Crear producto nuevo</Link>
         </div>
         {lineas.map((l, i) => (
           <div key={i} className="line-grid line-grid-5">

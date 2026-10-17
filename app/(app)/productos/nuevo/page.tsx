@@ -11,7 +11,7 @@ export default async function NuevoProductoPage({ searchParams }: { searchParams
   const base = { pagina: texto(sp.pagina), tam: texto(sp.tam), q: texto(sp.q), estado: texto(sp.estado) };
   const [unidades, formatos] = await Promise.all([cargarUnidades(), cargarCatalogo("Formatos")]);
   const ctx: Contexto = {
-    sp, base, volverListado: href(base), rutaVolver: null, puedeGestionar: true,
+    sp, base, volverListado: href(base), puedeGestionar: true,
     puedeVerCompras: tienePermiso(sesion.permisos, "compras.ver"),
     unidades, formatos,
     nombreUnidad: new Map(unidades.map((i) => [i.Codigo, i.Nombre])),

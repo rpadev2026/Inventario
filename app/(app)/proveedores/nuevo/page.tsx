@@ -7,6 +7,6 @@ export default async function NuevoProveedorPage({ searchParams }: { searchParam
   await requerirPaginaPermiso("proveedores.gestionar");
   const sp = await searchParams;
   const base = { pagina: texto(sp.pagina), tam: texto(sp.tam), q: texto(sp.q), estado: texto(sp.estado) };
-  const ctx: Contexto = { sp, base, volverListado: href(base), rutaVolver: null, puedeGestionar: true };
+  const ctx: Contexto = { sp, base, volverListado: href(base), puedeGestionar: true };
   return <VistaCrear ctx={ctx} />;
 }

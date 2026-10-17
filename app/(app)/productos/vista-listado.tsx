@@ -11,7 +11,7 @@ import { AVISOS, href, type Contexto } from "./comun";
 
 /** Listado de productos: filtro por código/nombre y estado, y paginación. */
 export async function VistaListado({ ctx }: { ctx: Contexto }) {
-  const { sp, base, rutaVolver, puedeGestionar, nombreUnidad, nombreFormato } = ctx;
+  const { sp, base, puedeGestionar, nombreUnidad, nombreFormato } = ctx;
   const { q, estado: estadoPedido } = base;
   const estado = leerEstado(estadoPedido);
   const { filas: lista, pg } = await listarPagina<ProductoFila>("productos", { q, estado, pagina: sp.pagina, tam: sp.tam });
@@ -20,7 +20,6 @@ export async function VistaListado({ ctx }: { ctx: Contexto }) {
 
   return (
     <section className="space-y-6">
-      {rutaVolver && <Link href={rutaVolver} className="link">← Volver a la factura</Link>}
       <div className="page-head">
         <div className="flex flex-wrap items-center gap-3">
           <h1 className="page-title">Productos</h1>

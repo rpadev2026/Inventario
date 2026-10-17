@@ -9,8 +9,6 @@ export type Contexto = {
   /** Página, tamaño y filtros del listado: se conservan al ir a una vista y volver. */
   base: { pagina?: string; tam?: string; q?: string; estado?: string };
   volverListado: string;
-  /** Ruta a la que se vuelve tras crear (la factura), ya validada; null si no se vino de ella. */
-  rutaVolver: string | null;
   puedeGestionar: boolean;
 };
 export type Territorio = Awaited<ReturnType<typeof cargarTerritorio>>;
