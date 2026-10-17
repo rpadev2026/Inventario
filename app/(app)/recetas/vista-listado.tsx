@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { leerEstado } from "@/lib/filtro-estado";
 import type { RecetaFila } from "@/lib/recetas-filtro";
+import { costoDeReceta } from "@/lib/receta-calculo";
 import { listarPagina } from "@/lib/services/listado";
 import Aviso from "@/components/app/aviso";
 import Badge from "@/components/app/badge";
@@ -39,7 +40,7 @@ export async function VistaListado({ ctx }: { ctx: Contexto }) {
             <thead><tr><th>Código</th><th>Nombre</th><th className="num">Porciones</th><th className="num">Costo por porción</th><th>Estado</th><th>Acciones</th></tr></thead>
             <tbody>
               {lista.map((r) => {
-                const c = costos[r.Token];
+                const c = costoDeReceta(costos, r.IdReceta);
                 return (
                   <tr key={r.IdReceta}>
                     <td>{r.CodigoReceta ?? "—"}</td><td>{r.Nombre}</td>
