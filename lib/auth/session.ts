@@ -19,11 +19,19 @@ export type Sesion = { uid: number; roles: string[]; permisos: string[]; cambiar
 /** Lo que se firma en el JWT: nunca lleva permisos (se leen siempre de la BD). */
 export type DatosSesion = { uid: number; roles: string[]; cambiar: boolean };
 
-export async function crearSesion(s: DatosSesion) {
-  // La versión liga el token a la clave vigente: cambiar o resetear la clave invalida los tokens anteriores.
-  const { data: c } = await db.from("Claves").select("VersionSesion").eq("IdUsuario", s.uid).single();
-  if (!c) throw new Error("No se pudo crear la sesión");
-  const token = await new SignJWT({ roles: s.roles, cambiar: s.cambiar, v: c.VersionSesion })
+/**
+ * La versión liga el token a la clave vigente: cambiar o resetear la clave invalida los tokens anteriores. Al ingresar se pasa la
+ * versión de la MISMA fila de clave cuyo hash se verificó: releerla aquí dejaría una ventana en que un cambio de clave concurrente
+ * hiciera firmar la versión nueva tras comprobar solo la clave anterior. Sin `version` (p. ej. tras cambiar la clave) se lee la vigente.
+ */
+export async function crearSesion(s: DatosSesion, version?: number) {
+  let v = version;
+  if (v === undefined) {
+    const { data: c } = await db.from("Claves").select("VersionSesion").eq("IdUsuario", s.uid).single();
+    if (!c) throw new Error("No se pudo crear la sesión");
+    v = c.VersionSesion;
+  }
+  const token = await new SignJWT({ roles: s.roles, cambiar: s.cambiar, v })
     .setProtectedHeader({ alg: "HS256" })
     .setSubject(String(s.uid))
     .setIssuedAt()
