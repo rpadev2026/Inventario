@@ -1,6 +1,7 @@
 import { db } from "@/lib/db/supabase";
 import type { Database } from "@/lib/db/tipos";
 import type { UnidadInfo } from "@/lib/unidades";
+import { construirHref } from "@/lib/href";
 
 /** Lo que comparten las vistas de /recetas (listado, detalle y formulario): se calcula una vez en page.tsx. */
 export type Params = Record<string, string | string[] | undefined>;
@@ -32,10 +33,7 @@ export const clp = (n: number) => (Number.isInteger(n) ? clpEntero : clpDecimal)
 export const num = new Intl.NumberFormat("es-CL", { maximumFractionDigits: 4 });
 
 /** URL de /recetas con solo los parámetros indicados (los undefined se omiten). */
-export function href(q: Record<string, string | undefined>) {
-  const s = new URLSearchParams(Object.entries(q).filter(([, v]) => v !== undefined) as [string, string][]).toString();
-  return s ? `/recetas?${s}` : "/recetas";
-}
+export const href = (q: Record<string, string | undefined>) => construirHref("/recetas", "/recetas/nueva", q);
 
 export const Dato = ({ titulo, children }: { titulo: string; children: React.ReactNode }) => (
   <div><div className="label-block">{titulo}</div><div>{children || "—"}</div></div>

@@ -61,7 +61,7 @@ export default async function FacturasBsalePage({ searchParams }: { searchParams
                     <td>{ya ? <Badge tone="ok">Ya registrada</Badge> : token ? <Badge tone="info">Disponible</Badge> : <Badge tone="warn">Proveedor no registrado</Badge>}</td>
                     <td>
                       {!ya && token && <Link className="link link-sm" href={urlNueva(f, token)} aria-label={`Registrar factura folio ${f.folio}`}>Registrar</Link>}
-                      {!ya && !token && <Link className="link link-sm" href="/proveedores?crear=1">Crear proveedor</Link>}
+                      {!ya && !token && <Link className="link link-sm" href="/proveedores/nuevo">Crear proveedor</Link>}
                     </td>
                   </tr>
                 );

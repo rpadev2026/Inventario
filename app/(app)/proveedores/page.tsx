@@ -1,3 +1,4 @@
+import { redirect } from "next/navigation";
 import { db } from "@/lib/db/supabase";
 import { requerirPaginaPermiso } from "@/lib/auth/session";
 import { tienePermiso } from "@/lib/auth/permisos";
@@ -16,9 +17,11 @@ export default async function ProveedoresPage({ searchParams }: { searchParams: 
   const puedeGestionar = tienePermiso(sesion.permisos, "proveedores.gestionar");
   const sp = await searchParams;
   const rutaVolver = rutaVolverSegura(texto(sp.volver));
+  // URL antigua «?crear=1»: la creación tiene su propia ruta (como /compras/nueva), conservando página y filtros.
+  if (sp.crear === "1" && !rutaVolver) redirect(href({ pagina: texto(sp.pagina), tam: texto(sp.tam), q: texto(sp.q), estado: texto(sp.estado), crear: "1" }));
   // Crear/editar solo con «proveedores.gestionar» (las acciones del servidor lo exigen igualmente).
   // Venir desde una factura (?volver=) abre directo la vista Crear.
-  const crear = puedeGestionar && (sp.crear === "1" || !!rutaVolver);
+  const crear = puedeGestionar && !!rutaVolver;
   const idEditar = puedeGestionar && !crear ? tokenValido(sp.editar) : undefined;
   const idVer = crear || idEditar ? undefined : tokenValido(sp.ver);
 

@@ -1,4 +1,6 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
+import { construirHref } from "@/lib/href";
 import Aviso from "@/components/app/aviso";
 import Badge from "@/components/app/badge";
 import { FormCatalogo, type ItemCatalogo, type OpcionPadre } from "@/components/app/catalogo-form";
@@ -43,18 +45,17 @@ async function cargarOpcionesPadre(tabla: "Regiones" | "Provincias"): Promise<Op
  * Página servidor genérica de un mantenedor de catálogo (solo Administrador): listado con filtros y paginación,
  * y vistas aparte para ver (con dónde se usa), editar y crear.
  */
-export async function PaginaCatalogo({ cfg, accion, searchParams }: { cfg: CatalogoCfg; accion: Accion; searchParams: Promise<Params> }) {
+export async function PaginaCatalogo({ cfg, accion, searchParams, modo }: { cfg: CatalogoCfg; accion: Accion; searchParams: Promise<Params>; modo?: "crear" }) {
   await requerirPaginaAdmin();
   const sp = await searchParams;
-  const crear = sp.crear === "1";
+  const crear = modo === "crear"; // la ruta propia de creación (cfg.rutaCrear) abre solo el formulario
+  // URL antigua «?crear=1»: la creación tiene su propia ruta (como /compras/nueva), conservando página y filtros.
+  if (sp.crear === "1") redirect(construirHref(cfg.ruta, cfg.rutaCrear, { pagina: texto(sp.pagina), tam: texto(sp.tam), q: texto(sp.q), estado: texto(sp.estado), crear: "1" }));
   const codEditar = crear ? undefined : texto(sp.editar);
   const codVer = crear || codEditar ? undefined : texto(sp.ver);
 
   /** URL de este mantenedor con solo los parámetros indicados (los undefined se omiten). */
-  const href = (q: Record<string, string | undefined>) => {
-    const s = new URLSearchParams(Object.entries(q).filter(([, v]) => v !== undefined) as [string, string][]).toString();
-    return s ? `${cfg.ruta}?${s}` : cfg.ruta;
-  };
+  const href = (q: Record<string, string | undefined>) => construirHref(cfg.ruta, cfg.rutaCrear, q);
   // Parámetros del listado (página, tamaño y filtros) que se conservan al ir a una vista y volver.
   const q = texto(sp.q);
   const estadoPedido = texto(sp.estado);

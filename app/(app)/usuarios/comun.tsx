@@ -1,6 +1,7 @@
 import { db } from "@/lib/db/supabase";
 import type { Database } from "@/lib/db/tipos";
 import Badge from "@/components/app/badge";
+import { construirHref } from "@/lib/href";
 
 /** Lo que comparten las vistas de /usuarios (listado, detalle, crear y editar): se calcula una vez en page.tsx. */
 export type Params = Record<string, string | string[] | undefined>;
@@ -25,10 +26,7 @@ export const AVISOS: Record<string, string> = {
 export const estadoBadge = (e: number) => <Badge tone={e === 1 ? "ok" : "neutral"}>{e === 1 ? "Vigente" : "No vigente"}</Badge>;
 
 /** URL de /usuarios con solo los parámetros indicados (los undefined se omiten). */
-export function href(q: Record<string, string | undefined>) {
-  const s = new URLSearchParams(Object.entries(q).filter(([, v]) => v !== undefined) as [string, string][]).toString();
-  return s ? `/usuarios?${s}` : "/usuarios";
-}
+export const href = (q: Record<string, string | undefined>) => construirHref("/usuarios", "/usuarios/nuevo", q);
 
 export const Dato = ({ titulo, children }: { titulo: string; children: React.ReactNode }) => (
   <div><div className="label-block">{titulo}</div><div>{children || "—"}</div></div>

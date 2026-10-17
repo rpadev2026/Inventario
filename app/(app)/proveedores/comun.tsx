@@ -1,5 +1,6 @@
 import Badge from "@/components/app/badge";
 import type { cargarTerritorio } from "@/lib/services/territorio";
+import { construirHref } from "@/lib/href";
 
 /** Lo que comparten las vistas de /proveedores (listado, detalle, crear y editar): se calcula una vez en page.tsx. */
 export type Params = Record<string, string | string[] | undefined>;
@@ -23,10 +24,7 @@ export const AVISOS: Record<string, string> = {
 export const estadoBadge = (e: number) => <Badge tone={e === 1 ? "ok" : "neutral"}>{e === 1 ? "Vigente" : "No vigente"}</Badge>;
 
 /** URL de /proveedores con solo los parámetros indicados (los undefined se omiten). */
-export function href(q: Record<string, string | undefined>) {
-  const s = new URLSearchParams(Object.entries(q).filter(([, v]) => v !== undefined) as [string, string][]).toString();
-  return s ? `/proveedores?${s}` : "/proveedores";
-}
+export const href = (q: Record<string, string | undefined>) => construirHref("/proveedores", "/proveedores/nuevo", q);
 
 /** Funciones que traducen código → nombre de región, ciudad (provincia) y comuna. */
 export function nombresTerritorio(t: Territorio) {

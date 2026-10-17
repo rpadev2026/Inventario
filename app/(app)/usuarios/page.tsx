@@ -1,8 +1,9 @@
+import { redirect } from "next/navigation";
 import { db } from "@/lib/db/supabase";
 import { requerirPaginaAdmin } from "@/lib/auth/session";
 import { tokenValido } from "@/lib/token";
 import { href, texto, type Contexto, type Params } from "./comun";
-import { VistaCrear, VistaEditar } from "./vista-formulario";
+import { VistaEditar } from "./vista-formulario";
 import { VistaDetalle } from "./vista-detalle";
 import { VistaListado } from "./vista-listado";
 
@@ -10,16 +11,15 @@ import { VistaListado } from "./vista-listado";
 export default async function UsuariosPage({ searchParams }: { searchParams: Promise<Params> }) {
   const sesion = await requerirPaginaAdmin();
   const sp = await searchParams;
-  const crear = sp.crear === "1";
-  const idEditar = crear ? undefined : tokenValido(sp.editar);
-  const idVer = crear || idEditar ? undefined : tokenValido(sp.ver);
+  // URL antigua «?crear=1»: la creación tiene su propia ruta (como /compras/nueva), conservando página y filtros.
+  if (sp.crear === "1") redirect(href({ pagina: texto(sp.pagina), tam: texto(sp.tam), q: texto(sp.q), estado: texto(sp.estado), crear: "1" }));
+  const idEditar = tokenValido(sp.editar);
+  const idVer = idEditar ? undefined : tokenValido(sp.ver);
 
   // Parámetros del listado (página, tamaño y filtros) que se conservan al ir a una vista y volver.
   const base = { pagina: texto(sp.pagina), tam: texto(sp.tam), q: texto(sp.q), estado: texto(sp.estado) };
   const { data: rolesVigentes } = await db.from("Roles").select("IdRol,NombreRol").eq("IdEstado", 1).order("NombreRol");
   const ctx: Contexto = { sp, base, volverListado: href(base), uidActual: sesion.uid, roles: rolesVigentes ?? [] };
-
-  if (crear) return <VistaCrear ctx={ctx} />;
 
   const idPanel = idEditar ?? idVer;
   const { data: sel } = idPanel
