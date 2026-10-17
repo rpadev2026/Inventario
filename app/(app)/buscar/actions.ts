@@ -2,6 +2,7 @@
 import { db, nulo } from "@/lib/db/supabase";
 import { requerirPermiso } from "@/lib/auth/session";
 import { mapaNombres } from "@/lib/catalogo-nombres";
+import { costoCompraVisible } from "@/lib/producto-costo";
 
 /** Resultados por búsqueda: lo que cabe en una lista desplegable (se afina escribiendo más). */
 const LIMITE = 20;
@@ -20,31 +21,32 @@ const PERMISOS_PROVEEDORES = ["compras.registrar", "proveedores.ver"];
 
 type FilaProducto = { IdProducto: number; Codigo: string | null; Nombre: string; UnidadBase: string; CostoUnitarioBase: number | null; IdEstado: number };
 
-async function aProductos(filas: FilaProducto[]): Promise<ProductoHallado[]> {
+/** El costo de compra solo va a quien lo usa (ver costoCompraVisible): el Solicitante busca productos pero no debe verlo. */
+async function aProductos(filas: FilaProducto[], permisos: readonly string[]): Promise<ProductoHallado[]> {
   const unidades = await mapaNombres("UnidadesMedida");
   return filas.map((p) => ({
     id: p.IdProducto, codigo: p.Codigo, nombre: p.Nombre, unidadBase: p.UnidadBase,
     unidadNombre: unidades.get(p.UnidadBase) ?? p.UnidadBase,
-    costoBase: p.CostoUnitarioBase === null ? null : Number(p.CostoUnitarioBase), vigente: p.IdEstado === 1,
+    costoBase: costoCompraVisible(p.CostoUnitarioBase, permisos), vigente: p.IdEstado === 1,
   }));
 }
 
 /** Productos vigentes por código o nombre (sin distinguir mayúsculas ni tildes); texto vacío = los primeros por nombre. */
 export async function buscarProductos(q: string): Promise<ProductoHallado[]> {
-  await requerirPermiso(...PERMISOS_PRODUCTOS);
+  const s = await requerirPermiso(...PERMISOS_PRODUCTOS);
   const { data, error } = await db.rpc("listar_pagina", { p_tabla: "productos", p_q: texto(q), p_estado: 1, p_off: 0, p_lim: LIMITE });
   if (error) throw new Error("No se pudo buscar productos");
-  return aProductos((data as { filas: FilaProducto[] }).filas);
+  return aProductos((data as { filas: FilaProducto[] }).filas, s.permisos);
 }
 
 /** Productos por id (vigentes o no): para mostrar lo ya elegido al restaurar un borrador o abrir una edición. */
 export async function productosPorId(listaIds: number[]): Promise<ProductoHallado[]> {
-  await requerirPermiso(...PERMISOS_PRODUCTOS);
+  const s = await requerirPermiso(...PERMISOS_PRODUCTOS);
   const buscados = ids(listaIds);
   if (!buscados.length) return [];
   const { data, error } = await db.from("Productos").select("IdProducto,Codigo,Nombre,UnidadBase,CostoUnitarioBase,IdEstado").in("IdProducto", buscados);
   if (error) throw new Error("No se pudo leer los productos");
-  return aProductos(data);
+  return aProductos(data, s.permisos);
 }
 
 /** Proveedores vigentes por RUT, razón social o giro. */
