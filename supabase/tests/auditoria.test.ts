@@ -38,6 +38,23 @@ describe("0023 (auditoría): sesiones, limitador y claves", () => {
     expect(c).toEqual({ n: 0, bloqueado: true });
   });
 
+  // Regresión (auditoría de seguridad): fallos de intentos concurrentes que llegan con la cuenta ya bloqueada borraban el candado.
+  it("un fallo con la cuenta ya bloqueada no cambia el bloqueo ni el contador (0038)", async () => {
+    const estado = async () => (await q(`select "IntentosFallidos" n, "BloqueadoHasta"::text b from "Claves" where "IdUsuario"=1`))[0];
+    const antes = await estado();
+    expect(antes.b).not.toBeNull();
+    for (let i = 0; i < 7; i++) await db.exec(`select registrar_fallo_login(1, 3, 15)`); // más que el máximo
+    expect(await estado()).toEqual(antes);
+  });
+
+  it("cuando el bloqueo vence, los fallos vuelven a contar desde cero y pueden bloquear de nuevo", async () => {
+    await db.exec(`update "Claves" set "BloqueadoHasta" = now() - interval '1 minute' where "IdUsuario"=1`);
+    await db.exec(`select registrar_fallo_login(1, 3, 15)`);
+    expect((await q(`select "IntentosFallidos" n, "BloqueadoHasta" b from "Claves" where "IdUsuario"=1`))[0]).toEqual({ n: 1, b: null });
+    await db.exec(`select registrar_fallo_login(1, 3, 15)`); await db.exec(`select registrar_fallo_login(1, 3, 15)`);
+    expect((await q(`select "IntentosFallidos" n, "BloqueadoHasta" > now() as bloqueado from "Claves" where "IdUsuario"=1`))[0]).toEqual({ n: 0, bloqueado: true });
+  });
+
   it("registrar_intento_login permite hasta el máximo y luego niega; expira la ventana", async () => {
     const intento = async (ventana = 60) => (await q(`select registrar_intento_login('1.2.3.4', 3, ${ventana}) ok`))[0].ok;
     expect([await intento(), await intento(), await intento(), await intento()]).toEqual([true, true, true, false]);

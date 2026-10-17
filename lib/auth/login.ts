@@ -32,6 +32,11 @@ export async function autenticar(correo: string, password: string): Promise<Resu
     return { ok: false, error: GENERICO };
   }
 
+  // La verificación de la clave es lenta: otro intento pudo bloquear la cuenta mientras tanto. Se vuelve a mirar el candado para
+  // que una clave acertada en un intento ya en vuelo no entre con la cuenta bloqueada.
+  const { data: ahora } = await db.from("Claves").select("BloqueadoHasta").eq("IdUsuario", c.IdUsuario).maybeSingle();
+  if (ahora?.BloqueadoHasta && new Date(ahora.BloqueadoHasta) > new Date()) return { ok: false, error: GENERICO };
+
   await db.from("Claves").update({ IntentosFallidos: 0, BloqueadoHasta: null }).eq("IdUsuario", c.IdUsuario);
   const { data: rs } = await db
     .from("UsuariosRoles").select("Roles!inner(NombreRol, IdEstado)")
