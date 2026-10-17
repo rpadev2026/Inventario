@@ -1,5 +1,7 @@
 import { etiquetaProducto } from "@/lib/producto-etiqueta";
 import Link from "next/link";
+import { redirect } from "next/navigation";
+import { construirHref } from "@/lib/href";
 import { db } from "@/lib/db/supabase";
 import { requerirPaginaPermiso, esAdmin } from "@/lib/auth/session";
 import { mapaNombres } from "@/lib/catalogo-nombres";
@@ -11,7 +13,7 @@ import Aviso from "@/components/app/aviso";
 import Icon from "@/components/app/icon";
 import FiltrosListado from "@/components/app/filtros-listado";
 import Paginador from "@/components/app/paginador";
-import { CrearBodega, EditarBodega } from "./editar";
+import { EditarBodega } from "./editar";
 
 
 type Params = Record<string, string | string[] | undefined>;
@@ -20,40 +22,23 @@ const texto = (v: string | string[] | undefined) => (typeof v === "string" && v 
 const tono = { Crítico: "danger", Bajo: "warn", OK: "ok" } as const;
 const AVISOS: Record<string, string> = { creada: "Bodega creada correctamente", editada: "Cambios guardados correctamente" };
 
-/** URL de /bodegas con solo los parámetros indicados (los undefined se omiten). */
-function href(q: Record<string, string | undefined>) {
-  const s = new URLSearchParams(Object.entries(q).filter(([, v]) => v !== undefined) as [string, string][]).toString();
-  return s ? `/bodegas?${s}` : "/bodegas";
-}
+/** URL de /bodegas con solo los parámetros indicados (los undefined se omiten); `crear: "1"` va a /bodegas/nueva. */
+const href = (q: Record<string, string | undefined>) => construirHref("/bodegas", "/bodegas/nueva", q);
 
 export default async function BodegasPage({ searchParams }: { searchParams: Promise<Params> }) {
   const s = await requerirPaginaPermiso("bodegas.ver");
   const admin = esAdmin(s);
   const sp = await searchParams;
-  const crear = admin && sp.crear === "1"; // solo el Administrador ve los formularios de crear y editar
-  const idEditar = admin && !crear ? tokenValido(sp.editar) : undefined;
-  const idVer = crear || idEditar ? undefined : tokenValido(sp.ver);
+  // URL antigua «?crear=1»: la creación tiene su propia ruta (como /compras/nueva), conservando página y filtros.
+  if (sp.crear === "1") redirect(href({ pagina: texto(sp.pagina), tam: texto(sp.tam), q: texto(sp.q), estado: texto(sp.estado), crear: "1" }));
+  const idEditar = admin ? tokenValido(sp.editar) : undefined; // solo el Administrador ve los formularios de crear y editar
+  const idVer = idEditar ? undefined : tokenValido(sp.ver);
 
   // Parámetros del listado (página, tamaño y filtros) que se conservan al ir a una vista y volver.
   const q = texto(sp.q);
   const estadoPedido = texto(sp.estado);
   const base = { pagina: texto(sp.pagina), tam: texto(sp.tam), q, estado: estadoPedido };
   const volverListado = href(base);
-
-  // ===== Crear: solo el formulario, con Volver =====
-  if (crear) {
-    return (
-      <section className="space-y-4">
-        <div className="page-head">
-          <h1 className="page-title">Crear bodega</h1>
-          <Link href={volverListado} className="btn btn-secondary">Volver</Link>
-        </div>
-        <div className="card">
-          <CrearBodega volverHref={href({ tam: base.tam, aviso: "creada" })} />
-        </div>
-      </section>
-    );
-  }
 
   const idPanel = idEditar ?? idVer;
   const { data: sel } = idPanel

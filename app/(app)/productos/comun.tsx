@@ -1,6 +1,7 @@
 import { db } from "@/lib/db/supabase";
 import type { cargarCatalogo } from "@/lib/catalogo-nombres";
 import type { UnidadInfo } from "@/lib/unidades";
+import { construirHref } from "@/lib/href";
 
 /** Lo que comparten las vistas de /productos (listado, detalle, crear y editar): se calcula una vez en page.tsx. */
 export type Params = Record<string, string | string[] | undefined>;
@@ -31,10 +32,7 @@ export const clpBase = new Intl.NumberFormat("es-CL", { style: "currency", curre
 export const fecha = (iso: string) => new Date(iso).toLocaleString("es-CL", { dateStyle: "short", timeStyle: "short" });
 
 /** URL de /productos con solo los parámetros indicados (los undefined se omiten). */
-export function href(q: Record<string, string | undefined>) {
-  const s = new URLSearchParams(Object.entries(q).filter(([, v]) => v !== undefined) as [string, string][]).toString();
-  return s ? `/productos?${s}` : "/productos";
-}
+export const href = (q: Record<string, string | undefined>) => construirHref("/productos", "/productos/nuevo", q);
 
 export const Dato = ({ titulo, children }: { titulo: string; children: React.ReactNode }) => (
   <div><div className="label-block">{titulo}</div><div>{children || "—"}</div></div>

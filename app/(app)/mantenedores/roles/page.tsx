@@ -1,4 +1,6 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
+import { construirHref } from "@/lib/href";
 import Aviso from "@/components/app/aviso";
 import Badge from "@/components/app/badge";
 import FiltrosListado from "@/components/app/filtros-listado";
@@ -25,39 +27,22 @@ const Dato = ({ titulo, children }: { titulo: string; children: React.ReactNode 
   <div><div className="label-block">{titulo}</div><div>{children || "—"}</div></div>
 );
 
-/** URL de este mantenedor con solo los parámetros indicados (los undefined se omiten). */
-function href(q: Record<string, string | undefined>) {
-  const s = new URLSearchParams(Object.entries(q).filter(([, v]) => v !== undefined) as [string, string][]).toString();
-  return s ? `${RUTA}?${s}` : RUTA;
-}
+/** URL de este mantenedor con solo los parámetros indicados (los undefined se omiten); `crear: "1"` va a /mantenedores/roles/nuevo. */
+const href = (q: Record<string, string | undefined>) => construirHref(RUTA, `${RUTA}/nuevo`, q);
 
 export default async function RolesPage({ searchParams }: { searchParams: Promise<Params> }) {
   await requerirPaginaAdmin();
   const [sp, catalogo] = await Promise.all([searchParams, cargarPermisos()]);
-  const crear = sp.crear === "1";
-  const idEditar = crear ? undefined : tokenValido(sp.editar);
-  const idVer = crear || idEditar ? undefined : tokenValido(sp.ver);
+  // URL antigua «?crear=1»: la creación tiene su propia ruta (como /compras/nueva), conservando página y filtros.
+  if (sp.crear === "1") redirect(href({ pagina: texto(sp.pagina), tam: texto(sp.tam), q: texto(sp.q), estado: texto(sp.estado), crear: "1" }));
+  const idEditar = tokenValido(sp.editar);
+  const idVer = idEditar ? undefined : tokenValido(sp.ver);
 
   // Parámetros del listado (página, tamaño y filtros) que se conservan al ir a una vista y volver.
   const q = texto(sp.q);
   const estadoPedido = texto(sp.estado);
   const base = { pagina: texto(sp.pagina), tam: texto(sp.tam), q, estado: estadoPedido };
   const volverListado = href(base);
-
-  // ===== Crear: solo el formulario, con Volver =====
-  if (crear) {
-    return (
-      <section className="space-y-4">
-        <div className="page-head">
-          <h1 className="page-title">Crear rol</h1>
-          <Link href={volverListado} className="btn btn-secondary">Volver</Link>
-        </div>
-        <div className="card">
-          <FormRol catalogo={catalogo} accion={guardarRol} despuesDeGuardar={href({ tam: base.tam, aviso: "creado" })} />
-        </div>
-      </section>
-    );
-  }
 
   const [{ data: roles }, { data: rp }, { data: ur }] = await Promise.all([
     leerTodo((a, b) => db.from("Roles").select("Token,IdRol,NombreRol,DetalleRol,IdEstado,EsBase", { count: "exact" }).order("IdRol").range(a, b)),

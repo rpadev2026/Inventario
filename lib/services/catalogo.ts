@@ -9,6 +9,8 @@ export type CatalogoCfg = {
   id: "IdFormaPago" | "IdUnidadMedida" | "IdFormato" | "IdRegion" | "IdProvincia" | "IdComuna";
   titulo: string;
   ruta: string;
+  /** Ruta propia de la pantalla de creación (como /compras/nueva): la URL no lleva «?crear=1». */
+  rutaCrear: string;
   patronCodigo?: RegExp;
   ayudaCodigo?: string;
   padre?: { columna: "CodigoRegion" | "CodigoProvincia"; tabla: "Regiones" | "Provincias"; etiqueta: "Región" | "Ciudad (provincia)" };
@@ -22,17 +24,17 @@ export type CatalogoCfg = {
 export type UsoCfg = { etiqueta: string; tabla: string; columna: string; singular: string; plural: string; conEstado?: boolean };
 
 export const CATALOGOS: Record<"formasPago" | "unidades" | "formatos" | "regiones" | "ciudades" | "comunas", CatalogoCfg> = {
-  formasPago: { tabla: "FormasPago", id: "IdFormaPago", titulo: "Formas de pago", ruta: "/mantenedores/formas-pago", uso: [{ etiqueta: "Facturas de compra", tabla: "Compras", columna: "FormaPago", singular: "factura", plural: "facturas" }] },
-  unidades: { tabla: "UnidadesMedida", id: "IdUnidadMedida", titulo: "Unidades de medida", ruta: "/mantenedores/unidades-medida", base: true, uso: [
+  formasPago: { tabla: "FormasPago", id: "IdFormaPago", titulo: "Formas de pago", ruta: "/mantenedores/formas-pago", rutaCrear: "/mantenedores/formas-pago/nueva", uso: [{ etiqueta: "Facturas de compra", tabla: "Compras", columna: "FormaPago", singular: "factura", plural: "facturas" }] },
+  unidades: { tabla: "UnidadesMedida", id: "IdUnidadMedida", titulo: "Unidades de medida", ruta: "/mantenedores/unidades-medida", rutaCrear: "/mantenedores/unidades-medida/nueva", base: true, uso: [
     { etiqueta: "Productos", tabla: "Productos", columna: "UnidadBase", singular: "producto", plural: "productos", conEstado: true },
     { etiqueta: "Líneas de factura", tabla: "ComprasDetalle", columna: "UnidadMedida", singular: "línea", plural: "líneas" },
     { etiqueta: "Líneas de receta", tabla: "RecetaDetalles", columna: "UnidadMedida", singular: "línea", plural: "líneas" },
     { etiqueta: "Rendimiento de recetas", tabla: "Recetas", columna: "RendimientoUnidad", singular: "receta", plural: "recetas" },
     { etiqueta: "Unidades que la usan como base", tabla: "UnidadesMedida", columna: "UnidadBase", singular: "unidad", plural: "unidades" },
   ] },
-  formatos: { tabla: "Formatos", id: "IdFormato", titulo: "Formatos", ruta: "/mantenedores/formatos", uso: [{ etiqueta: "Productos", tabla: "Productos", columna: "Formato", singular: "producto", plural: "productos", conEstado: true }] },
+  formatos: { tabla: "Formatos", id: "IdFormato", titulo: "Formatos", ruta: "/mantenedores/formatos", rutaCrear: "/mantenedores/formatos/nuevo", uso: [{ etiqueta: "Productos", tabla: "Productos", columna: "Formato", singular: "producto", plural: "productos", conEstado: true }] },
   regiones: {
-    tabla: "Regiones", id: "IdRegion", titulo: "Regiones", ruta: "/mantenedores/regiones",
+    tabla: "Regiones", id: "IdRegion", titulo: "Regiones", ruta: "/mantenedores/regiones", rutaCrear: "/mantenedores/regiones/nueva",
     patronCodigo: /^\d{2}$/, ayudaCodigo: "2 dígitos, código CUT",
     uso: [
       { etiqueta: "Ciudades de la región", tabla: "Provincias", columna: "CodigoRegion", singular: "ciudad", plural: "ciudades", conEstado: true },
@@ -41,7 +43,7 @@ export const CATALOGOS: Record<"formasPago" | "unidades" | "formatos" | "regione
     ],
   },
   ciudades: {
-    tabla: "Provincias", id: "IdProvincia", titulo: "Ciudades (provincias)", ruta: "/mantenedores/ciudades",
+    tabla: "Provincias", id: "IdProvincia", titulo: "Ciudades (provincias)", ruta: "/mantenedores/ciudades", rutaCrear: "/mantenedores/ciudades/nueva",
     patronCodigo: /^\d{3}$/, ayudaCodigo: "3 dígitos, código CUT",
     padre: { columna: "CodigoRegion", tabla: "Regiones", etiqueta: "Región" },
     uso: [
@@ -51,7 +53,7 @@ export const CATALOGOS: Record<"formasPago" | "unidades" | "formatos" | "regione
     ],
   },
   comunas: {
-    tabla: "Comunas", id: "IdComuna", titulo: "Comunas", ruta: "/mantenedores/comunas",
+    tabla: "Comunas", id: "IdComuna", titulo: "Comunas", ruta: "/mantenedores/comunas", rutaCrear: "/mantenedores/comunas/nueva",
     patronCodigo: /^\d{5}$/, ayudaCodigo: "5 dígitos, código CUT",
     padre: { columna: "CodigoProvincia", tabla: "Provincias", etiqueta: "Ciudad (provincia)" },
     uso: [
