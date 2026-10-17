@@ -7,7 +7,7 @@ export function AtajosRango({ ruta, extra }: { ruta: string; extra?: Record<stri
   return (
     <nav aria-label="Rangos rápidos" className="flex flex-wrap gap-2">
       {atajos().map((a) => (
-        <Link key={a.nombre} href={`${ruta}?${paramsRango(a.rango, extra)}`} className="btn btn-secondary">{a.nombre}</Link>
+        <Link key={a.nombre} href={`${ruta}?${paramsRango(a.rango, extra)}&pagina=`} className="btn btn-secondary">{a.nombre}</Link>
       ))}
     </nav>
   );

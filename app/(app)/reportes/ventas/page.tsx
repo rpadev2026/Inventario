@@ -1,8 +1,9 @@
 import Link from "next/link";
 import { requerirPaginaPermiso } from "@/lib/auth/session";
-import { etiquetaPeriodo, leerAgrupacion, leerRango, paramsRango } from "@/lib/reporte-ventas";
+import { etiquetaPeriodo, leerAgrupacion, leerRango, paginaVentas, paramsRango } from "@/lib/reporte-ventas";
 import { ventasPeriodo } from "@/lib/services/reportes";
 import Field from "@/components/app/field";
+import Paginador from "@/components/app/paginador";
 import { fmtCantidad, fmtPesos } from "../comun";
 import { AtajosRango, CamposRango } from "../filtros-fechas";
 
@@ -16,6 +17,8 @@ export default async function ReporteVentasPeriodoPage({ searchParams }: { searc
   const rango = leerRango(sp);
   const agrupar = leerAgrupacion(sp);
   const r = await ventasPeriodo(rango, agrupar);
+  // Los totales y el CSV son de todo el rango; la tabla se pagina.
+  const pg = paginaVentas(sp, r.filas.length);
   const csv = `/api/reportes/ventas?${paramsRango(rango, { agrupar })}`;
 
   return (
@@ -36,6 +39,7 @@ export default async function ReporteVentasPeriodoPage({ searchParams }: { searc
             <option value="dia">Día</option><option value="semana">Semana (lunes a domingo)</option><option value="mes">Mes</option>
           </select>
         </Field>
+        <input type="hidden" name="pagina" value="" />
         <div className="form-actions"><button className="btn btn-primary">Ver</button></div>
       </form>
 
@@ -60,7 +64,7 @@ export default async function ReporteVentasPeriodoPage({ searchParams }: { searc
         <table className="table">
           <thead><tr><th>{NOMBRE[agrupar]}</th><th className="num">Ventas</th><th className="num">Unidades</th><th className="num">Monto</th><th className="num">Promedio por venta</th></tr></thead>
           <tbody>
-            {r.filas.map((f) => (
+            {r.filas.slice(pg.from, pg.to + 1).map((f) => (
               <tr key={f.periodo}>
                 <td>{etiquetaPeriodo(f.periodo, agrupar)}</td>
                 <td className="num">{f.ventas}</td>
@@ -72,6 +76,7 @@ export default async function ReporteVentasPeriodoPage({ searchParams }: { searc
           </tbody>
         </table>
       </div>
+      <Paginador pg={pg} etiqueta="ventas por período" />
       <p className="text-sm text-muted">Montos con IVA según los precios de las líneas en Fudo; los descuentos o propinas de la venta completa no se reparten entre líneas.</p>
     </section>
   );

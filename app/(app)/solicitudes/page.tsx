@@ -56,8 +56,9 @@ export default async function SolicitudesPage({ searchParams }: { searchParams: 
           </Field>
         )}
         {typeof sp.tam === "string" && <input type="hidden" name="tam" value={pg.tam} />}
+        <input type="hidden" name="pagina" value="" />
         <button className="btn btn-secondary">Filtrar</button>
-        {(estadoPedido !== undefined || solicitantePedido !== undefined) && <Link href="/solicitudes" className="link">Limpiar</Link>}
+        {(estadoPedido !== undefined || solicitantePedido !== undefined) && <Link href="/solicitudes?estado=&solicitante=&pagina=" className="link">Limpiar</Link>}
       </form>
       <div className="table-wrap">
         <table className="table">

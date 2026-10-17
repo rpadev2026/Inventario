@@ -36,6 +36,7 @@ export default async function ReporteStockPage({ searchParams }: { searchParams:
 
       <form method="get" action="/reportes/stock" role="search" aria-label="Filtrar el reporte de stock" className="form-grid form-grid-4 items-end">
         {tam && <input type="hidden" name="tam" value={tam} />}
+        <input type="hidden" name="pagina" value="" />
         <Field label="Bodega">
           <select name="bodega" defaultValue={f.bodega ? String(f.bodega) : ""} className="input">
             <option value="">Todas</option>
@@ -46,12 +47,13 @@ export default async function ReporteStockPage({ searchParams }: { searchParams:
           <input name="q" type="search" defaultValue={f.q} className="input" autoComplete="off" />
         </Field>
         <label className="flex items-center gap-2">
+          <input type="hidden" name="con_stock" value="" />
           <input type="checkbox" name="con_stock" value="1" defaultChecked={f.soloConStock} />
           <span>Solo con stock</span>
         </label>
         <div className="form-actions">
           <button className="btn btn-primary">Buscar</button>
-          {hayFiltro && <Link href="/reportes/stock" className="btn btn-secondary">Limpiar</Link>}
+          {hayFiltro && <Link href="/reportes/stock?bodega=&q=&con_stock=&pagina=" className="btn btn-secondary">Limpiar</Link>}
         </div>
       </form>
 
