@@ -24,8 +24,11 @@ beforeAll(async () => {
     insert into "Proveedores"("Rut","RazonSocial","Giro","IdEstado") values
       ('76086428-5','ÁLAMO Y CÍA','VERDURAS',1),('96.1-2','BETA SPA',null,0),('76543210-3','Ñandú Ltda','CARNES Y ABARROTES',1);
     insert into "Bodegas"("NombreBodega","EsCentral") values ('COCINA',false),('BAR ÑUBLE',false),('CENTRAL',true);
+    -- Un producto antiguo sin código (hoy no se puede crear: trigger 0040) para que la búsqueda siga cubriendo los códigos nulos.
+    alter table "Productos" disable trigger trg_exigir_codigo_producto;
     insert into "Productos"("Codigo","Nombre","UnidadBase","Formato") values
       ('AZ-1','AZÚCAR','G','BOLSA'),(null,'ÁJÍ EN POLVO','G','BOLSA'),('P.2','PIMIENTA','G','BOLSA');
+    alter table "Productos" enable trigger trg_exigir_codigo_producto;
   `);
 });
 
@@ -67,7 +70,7 @@ describe("listar_pagina (P01)", () => {
   });
 
   it("pagina con total correcto y busca registros más allá de 1.000 filas", async () => {
-    await db.exec(`insert into "Productos"("Nombre","UnidadBase","Formato") select 'ITEM ' || lpad(g::text, 5, '0'), 'G', 'BOLSA' from generate_series(1, 1500) g`);
+    await db.exec(`insert into "Productos"("Codigo","Nombre","UnidadBase","Formato") select 'IT' || g, 'ITEM ' || lpad(g::text, 5, '0'), 'G', 'BOLSA' from generate_series(1, 1500) g`);
     const p1 = await pagina("productos", "", null, 0, 10);
     expect(p1.total).toBe(1503);
     expect(p1.filas).toHaveLength(10);

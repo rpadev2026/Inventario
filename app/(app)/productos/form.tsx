@@ -58,7 +58,7 @@ export default function FormProducto({ p, unidades, formatos, unidadBaseBloquead
       <input type="hidden" name="modo" value={p ? "editar" : "crear"} />
       {p && <input type="hidden" name="id" value={p.IdProducto} />}
       <div className="form-grid form-grid-4">
-        <Field label="Código" hint="Opcional"><input name="codigo" defaultValue={p?.Codigo ?? ""} maxLength={40} className="input" /></Field>
+        <Field label="Código"><input name="codigo" defaultValue={p?.Codigo ?? ""} maxLength={40} required className="input" autoComplete="off" /></Field>
         <Field label="Nombre" className="fld-3"><input name="nombre" defaultValue={p?.Nombre} required className="input" /></Field>
         <Field label="Unidad base" hint={unidadBaseBloqueada ? "No se puede cambiar: el producto ya tiene stock o facturas" : "Unidad en que se lleva su stock y su costo"}>
           <select name="unidadBase" value={base} onChange={(e) => setBase(e.target.value)} disabled={unidadBaseBloqueada} required className="input">

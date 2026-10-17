@@ -76,15 +76,15 @@ describe("producto", () => {
     const r = productoSchema.safeParse({ ...p, codigo: "p01", nombre: "  pi帽a y papas " });
     expect(r.success && [r.data.codigo, r.data.nombre]).toEqual(["P01", "PI脩A Y PAPAS"]);
   });
-  it("c贸digo vac铆o o con espacios queda como no informado", () => {
+  // Regresi贸n: se pod铆an crear productos sin c贸digo (el formulario lo marcaba como opcional).
+  it("el c贸digo es obligatorio: vac铆o, solo espacios o ausente se rechazan con un mensaje claro", () => {
     for (const codigo of ["", "   "]) {
       const r = productoSchema.safeParse({ ...p, codigo });
-      expect(r.success && r.data.codigo).toBeUndefined();
+      expect(!r.success && r.error.issues[0].message).toBe("C贸digo requerido");
     }
-  });
-  it("sin c贸digo tambi茅n se acepta", () => {
     const sin = Object.fromEntries(Object.entries(p).filter(([k]) => k !== "codigo"));
-    expect(productoSchema.safeParse(sin).success).toBe(true);
+    const r = productoSchema.safeParse(sin);
+    expect(!r.success && r.error.issues[0].message).toBe("C贸digo requerido");
   });
   it("rechaza c贸digo con caracteres no permitidos", () => expect(productoSchema.safeParse({ ...p, codigo: "a b" }).success).toBe(false));
 });
@@ -144,7 +144,7 @@ describe("catalogo", () => {
   it("rechaza nombre vac铆o", () => expect(catalogoSchema.safeParse({ codigo: "A", nombre: " " }).success).toBe(false));
 });
 describe("rol", () => {
-  it("acepta permisos vac韔s y detalle vac韔 -> null", () => {
+  it("acepta permisos vac锟給s y detalle vac锟給 -> null", () => {
     const r = rolSchema.safeParse({ nombre: " Consulta ", detalle: "" });
     expect(r.success && r.data.permisos).toEqual([]);
     expect(r.success && r.data.detalle).toBeNull();

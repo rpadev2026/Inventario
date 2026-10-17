@@ -398,8 +398,9 @@ describe("roles base inactivos (migración 0012)", () => {
 });
 
 describe("precio desde la factura (migración 0016)", () => {
-  const nuevo = async (nombre: string, base: string, extra = "") =>
-    Number(await val(`insert into "Productos"("Nombre","UnidadBase","Formato"${extra ? ",\"Codigo\"" : ""}) values ('${nombre}','${base}','CAJA'${extra ? `,'${extra}'` : ""}) returning "IdProducto"`));
+  let seq = 0; // el código es obligatorio (0040): cada producto de prueba recibe uno propio
+  const nuevo = async (nombre: string, base: string, codigo = `T${++seq}`) =>
+    Number(await val(`insert into "Productos"("Codigo","Nombre","UnidadBase","Formato") values ('${codigo}','${nombre}','${base}','CAJA') returning "IdProducto"`));
   type L = { producto: number; unidad: string; precio: number; cantidad: number };
   const fac = (folio: number, lineas: L[]) => {
     const total = Math.round(lineas.reduce((a, l) => a + Math.round(l.precio * l.cantidad * 100) / 100, 0));
@@ -483,7 +484,7 @@ describe("precio desde la factura (migración 0016)", () => {
     expect(await stock(s)).toBe(0);
   });
   it("la unidad base debe ser base y no se edita con stock o facturas", async () => {
-    await fails(`insert into "Productos"("Nombre","UnidadBase","Formato") values ('Mala base','KG','CAJA')`, /unidad base \(factor 1\)/);
+    await fails(`insert into "Productos"("Codigo","Nombre","UnidadBase","Formato") values ('MB','Mala base','KG','CAJA')`, /unidad base \(factor 1\)/);
     const t = await nuevo("Cambio base", "G");
     await db.query(`update "Productos" set "UnidadBase"='ML' where "IdProducto"=${t}`); // sin movimientos: se puede
     await fails(`update "Productos" set "UnidadBase"='ML' where "IdProducto"=${p}`, /ya tiene stock o facturas/);
@@ -503,7 +504,9 @@ describe("precio desde la factura (migración 0016)", () => {
     await db.query(`update "UnidadesMedida" set "IdEstado"=0 where "Codigo"='KG'`);
     await db.query(`update "UnidadesMedida" set "IdEstado"=1 where "Codigo"='KG'`);
   });
-  it("Codigo es opcional pero único; Nombre es único", async () => {
+  it("Codigo es obligatorio y único; Nombre es único (0040)", async () => {
+    await fails(`insert into "Productos"("Nombre","UnidadBase","Formato") values ('Sin codigo','G','CAJA')`, /código del producto es obligatorio/);
+    await fails(`insert into "Productos"("Codigo","Nombre","UnidadBase","Formato") values ('   ','Codigo en blanco','G','CAJA')`, /código del producto es obligatorio/);
     await nuevo("Sin codigo A", "G");
     await nuevo("Sin codigo B", "G");
     await db.query(`insert into "Productos"("Codigo","Nombre","UnidadBase","Formato") values ('UNI','Con codigo','G','CAJA')`);
@@ -513,10 +516,13 @@ describe("precio desde la factura (migración 0016)", () => {
   it("las RPC rechazan producto inexistente, no vigente o no numérico con el producto reconocible", async () => {
     await db.query(`insert into "Productos"("Codigo","Nombre","UnidadBase","Formato","IdEstado") values ('OFF','Inactivo','G','CAJA',0)`);
     const off = Number(await val(`select "IdProducto" from "Productos" where "Codigo"='OFF'`));
-    const sinCodigo = Number(await val(`select "IdProducto" from "Productos" where "Nombre"='SIN CODIGO A'`));
+    // Producto antiguo sin código (hoy no se puede crear: trigger 0040): el mensaje lo nombra solo por su nombre.
+    await db.exec(`alter table "Productos" disable trigger trg_exigir_codigo_producto`);
+    const sinCodigo = Number(await val(`insert into "Productos"("Nombre","UnidadBase","Formato") values ('Sin codigo Z','G','CAJA') returning "IdProducto"`));
+    await db.exec(`alter table "Productos" enable trigger trg_exigir_codigo_producto`);
     await db.query(`update "Productos" set "IdEstado"=0 where "IdProducto"=${sinCodigo}`);
     await fails(`select crear_solicitud(2, 2, '[{"producto":${off},"cantidad":1}]'::jsonb)`, /Producto OFF — INACTIVO no existe o no vigente/);
-    await fails(`select crear_solicitud(2, 2, '[{"producto":${sinCodigo},"cantidad":1}]'::jsonb)`, /Producto SIN CODIGO A no existe o no vigente/);
+    await fails(`select crear_solicitud(2, 2, '[{"producto":${sinCodigo},"cantidad":1}]'::jsonb)`, /Producto SIN CODIGO Z no existe o no vigente/);
     await fails(`select crear_solicitud(2, 2, '[{"producto":999999,"cantidad":1}]'::jsonb)`, /Producto 999999 no existe o no vigente/);
     await fails(`select crear_solicitud(2, 2, '[{"producto":"abc","cantidad":1}]'::jsonb)`, /Producto no válido/);
     await fails(fac(1020, [{ producto: off, unidad: "KG", precio: 1, cantidad: 1 }]), /Producto OFF — INACTIVO/);
@@ -544,12 +550,12 @@ describe("código y nombre de producto en mayúscula (migración 0018)", () => {
     await db.query(`update "Productos" set "Codigo"='q-1', "Nombre"='papas nuevas' where "IdProducto"=${id}`);
     expect(await fila(id)).toEqual({ c: "Q-1", n: "PAPAS NUEVAS" });
   });
-  it("quita espacios en los extremos y un código vacío queda null", async () => {
-    const a = Number(await val(ins("   ", "  sal fina  ")));
-    expect(await fila(a)).toEqual({ c: null, n: "SAL FINA" });
+  it("quita espacios en los extremos del nombre y del código", async () => {
+    const a = Number(await val(ins("  s-1  ", "  sal fina  ")));
+    expect(await fila(a)).toEqual({ c: "S-1", n: "SAL FINA" });
   });
   it("conserva los acentos y la ñ en mayúscula", async () => {
-    const a = Number(await val(ins(null, "piña en almíbar")));
+    const a = Number(await val(ins("pi-1", "piña en almíbar")));
     expect((await fila(a)).n).toBe("PIÑA EN ALMÍBAR");
   });
   it("código y nombre que solo difieren en mayúsculas son duplicados", async () => {
