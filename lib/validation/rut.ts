@@ -13,14 +13,20 @@ export function dvRut(cuerpo: string): string {
   return r === 11 ? "0" : r === 10 ? "K" : String(r);
 }
 
-export function validarRut(rut: string): boolean {
+/** Cuerpo y dígito verificador sin ceros a la izquierda: un RUT tiene una sola forma canónica (01234567-4 es 1234567-4). */
+function partes(rut: string): { cuerpo: string; dv: string } {
   const l = limpiarRut(rut);
-  if (!/^\d{7,8}[\dK]$/.test(l)) return false;
-  return dvRut(l.slice(0, -1)) === l.slice(-1);
+  return { cuerpo: l.slice(0, -1).replace(/^0+/, ""), dv: l.slice(-1) };
 }
 
-/** Normaliza a formato 12345678-9 (sin puntos). */
+export function validarRut(rut: string): boolean {
+  const { cuerpo, dv } = partes(rut);
+  if (!/^\d{7,8}$/.test(cuerpo) || !/^[\dK]$/.test(dv)) return false;
+  return dvRut(cuerpo) === dv;
+}
+
+/** Normaliza a formato 12345678-9 (sin puntos ni ceros a la izquierda): es la forma que se guarda y se compara. */
 export function normalizarRut(rut: string): string {
-  const l = limpiarRut(rut);
-  return `${l.slice(0, -1)}-${l.slice(-1)}`;
+  const { cuerpo, dv } = partes(rut);
+  return `${cuerpo}-${dv}`;
 }
