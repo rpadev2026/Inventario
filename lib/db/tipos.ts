@@ -2041,6 +2041,10 @@ export type Database = {
         Args: { p_clave: string; p_max: number; p_ventana_seg: number }
         Returns: boolean
       }
+      reporte_stock: {
+        Args: { p_bodega: number; p_lim: number; p_off: number; p_q: string; p_solo_con_stock: boolean }
+        Returns: Json
+      }
       resolver_correo: {
         Args: { p_error: string; p_id: number; p_max?: number; p_ok: boolean }
         Returns: undefined

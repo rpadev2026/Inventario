@@ -110,6 +110,7 @@ describe("rol app_servidor: lo que la aplicación hace, funciona", () => {
     await permitido(`select calcular_recetas(array[]::bigint[])`);
     await permitido(`select fijar_clave(1, 'h2', 1, false)`);
     await permitido(`select revocar_sesiones(1)`);
+    await permitido(`select reporte_stock(null, '', false, 0, 10)`);
   });
   it("revocar_sesiones sube la versión de sesión solo del usuario indicado (cerrar sesión invalida los tokens)", async () => {
     const v = async () => Number((await filas(`select "VersionSesion" v from "Claves" where "IdUsuario" = 1`))[0].v);

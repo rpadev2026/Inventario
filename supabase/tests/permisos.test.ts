@@ -18,12 +18,12 @@ beforeAll(async () => {
 });
 
 describe("catálogo de permisos (tabla Permisos)", () => {
-  it("tiene los 14 permisos con módulo, descripción y orden", async () => {
+  it("tiene los 15 permisos con módulo, descripción y orden", async () => {
     const r = (await db.query<any>(`select "Codigo","Modulo","Descripcion","Orden" from "Permisos" order by "Orden"`)).rows;
-    expect(r).toHaveLength(14);
+    expect(r).toHaveLength(15);
     expect(r[0]).toMatchObject({ Codigo: "compras.ver", Modulo: "Compras", Descripcion: "Ver facturas de compra", Orden: 1 });
     expect(r.map((x) => x.Codigo)).toContain("recetas.gestionar");
-    expect(new Set(r.map((x) => x.Orden)).size).toBe(14);
+    expect(new Set(r.map((x) => x.Orden)).size).toBe(15);
   });
   it("RolesPermisos solo acepta permisos del catálogo", async () => {
     await fails(`insert into "RolesPermisos"("IdRol","Permiso") values (1,'inventado.ver')`, /foreign key|Permisos/i);
