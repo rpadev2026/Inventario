@@ -5,6 +5,11 @@ import { join } from "node:path";
 
 const dir = join(__dirname, "..");
 let db: PGlite;
+let antes: { stock: any[]; costos: any[] };
+const foto = async () => ({
+  stock: await q(`select "IdBodega","IdProducto","Cantidad"::float c from "StockBodega" order by 1,2`),
+  costos: await q(`select "IdProducto","CostoUnitarioBase" from "Productos" order by 1`),
+});
 const q = async (sql: string) => (await db.query<any>(sql)).rows;
 const uno = async (sql: string) => Object.values((await q(sql))[0])[0] as any;
 
@@ -26,6 +31,7 @@ beforeAll(async () => {
     insert into "StockBodega"("IdBodega","IdProducto","Cantidad") select b."IdBodega", p."IdProducto", 10000 from "Bodegas" b, "Productos" p where b."EsCentral" and p."Codigo" = 'S01'
       on conflict ("IdBodega","IdProducto") do update set "Cantidad" = 10000;
   `);
+  antes = await foto();
   await db.exec(readFileSync(join(dir, "scripts", "demo-datos.sql"), "utf8"));
 }, 120_000);
 
@@ -49,5 +55,16 @@ describe("demo-datos.sql", () => {
 
   it("se niega a correr dos veces", async () => {
     await expect(db.exec(readFileSync(join(dir, "scripts", "demo-datos.sql"), "utf8"))).rejects.toThrow(/ya están cargados/);
+  });
+
+  it("demo-limpiar.sql deja la base como estaba (stock, costos y tablas)", async () => {
+    await db.exec(readFileSync(join(dir, "scripts", "demo-limpiar.sql"), "utf8"));
+    for (const t of ["Compras", "ComprasDetalle", "BodegaCentral", "Solicitudes", "SolicitudesDetalle", "MovimientosBodega", "Recetas", "RecetaDetalles", "VentasFudo", "VentasFudoLineas", "ConsumosVenta", "HistorialPreciosProducto"])
+      expect(Number(await uno(`select count(*) from "${t}"`)), t).toBe(0);
+    expect(Number(await uno(`select count(*) from "Productos" where "Codigo" in ('HAR01','CAR01','HUE01')`))).toBe(0);
+    const despues = await foto();
+    expect(despues.stock).toEqual(antes.stock);
+    expect(despues.costos).toEqual(antes.costos);
+    await expect(db.exec(readFileSync(join(dir, "scripts", "demo-limpiar.sql"), "utf8"))).rejects.toThrow(/No hay datos/);
   });
 });
