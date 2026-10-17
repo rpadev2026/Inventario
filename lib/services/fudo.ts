@@ -11,8 +11,8 @@ export type ClienteFudo = {
   /** Ventas cerradas entre `desde` (incluida) y `hasta` (excluida) con sus líneas vigentes (sin las anuladas). */
   ventasCerradas(desde: Date, hasta: Date): Promise<VentaFudo[]>;
 };
-/** Una venta cerrada; `lineas` trae el id de Fudo del producto y la cantidad vendida. */
-export type VentaFudo = { id: string; cierre: string; lineas: { producto: string; nombre: string; cantidad: number }[] };
+/** Una venta cerrada; `lineas` trae el id de Fudo del producto, la cantidad vendida y su monto (precio × cantidad; null si Fudo no lo informa). */
+export type VentaFudo = { id: string; cierre: string; lineas: { producto: string; nombre: string; cantidad: number; monto: number | null }[] };
 type Deps = { apiKey: string; apiSecret: string; fetch?: typeof fetch; ahora?: () => number; base?: string; auth?: string };
 type Recurso = { id: string; attributes: { name: string; code?: string | null; price: number; cost?: number | null; active: boolean } };
 type Respuesta = { data: any[]; included?: any[] }; // eslint-disable-line @typescript-eslint/no-explicit-any -- JSON:API genérico: se lee solo lo necesario más abajo
@@ -81,7 +81,16 @@ export function crearClienteFudo(d: Deps): ClienteFudo {
             .filter((it) => it && !it.attributes?.canceled)
             .map((it) => {
               const ref = it.relationships?.product?.data;
-              return { producto: String(ref?.id ?? ""), nombre: String(buscar(ref)?.attributes?.name ?? ""), cantidad: Number(it.attributes?.quantity) };
+              const producto = buscar(ref);
+              const cantidad = Number(it.attributes?.quantity);
+              // shortcut: se asume que `price` de la línea es el precio unitario con IVA al momento de la venta (si falta, el precio actual del
+              // producto); descuentos o propinas de la venta completa no se reparten entre las líneas. Confirmar con credenciales reales.
+              const crudo = it.attributes?.price ?? producto?.attributes?.price;
+              const unitario = crudo == null || crudo === "" ? Number.NaN : Number(crudo);
+              return {
+                producto: String(ref?.id ?? ""), nombre: String(producto?.attributes?.name ?? ""), cantidad,
+                monto: Number.isFinite(unitario) && unitario >= 0 ? Math.round(unitario * cantidad * 100) / 100 : null,
+              };
             })
             .filter((l) => l.producto && l.cantidad > 0);
           ventas.push({ id: String(v.id), cierre: String(v.attributes.closedAt), lineas });

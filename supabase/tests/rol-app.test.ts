@@ -10,7 +10,7 @@ import { join } from "node:path";
  */
 const SOLO_LEER = [
   "Compras", "ComprasDetalle", "HistorialClaves", "HistorialPreciosProducto", "HistorialSolicitudes", "MovimientosBodega", "Permisos",
-  "RecetaDetalles", "Recetas", "Roles", "RolesPermisos", "Solicitudes", "SolicitudesDetalle", "StockBodega", "BodegaCentral", "VentasFudo", "ConsumosVenta",
+  "RecetaDetalles", "Recetas", "Roles", "RolesPermisos", "Solicitudes", "SolicitudesDetalle", "StockBodega", "BodegaCentral", "VentasFudo", "ConsumosVenta", "VentasFudoLineas",
 ];
 const LEER_INSERTAR_ACTUALIZAR = [
   "Bodegas", "Proveedores", "ProveedoresSucursales", "ProveedoresVendedores", "Productos", "UsuariosRoles",
@@ -111,6 +111,8 @@ describe("rol app_servidor: lo que la aplicación hace, funciona", () => {
     await permitido(`select fijar_clave(1, 'h2', 1, false)`);
     await permitido(`select revocar_sesiones(1)`);
     await permitido(`select reporte_stock(null, '', false, 0, 10)`);
+    await permitido(`select reporte_ventas_producto('2026-10-01', '2026-10-31', '', 0, 10)`);
+    await permitido(`select reporte_ventas_periodo('2026-10-01', '2026-10-31', 'dia')`);
   });
   it("revocar_sesiones sube la versión de sesión solo del usuario indicado (cerrar sesión invalida los tokens)", async () => {
     const v = async () => Number((await filas(`select "VersionSesion" v from "Claves" where "IdUsuario" = 1`))[0].v);

@@ -27,10 +27,10 @@ const venta = (id: number, items: { id: number; q: number; producto: number; can
   id: String(id), type: "Sale", attributes: { closedAt: "2026-10-15T20:00:00Z", saleState: "CLOSED" },
   relationships: { items: { data: items.map((i) => ({ id: String(i.id), type: "Item" })) } },
 });
-const item = (id: number, producto: number, quantity: number, canceled = false) => ({
-  id: String(id), type: "Item", attributes: { quantity, canceled }, relationships: { product: { data: { id: String(producto), type: "Product" } } },
+const item = (id: number, producto: number, quantity: number, canceled = false, price?: number) => ({
+  id: String(id), type: "Item", attributes: { quantity, canceled, ...(price === undefined ? {} : { price }) }, relationships: { product: { data: { id: String(producto), type: "Product" } } },
 });
-const prod = (id: number, name: string) => ({ id: String(id), type: "Product", attributes: { name } });
+const prod = (id: number, name: string, price?: number) => ({ id: String(id), type: "Product", attributes: { name, ...(price === undefined ? {} : { price }) } });
 
 /** Servidor falso de ventas: devuelve las páginas programadas, en orden. */
 function ventasFalso(paginas: { data: unknown[]; included?: unknown[] }[]) {
@@ -47,12 +47,20 @@ describe("ventas cerradas de Fudo", () => {
   it("arma el filtro por estado y rango de cierre, y trae las líneas con su producto (sin las anuladas)", async () => {
     const { cliente, urls } = ventasFalso([{
       data: [venta(1, [{ id: 11, q: 2, producto: 5 }, { id: 12, q: 1, producto: 6 }, { id: 13, q: 1, producto: 5 }])],
-      included: [item(11, 5, 2), item(12, 6, 1, true), item(13, 5, 1), prod(5, "Pizza"), prod(6, "Café")],
+      included: [item(11, 5, 2, false, 9000), item(12, 6, 1, true), item(13, 5, 1), prod(5, "Pizza", 9990), prod(6, "Café")],
     }]);
     const r = await cliente.ventasCerradas(new Date("2026-10-15T00:00:00Z"), new Date("2026-10-16T00:00:00Z"));
     expect(urls.at(-1)).toContain("filter[saleState]=eq.CLOSED&filter[closedAt]=and(gte.2026-10-15T00:00:00.000Z,lt.2026-10-16T00:00:00.000Z)");
     expect(urls.at(-1)).toContain("include=items,items.product");
-    expect(r).toEqual([{ id: "1", cierre: "2026-10-15T20:00:00Z", lineas: [{ producto: "5", nombre: "Pizza", cantidad: 2 }, { producto: "5", nombre: "Pizza", cantidad: 1 }] }]);
+    expect(r).toEqual([{ id: "1", cierre: "2026-10-15T20:00:00Z", lineas: [{ producto: "5", nombre: "Pizza", cantidad: 2, monto: 18000 }, { producto: "5", nombre: "Pizza", cantidad: 1, monto: 9990 }] }]);
+  });
+  it("el monto es precio × cantidad (el de la línea; si falta, el del producto) y null si no hay ningún precio", async () => {
+    const { cliente } = ventasFalso([{
+      data: [venta(1, [{ id: 21, q: 3, producto: 7 }, { id: 22, q: 1, producto: 8 }, { id: 23, q: 2, producto: 9 }])],
+      included: [item(21, 7, 3, false, 1500.5), item(22, 8, 1), item(23, 9, 2), prod(7, "Bebida", 1000), prod(8, "Papas", 2500), prod(9, "Regalo")],
+    }]);
+    const [v] = await cliente.ventasCerradas(new Date(0), new Date());
+    expect(v.lineas.map((l) => l.monto)).toEqual([4501.5, 2500, null]);
   });
   it("pagina hasta que una página viene incompleta", async () => {
     const llena = Array.from({ length: 100 }, (_, i) => venta(i + 1, []));
