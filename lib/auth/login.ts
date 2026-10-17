@@ -9,7 +9,7 @@ let dummy: Promise<string> | undefined;
 const getDummy = () => (dummy ??= hashPassword("dummy-password-Xx1!"));
 
 export type ResultadoLogin =
-  | { ok: true; uid: number; roles: string[]; cambiar: boolean }
+  | { ok: true; uid: number; roles: string[]; cambiar: boolean; version: number }
   | { ok: false; error: string };
 
 const GENERICO = "Correo o clave incorrectos, o cuenta bloqueada temporalmente";
@@ -42,5 +42,5 @@ export async function autenticar(correo: string, password: string): Promise<Resu
     .from("UsuariosRoles").select("Roles!inner(NombreRol, IdEstado)")
     .eq("IdUsuario", u.IdUsuario).eq("IdEstado", 1).eq("Roles.IdEstado", 1);
   const roles = (rs ?? []).map((r) => r.Roles.NombreRol);
-  return { ok: true, uid: u.IdUsuario, roles, cambiar: c.DebeCambiar };
+  return { ok: true, uid: u.IdUsuario, roles, cambiar: c.DebeCambiar, version: c.VersionSesion }; // la de la fila cuyo hash se verificó
 }

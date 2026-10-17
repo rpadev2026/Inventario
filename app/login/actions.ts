@@ -24,7 +24,7 @@ export async function login(_: unknown, fd: FormData): Promise<{ error: string }
   if (!p.success) return { error: "Correo o clave incorrectos" };
   const res = await autenticar(p.data.correo, p.data.password);
   if (!res.ok) return { error: res.error };
-  await crearSesion({ uid: res.uid, roles: res.roles, cambiar: res.cambiar });
+  await crearSesion({ uid: res.uid, roles: res.roles, cambiar: res.cambiar }, res.version);
   redirect(res.cambiar ? "/cambiar-clave" : "/");
 }
 
