@@ -1,7 +1,8 @@
 /**
- * Filtros de los listados que no se ven en la URL: `proxy.ts` los guarda en una cookie de sesión (un valor por ruta),
- * deja la URL limpia (redirige) y, cuando la página se pide sin ellos, se los agrega por debajo (rewrite) para que
- * las páginas sigan leyendo `searchParams` como siempre. Las vistas (`ver`, `editar`, `aviso`...) y las subpaginaciones
+ * Filtros de los listados que no se ven en la URL: `proxy.ts` los guarda en una cookie de sesión (un valor por ruta) y
+ * siempre le entrega a la página los de la URL combinados con los guardados (rewrite), así las páginas siguen leyendo
+ * `searchParams` como siempre. NO redirige (Next maneja mal una redirección en una navegación interna): la URL visible la
+ * limpia `components/app/limpiar-url.tsx` en el navegador. Las vistas (`ver`, `editar`, `aviso`...) y las subpaginaciones
  * (`ppagina`, `hpagina`...) NO son filtros y siguen en la URL.
  *
  * Un filtro que llega con valor vacío (`?q=`) borra el guardado: así se limpian los filtros y se vuelve a la página 1.
@@ -35,39 +36,33 @@ export function leerGuardado(crudo: string | undefined): Guardado {
 }
 
 export type Resolucion = {
-  /** La URL traía filtros: se guardan y se redirige a `limpia` (la misma ruta con el resto de parámetros). */
-  redirigir: boolean;
-  /** Búsqueda sin los filtros (para el redirect). */
-  limpia: string;
-  /** Búsqueda que debe ver la página: la de la URL más los filtros guardados. */
+  /** Búsqueda que debe ver la página: lo que no es filtro de la URL, más los filtros guardados combinados con los de la URL. */
   efectiva: string;
-  /** Cookie nueva (JSON) si hay que escribirla; undefined si no cambia. */
+  /** Cookie nueva (JSON) si hay que escribirla; null = borrarla; undefined = no cambia. */
   cookie: string | null | undefined;
 };
 
-/** Decide qué hacer con una petición GET de `ruta?search` dado el contenido de la cookie. */
+/** Decide qué ve la página y qué se guarda para una petición GET de `ruta?search`, dado el contenido de la cookie. */
 export function resolverFiltros(ruta: string, search: string, cookie: string | undefined): Resolucion {
   const params = new URLSearchParams(search);
   const guardado = leerGuardado(cookie);
   const previo = guardado[ruta] ?? {};
-  const enUrl = [...params.keys()].filter(esFiltro);
+  const hayEnUrl = [...params.keys()].some(esFiltro);
 
-  if (enUrl.length === 0) {
-    const efectiva = new URLSearchParams(params);
-    for (const [k, v] of Object.entries(previo)) efectiva.set(k, v);
-    return { redirigir: false, limpia: params.toString(), efectiva: efectiva.toString(), cookie: undefined };
-  }
-
-  const nuevo: Record<string, string> = { ...previo };
-  const resto = new URLSearchParams();
+  // Los filtros de la URL pisan a los guardados; uno vacío borra el guardado.
+  const vigentes: Record<string, string> = { ...previo };
+  const efectiva = new URLSearchParams();
   for (const [k, v] of params) {
-    if (!esFiltro(k)) { resto.append(k, v); continue; }
-    if (v === "") delete nuevo[k];
-    else if (v.length <= MAX_VALOR) nuevo[k] = v;
+    if (!esFiltro(k)) { efectiva.append(k, v); continue; }
+    if (v === "") delete vigentes[k];
+    else if (v.length <= MAX_VALOR) vigentes[k] = v;
   }
+  for (const [k, v] of Object.entries(vigentes)) efectiva.set(k, v);
+  if (!hayEnUrl) return { efectiva: efectiva.toString(), cookie: undefined };
+
   const todo: Guardado = { ...guardado };
-  if (Object.keys(nuevo).length) todo[ruta] = nuevo; else delete todo[ruta];
+  if (Object.keys(vigentes).length) todo[ruta] = vigentes; else delete todo[ruta];
   let json = JSON.stringify(todo);
   if (json.length > MAX_COOKIE) { delete todo[ruta]; json = JSON.stringify(todo); } // no cabe: ese listado no recuerda
-  return { redirigir: true, limpia: resto.toString(), efectiva: "", cookie: Object.keys(todo).length ? json : null };
+  return { efectiva: efectiva.toString(), cookie: Object.keys(todo).length ? json : null };
 }
