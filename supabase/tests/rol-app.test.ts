@@ -109,6 +109,15 @@ describe("rol app_servidor: lo que la aplicación hace, funciona", () => {
     await permitido(`select registrar_fallo_login(1, 5, 15)`);
     await permitido(`select calcular_recetas(array[]::bigint[])`);
     await permitido(`select fijar_clave(1, 'h2', 1, false)`);
+    await permitido(`select revocar_sesiones(1)`);
+  });
+  it("revocar_sesiones sube la versión de sesión solo del usuario indicado (cerrar sesión invalida los tokens)", async () => {
+    const v = async () => Number((await filas(`select "VersionSesion" v from "Claves" where "IdUsuario" = 1`))[0].v);
+    const antes = await v();
+    await permitido(`select revocar_sesiones(1)`);
+    expect(await v()).toBe(antes + 1);
+    await permitido(`select revocar_sesiones(999)`); // un usuario inexistente no cambia nada ni falla
+    expect(await v()).toBe(antes + 1);
   });
 });
 
