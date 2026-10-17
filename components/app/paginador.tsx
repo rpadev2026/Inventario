@@ -2,6 +2,7 @@
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useId } from "react";
+import { esFiltro } from "@/lib/filtros-url";
 import { TAMANOS, type Paginacion } from "@/lib/paginacion";
 
 /**
@@ -18,7 +19,7 @@ export default function Paginador({ pg, paramPagina = "pagina", paramTam = "tam"
 
   const url = (cambios: Record<string, string | null>) => {
     const q = new URLSearchParams(actual.toString());
-    for (const [k, v] of Object.entries(cambios)) { if (v === null) q.delete(k); else q.set(k, v); }
+    for (const [k, v] of Object.entries(cambios)) { if (v === null) { if (esFiltro(k)) q.set(k, ""); else q.delete(k); } else q.set(k, v); }
     const s = q.toString();
     return s ? `${ruta}?${s}` : ruta;
   };
@@ -39,11 +40,11 @@ export default function Paginador({ pg, paramPagina = "pagina", paramTam = "tam"
         {pg.totalPaginas > 1 && (
           <div className="flex items-center gap-2">
             {pg.pagina > 1
-              ? <Link href={irA(pg.pagina - 1)} className="btn btn-secondary" rel="prev">Anterior</Link>
+              ? <Link href={irA(pg.pagina - 1)} className="btn btn-secondary" rel="prev" prefetch={false}>Anterior</Link>
               : <button type="button" className="btn btn-secondary" disabled>Anterior</button>}
             <span aria-current="page">Página {pg.pagina} de {pg.totalPaginas}</span>
             {pg.pagina < pg.totalPaginas
-              ? <Link href={irA(pg.pagina + 1)} className="btn btn-secondary" rel="next">Siguiente</Link>
+              ? <Link href={irA(pg.pagina + 1)} className="btn btn-secondary" rel="next" prefetch={false}>Siguiente</Link>
               : <button type="button" className="btn btn-secondary" disabled>Siguiente</button>}
           </div>
         )}

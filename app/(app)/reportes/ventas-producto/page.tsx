@@ -33,6 +33,7 @@ export default async function ReporteVentasProductoPage({ searchParams }: { sear
       <AtajosRango ruta="/reportes/ventas-producto" extra={{ q, tam }} />
       <form method="get" action="/reportes/ventas-producto" role="search" aria-label="Filtrar las ventas por producto" className="form-grid form-grid-4 items-end">
         {tam && <input type="hidden" name="tam" value={tam} />}
+        <input type="hidden" name="pagina" value="" />
         <CamposRango rango={rango} />
         <Field label="Producto" className="fld-2"><input name="q" type="search" defaultValue={q} className="input" autoComplete="off" /></Field>
         <div className="form-actions"><button className="btn btn-primary">Ver</button></div>

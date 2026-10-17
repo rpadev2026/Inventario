@@ -42,10 +42,11 @@ export default function FiltrosListado({ ruta, etiqueta, campo = "Nombre", q, es
     aplicado.current = { q: nq, estado: e };
     const p = new URLSearchParams();
     if (tam) p.set("tam", tam);
-    if (nq) p.set("q", nq);
-    if (e) p.set("estado", e);
-    const s = p.toString();
-    router.replace(s ? `${ruta}?${s}` : ruta, { scroll: false });
+    // Siempre se mandan q y estado (aunque vacíos) y pagina vacía: así se borran los filtros recordados y se vuelve a la página 1.
+    p.set("q", nq);
+    p.set("estado", e);
+    p.set("pagina", "");
+    router.replace(`${ruta}?${p.toString()}`, { scroll: false });
   }
   const programar = (t: string, e: string) => {
     if (espera.current) clearTimeout(espera.current);
@@ -57,6 +58,7 @@ export default function FiltrosListado({ ruta, etiqueta, campo = "Nombre", q, es
     <form method="get" action={ruta} role="search" aria-label={etiqueta} className="form-grid form-grid-4 items-end"
       onSubmit={(ev) => { ev.preventDefault(); aplicar(texto, est); }}>
       {tam && <input type="hidden" name="tam" value={tam} />}
+      <input type="hidden" name="pagina" value="" />
       <Field label={campo} className="fld-2">
         <input name="q" type="search" value={texto} className="input" autoComplete="off"
           onChange={(ev) => { setTexto(ev.target.value); programar(ev.target.value, est); }} />

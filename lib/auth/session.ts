@@ -3,6 +3,7 @@ import { SignJWT, jwtVerify } from "jose";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { cache } from "react";
+import { COOKIE_FILTROS } from "@/lib/filtros-url";
 import { db } from "@/lib/db/supabase";
 import { permisosEfectivos, tienePermiso } from "./permisos";
 
@@ -95,7 +96,9 @@ export async function cerrarSesion() {
     const { error } = await db.rpc("revocar_sesiones", { p_usuario: s.uid });
     if (error) console.error("[sesion] no se pudo revocar:", error.code); // igual se cierra la sesión del navegador
   }
-  (await cookies()).delete(COOKIE);
+  const c = await cookies();
+  c.delete(COOKIE);
+  c.delete(COOKIE_FILTROS); // los filtros recordados no sobreviven a la sesión
 }
 
 export function esAdmin(s: Sesion): boolean {
