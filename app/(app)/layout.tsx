@@ -3,6 +3,7 @@ import { esAdmin, leerSesion } from "@/lib/auth/session";
 import { tienePermiso } from "@/lib/auth/permisos";
 import { BottomNav, SideNav, type MenuItem } from "@/components/app/nav-links";
 import Icon from "@/components/app/icon";
+import LimpiarUrl from "@/components/app/limpiar-url";
 import { logout } from "../login/actions";
 
 const MENU: (MenuItem & { permisos: string[] | "admin" | null })[] = [
@@ -42,7 +43,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         <header className="app-header">
           <div className="app-header-inner"><Marca />{salir}</div>
         </header>
-        <main className="app-main">{children}</main>
+        <main className="app-main"><LimpiarUrl />{children}</main>
       </div>
       <BottomNav items={items} />
     </div>

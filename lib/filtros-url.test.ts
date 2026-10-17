@@ -2,35 +2,35 @@ import { describe, it, expect } from "vitest";
 import { leerGuardado, resolverFiltros } from "./filtros-url";
 
 const guardar = (o: object) => JSON.stringify(o);
+const q = (s: string) => Object.fromEntries(new URLSearchParams(s));
 
 describe("resolverFiltros", () => {
-  it("con filtros en la URL: los guarda y redirige a la ruta limpia", () => {
+  it("con filtros en la URL: la página los ve y se guardan", () => {
     const r = resolverFiltros("/productos", "q=sal&pagina=2", undefined);
-    expect(r.redirigir).toBe(true);
-    expect(r.limpia).toBe("");
+    expect(q(r.efectiva)).toEqual({ q: "sal", pagina: "2" });
     expect(JSON.parse(r.cookie!)).toEqual({ "/productos": { q: "sal", pagina: "2" } });
   });
 
-  it("deja en la URL lo que no es filtro (vistas, avisos, _rsc)", () => {
+  it("lo que no es filtro (vistas, avisos, _rsc) pasa tal cual y no se guarda", () => {
     const r = resolverFiltros("/productos", "ver=abc&q=sal&aviso=ok&_rsc=1", undefined);
-    expect(r.limpia).toBe("ver=abc&aviso=ok&_rsc=1");
+    expect(q(r.efectiva)).toEqual({ ver: "abc", q: "sal", aviso: "ok", _rsc: "1" });
+    expect(JSON.parse(r.cookie!)).toEqual({ "/productos": { q: "sal" } });
   });
 
-  it("sin filtros en la URL: agrega los guardados para la página y no toca la cookie", () => {
+  it("sin filtros en la URL: la página ve los guardados y la cookie no cambia", () => {
     const c = guardar({ "/productos": { q: "sal", pagina: "3" }, "/bodegas": { q: "x" } });
     const r = resolverFiltros("/productos", "ver=abc", c);
-    expect(r.redirigir).toBe(false);
-    expect(new URLSearchParams(r.efectiva).get("q")).toBe("sal");
-    expect(new URLSearchParams(r.efectiva).get("pagina")).toBe("3");
-    expect(new URLSearchParams(r.efectiva).get("ver")).toBe("abc");
+    expect(q(r.efectiva)).toEqual({ ver: "abc", q: "sal", pagina: "3" });
     expect(r.cookie).toBeUndefined();
   });
 
   it("combina: lo nuevo pisa, lo ausente se conserva, lo vacío borra", () => {
     const c = guardar({ "/productos": { q: "sal", estado: "1", pagina: "3" } });
     const r = resolverFiltros("/productos", "pagina=4", c);
+    expect(q(r.efectiva)).toEqual({ q: "sal", estado: "1", pagina: "4" });
     expect(JSON.parse(r.cookie!)["/productos"]).toEqual({ q: "sal", estado: "1", pagina: "4" });
     const l = resolverFiltros("/productos", "q=&estado=&pagina=", c);
+    expect(l.efectiva).toBe("");
     expect(l.cookie).toBeNull();
   });
 
@@ -42,8 +42,7 @@ describe("resolverFiltros", () => {
   });
 
   it("sin filtros guardados ni en la URL no cambia nada", () => {
-    const r = resolverFiltros("/productos", "", undefined);
-    expect(r).toEqual({ redirigir: false, limpia: "", efectiva: "", cookie: undefined });
+    expect(resolverFiltros("/productos", "", undefined)).toEqual({ efectiva: "", cookie: undefined });
   });
 });
 
@@ -54,7 +53,6 @@ describe("leerGuardado", () => {
     expect(leerGuardado(guardar({ x: { q: "a" }, "/p": { ver: "token", editar: "t", q: "a", tam: 5 } }))).toEqual({ "/p": { q: "a" } });
   });
   it("una cookie manipulada no puede inyectar vistas ni valores enormes", () => {
-    const r = resolverFiltros("/p", "", guardar({ "/p": { ver: "otro", q: "x".repeat(500) } }));
-    expect(r.efectiva).toBe("");
+    expect(resolverFiltros("/p", "", guardar({ "/p": { ver: "otro", q: "x".repeat(500) } })).efectiva).toBe("");
   });
 });
