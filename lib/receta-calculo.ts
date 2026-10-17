@@ -24,3 +24,9 @@ export function calcularReceta(lineas: LineaCalculo[], porciones: number): { tot
   }
   return { total: redondear2(total), porcion: porciones > 0 ? redondear2(total / porciones) : 0, incompleto };
 }
+
+/**
+ * El costo de una receta en el resultado de `calcular_recetas`: el objeto va indexado por el id numérico de la receta (en texto),
+ * NO por su Token de la URL. Usar el Token aquí dejaba el costo por porción del listado siempre vacío.
+ */
+export const costoDeReceta = <T,>(costos: Record<string, T>, idReceta: number): T | undefined => costos[String(idReceta)];

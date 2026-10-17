@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { calcularLinea, calcularReceta, type LineaCalculo } from "./receta-calculo";
+import { calcularLinea, calcularReceta, costoDeReceta, type LineaCalculo } from "./receta-calculo";
 
 const L = (extra: Partial<LineaCalculo> = {}): LineaCalculo => ({ cantidad: 1, porcion: 500, merma: 0.3, factorUnidad: 1, costoPorBase: 0.001, ...extra });
 
@@ -37,4 +37,17 @@ describe("redondeo a 2 decimales como numeric: mitades hacia arriba sin error de
   it("2,135 → 2,14 y 4,015 → 4,02 (con EPSILON daba 2,13 y 4,01)", () => { expect(costo(2.135)).toBe(2.14); expect(costo(4.015)).toBe(4.02); });
   it("2,675 → 2,68 y 0,285 → 0,29", () => { expect(costo(2.675)).toBe(2.68); expect(costo(0.285)).toBe(0.29); });
   it("valores muy pequeños dan 0", () => { expect(costo(0.0000001)).toBe(0); });
+});
+
+describe("costoDeReceta (resultado de calcular_recetas)", () => {
+  // Regresión: el listado buscaba el costo por Token (uuid) en un objeto indexado por id y mostraba siempre «—».
+  const costos = { "11": { porcion: 8606.15 }, "37": { porcion: 25 } };
+  it("busca por el id numérico de la receta", () => {
+    expect(costoDeReceta(costos, 37)?.porcion).toBe(25);
+    expect(costoDeReceta(costos, 11)?.porcion).toBe(8606.15);
+  });
+  it("un Token (uuid) no es una clave del resultado y una receta sin costo da undefined", () => {
+    expect(costoDeReceta(costos, 99)).toBeUndefined();
+    expect((costos as Record<string, unknown>)["0b3b6b0e-1f1c-4c53-9f8a-2f1f7b7d6a11"]).toBeUndefined();
+  });
 });
