@@ -1,6 +1,6 @@
 export type LineaFactura = { precio: number; cantidad: number };
 
-const IVA_FACTOR = 1.19;
+export const IVA_FACTOR = 1.19;
 
 /**
  * Totales de una factura cuyos precios de línea YA incluyen IVA: el total es la suma de las líneas,

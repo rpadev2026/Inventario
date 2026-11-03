@@ -27,6 +27,8 @@ export default function FormFactura(props: {
   provInicial?: ProveedorHallado | null; prodInicial?: ProductoHallado | null;
   /** Cabecera de una factura de Bsale: precarga folio y fecha, y el total sirve de referencia para cuadrar las líneas. */
   desdeBsale?: { folio: string; fecha: string; total: number };
+  /** Líneas del XML de esa factura ya cruzadas con productos; `sinCruzar` son las que hay que ingresar a mano. */
+  lineasBsale?: { lineas: Linea[]; sinCruzar: string[]; productos: ProductoHallado[] };
 }) {
   const router = useRouter();
   const [idProv, setIdProv] = useState("");
@@ -61,6 +63,7 @@ export default function FormFactura(props: {
     }
     const { provInicial, prodInicial, desdeBsale } = props;
     if (desdeBsale) { setFolio(desdeBsale.folio); setFechaFactura(desdeBsale.fecha); }
+    if (props.lineasBsale?.lineas.length) { ls = props.lineasBsale.lineas; recordarProds(props.lineasBsale.productos.map(opcionProducto)); }
     if (provInicial) { setIdProv(String(provInicial.id)); recordarProvs([opcionProveedor(provInicial)]); }
     if (prodInicial) { ls = aplicarPreProducto(ls, String(prodInicial.id)); recordarProds([opcionProducto(prodInicial)]); }
     setLineas(ls);
@@ -189,6 +192,11 @@ export default function FormFactura(props: {
         <div><dt className="text-muted">IVA 19%</dt><dd>{clp(iva)}</dd></div>
         <div className="resumen-total"><dt>Total</dt><dd>{clp(total)}</dd></div>
       </dl>
+      {!!props.lineasBsale?.sinCruzar.length && (
+        <p role="status" className="alert alert-warn">
+          Líneas de Bsale sin producto o sin unidad equivalente (agréguelas a mano): {props.lineasBsale.sinCruzar.join("; ")}.
+        </p>
+      )}
       {props.desdeBsale && (
         <p role="status" className={`alert ${Math.abs(props.desdeBsale.total - total) <= 1 ? "alert-ok" : "alert-warn"}`}>
           Total según Bsale: {clp(props.desdeBsale.total)}

@@ -50,7 +50,7 @@ describe("ventas cerradas de Fudo", () => {
       included: [item(11, 5, 2, false, 9000), item(12, 6, 1, true), item(13, 5, 1), prod(5, "Pizza", 9990), prod(6, "Café")],
     }]);
     const r = await cliente.ventasCerradas(new Date("2026-10-15T00:00:00Z"), new Date("2026-10-16T00:00:00Z"));
-    expect(urls.at(-1)).toContain("filter[saleState]=eq.CLOSED&filter[closedAt]=and(gte.2026-10-15T00:00:00.000Z,lt.2026-10-16T00:00:00.000Z)");
+    expect(urls.at(-1)).toContain("filter[saleState]=in.(CLOSED)&filter[closedAt]=and(gte.2026-10-15T00:00:00Z,lt.2026-10-16T00:00:00Z)");
     expect(urls.at(-1)).toContain("include=items,items.product");
     expect(r).toEqual([{ id: "1", cierre: "2026-10-15T20:00:00Z", lineas: [{ producto: "5", nombre: "Pizza", cantidad: 2, monto: 18000 }, { producto: "5", nombre: "Pizza", cantidad: 1, monto: 9990 }] }]);
   });

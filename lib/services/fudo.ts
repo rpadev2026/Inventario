@@ -68,10 +68,10 @@ export function crearClienteFudo(d: Deps): ClienteFudo {
     },
     async ventasCerradas(desde, hasta) {
       const ventas: VentaFudo[] = [];
-      const rango = encodeURIComponent(`and(gte.${desde.toISOString()},lt.${hasta.toISOString()})`);
+      const rango = encodeURIComponent(`and(gte.${desde.toISOString().slice(0, 19)}Z,lt.${hasta.toISOString().slice(0, 19)}Z)`); // Fudo no admite milisegundos
       for (let pagina = 1; ; pagina++) { // sin conteo total: se sigue hasta que una página venga incompleta
         const { data, included = [] } = await pedirTodo(
-          `/sales?filter[saleState]=eq.CLOSED&filter[closedAt]=${rango}&include=items,items.product&sort=closedAt&page[size]=${PAGINA_VENTAS}&page[number]=${pagina}`);
+          `/sales?filter[saleState]=in.(CLOSED)&filter[closedAt]=${rango}&include=items,items.product&sort=closedAt&page[size]=${PAGINA_VENTAS}&page[number]=${pagina}`);
         // Se busca por (tipo, id) tal como lo declara cada referencia, sin suponer cómo se llaman los tipos.
         const incluido = new Map(included.map((x) => [`${x.type}:${x.id}`, x]));
         const buscar = (ref?: { type: string; id: string }) => (ref ? incluido.get(`${ref.type}:${ref.id}`) : undefined);
