@@ -212,6 +212,12 @@ body { background: var(--bg); color: var(--text); font-family: var(--font-body);
   .aviso { display: inline-flex; align-items: center; padding: .375rem .75rem; border-radius: var(--radius-sm); border: 1px solid var(--success-border); background: var(--success-bg); color: var(--success); font-size: .875rem; font-weight: 600; animation: aviso-difuminar 4.5s ease forwards; }
   @keyframes aviso-difuminar { 0%, 65% { opacity: 1; } 100% { opacity: 0; } }
   @media (prefers-reduced-motion: reduce) { .aviso { animation: none; } }
+  /* Barra de progreso (trabajos en segundo plano): con avance conocido llena según el ancho; sin él (indeterminada) se desliza. */
+  .progress { height: .5rem; border-radius: 999px; background: var(--surface-3); overflow: hidden; }
+  .progress > span { display: block; height: 100%; background: var(--primary); border-radius: 999px; transition: width .4s ease; }
+  .progress-indeterminada > span { width: 35%; animation: progress-deslizar 1.4s ease-in-out infinite; }
+  @keyframes progress-deslizar { 0% { margin-left: -35%; } 100% { margin-left: 100%; } }
+  @media (prefers-reduced-motion: reduce) { .progress-indeterminada > span { animation: none; margin-left: 0; width: 100%; opacity: .5; } }
 
   /* ───────── Autenticación ───────── */
   .auth-wrap { min-height: 100dvh; display: grid; place-items: center; padding: 1rem; background: var(--bg); }

@@ -12,6 +12,8 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // La skill instalada en .claude trae JS minificado de terceros: no es código de la aplicación.
+    ".claude/**",
   ]),
   // Las pruebas leen filas de PGlite/Supabase sin tipos: ahí `any` es aceptable.
   { files: ["**/*.test.ts"], rules: { "@typescript-eslint/no-explicit-any": "off" } },

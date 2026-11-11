@@ -12,12 +12,18 @@ function desdeConfigurado(): Date | null {
   return d && !Number.isNaN(d.getTime()) ? d : null;
 }
 
+/** Mensaje si falta algo para sincronizar (credenciales de Fudo o fecha de inicio); null si está todo. Se revisa antes de encolar. */
+export function configuracionFaltante(): string | null {
+  if (!fudo()) return MSG_SIN_FUDO;
+  return desdeConfigurado() ? null : MSG_SIN_DESDE;
+}
+
 /** Trae las ventas cerradas de Fudo y descuenta de las bodegas los ingredientes de las recetas vendidas (cada venta, una sola vez). */
-export async function sincronizarVentas(): Promise<{ error?: string; resumen?: ResumenSincronizacion }> {
-  const cliente = fudo();
-  if (!cliente) return { error: MSG_SIN_FUDO };
-  const desde = desdeConfigurado();
-  if (!desde) return { error: MSG_SIN_DESDE };
+export async function sincronizarVentas(alAvanzar?: (r: ResumenSincronizacion, total: number) => Promise<void>): Promise<{ error?: string; resumen?: ResumenSincronizacion }> {
+  const falta = configuracionFaltante();
+  if (falta) return { error: falta };
+  const cliente = fudo()!;
+  const desde = desdeConfigurado()!;
   try {
     const resumen = await sincronizarVentasCon(cliente, {
       async ultimoCierre() {
@@ -31,7 +37,7 @@ export async function sincronizarVentas(): Promise<{ error?: string; resumen?: R
         const r = data as { procesada: boolean; omitidos: unknown[] };
         return { procesada: r.procesada, omitidos: r.omitidos.length };
       },
-    }, { desde, ahora: new Date() });
+    }, { desde, ahora: new Date(), alAvanzar });
     return { resumen };
   } catch (e) {
     console.error("[fudo] ventas:", (e as Error).message);
