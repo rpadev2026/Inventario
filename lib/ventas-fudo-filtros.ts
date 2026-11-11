@@ -18,6 +18,9 @@ export function leerFiltrosVentasFudo(sp: Entrada): FiltrosVentasFudo {
   return { desde, hasta, q: texto(sp.q).trim().slice(0, 80), motivo: MOTIVOS.some((m) => m.valor === motivo) ? motivo : "" };
 }
 
+/** Fecha AAAA-MM-DD escrita como DD-MM-AAAA (la que ve el usuario). */
+export const fechaDMA = (iso: string) => iso.split("-").reverse().join("-");
+
 export const hayFiltros = (f: FiltrosVentasFudo) => !!(f.desde || f.hasta || f.q || f.motivo);
 
 /** Parámetros de los enlaces de exportación (solo los filtros con valor). */

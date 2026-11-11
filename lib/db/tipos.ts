@@ -2189,6 +2189,10 @@ export type Database = {
         Args: { p_error: string; p_id: number; p_resumen: Json }
         Returns: undefined
       }
+      resumen_ventas_fudo: {
+        Args: { p_desde: string; p_hasta: string; p_motivo: string; p_q: string }
+        Returns: Json
+      }
       revocar_sesiones: { Args: { p_usuario: number }; Returns: undefined }
     }
     Enums: {

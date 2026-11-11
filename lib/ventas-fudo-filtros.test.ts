@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { hayFiltros, leerFiltrosVentasFudo, paramsFiltros } from "./ventas-fudo-filtros";
+import { fechaDMA, hayFiltros, leerFiltrosVentasFudo, paramsFiltros } from "./ventas-fudo-filtros";
 
 describe("leerFiltrosVentasFudo", () => {
   it("sin parámetros no hay filtros", () => {
@@ -20,6 +20,13 @@ describe("leerFiltrosVentasFudo", () => {
   });
   it("ignora valores que no son texto (listas repetidas en la URL)", () => {
     expect(leerFiltrosVentasFudo({ q: ["a", "b"], desde: ["2026-10-01"] })).toEqual({ desde: "", hasta: "", q: "", motivo: "" });
+  });
+});
+
+describe("fechaDMA", () => {
+  it("escribe la fecha como DD-MM-AAAA", () => {
+    expect(fechaDMA("2026-11-11")).toBe("11-11-2026");
+    expect(fechaDMA("2026-01-05")).toBe("05-01-2026");
   });
 });
 
