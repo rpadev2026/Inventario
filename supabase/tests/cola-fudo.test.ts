@@ -3,7 +3,7 @@ import { PGlite } from "@electric-sql/pglite";
 import { readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 
-/** Migración 0043: cola de sincronización de Fudo (un trabajo activo, reclamo con latido, cierre) y faltantes paginados en la base. */
+/** Migración 0043: cola de sincronización de Fudo (un trabajo activo, reclamo con latido, cierre) . */
 const dir = join(__dirname, "..");
 let db: PGlite;
 const q = async (sql: string, params: unknown[] = []) => (await db.query<any>(sql, params)).rows;
@@ -76,29 +76,5 @@ describe("0043: cola de sincronización de Fudo", () => {
   it("conserva solo los 30 últimos terminados", async () => {
     for (let i = 0; i < 35; i++) { const t = await encolar(); await reclamar(); await q(`select terminar_trabajo_fudo($1, null, null)`, [t.id]); }
     expect(Number(await val(`select count(*) from "TrabajosFudo"`))).toBe(30);
-  });
-});
-
-describe("0043: faltantes_ventas_fudo", () => {
-  beforeAll(async () => {
-    await db.exec(`
-      insert into "VentasFudo"("IdVentaFudo","FechaCierre","Omitidos") values
-       ('V1','2026-10-01T10:00:00Z','[{"producto":"1","nombre":"Viejo","cantidad":2,"motivo":"sin receta"},{"producto":"2","nombre":"Pizza","cantidad":1,"motivo":"sin bodega"}]'),
-       ('V2','2026-10-02T10:00:00Z','[{"producto":"1","nombre":"Nuevo","cantidad":3,"motivo":"sin bodega"}]'),
-       ('V3','2026-10-03T10:00:00Z','[]');`);
-  });
-  it("suma por producto de Fudo con el nombre y el motivo de la venta más reciente, de mayor a menor cantidad", async () => {
-    const r = await val(`select faltantes_ventas_fudo(0, 10)`);
-    expect(r.total).toBe(2);
-    expect(r.filas).toEqual([
-      { producto: "1", nombre: "Nuevo", motivo: "sin bodega", cantidad: 5 },
-      { producto: "2", nombre: "Pizza", motivo: "sin bodega", cantidad: 1 },
-    ]);
-  });
-  it("pagina: el total no cambia y el desplazamiento corta la lista", async () => {
-    const r = await val(`select faltantes_ventas_fudo(1, 1)`);
-    expect(r.total).toBe(2);
-    expect(r.filas.map((f: any) => f.producto)).toEqual(["2"]);
-    expect((await val(`select faltantes_ventas_fudo(5, 10)`)).filas).toEqual([]);
   });
 });

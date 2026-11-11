@@ -118,7 +118,9 @@ describe("rol app_servidor: lo que la aplicación hace, funciona", () => {
     await permitido(`select latido_trabajo_fudo(1, '{}'::jsonb)`);
     await permitido(`select terminar_trabajo_fudo(1, null, null)`);
     await permitido(`select estado_trabajo_fudo()`);
-    await permitido(`select faltantes_ventas_fudo(0, 10)`);
+    await permitido(`select faltantes_ventas_fudo(null, null, '', '', 0, 10)`);
+    await permitido(`select listar_ventas_fudo(null, null, '', '', 0, 10)`);
+    await permitido(`select exportar_ventas_fudo(null, null, '', '')`);
   });
   it("revocar_sesiones sube la versión de sesión solo del usuario indicado (cerrar sesión invalida los tokens)", async () => {
     const v = async () => Number((await filas(`select "VersionSesion" v from "Claves" where "IdUsuario" = 1`))[0].v);
@@ -155,6 +157,7 @@ describe("rol app_servidor: lo que NO puede hacer", () => {
   });
   it("no ejecuta funciones que la aplicación no usa", async () => {
     await denegado(`select normalizar_busqueda('x')`);
+    await denegado(`select * from ventas_fudo_filtradas(null, null, '', '')`);
     await denegado(`select etiqueta_producto(1)`);
   });
 });

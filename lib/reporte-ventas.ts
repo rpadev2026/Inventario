@@ -14,6 +14,8 @@ const esFecha = (v: string | undefined): v is string => !!v && ISO.test(v) && aI
 
 /** Hoy en Chile (AAAA-MM-DD). */
 export const hoyChile = (ahora = new Date()) => ahora.toLocaleDateString("sv-SE", { timeZone: "America/Santiago" });
+/** Días entre dos fechas AAAA-MM-DD (0 si son la misma). */
+export const diasEntre = (desde: string, hasta: string) => Math.round((aUtc(hasta).getTime() - aUtc(desde).getTime()) / 86_400_000);
 export const sumarDias = (iso: string, n: number) => aIso(new Date(aUtc(iso).getTime() + n * 86_400_000));
 
 /** Rango pedido; lo inválido o ausente toma los últimos 30 días (hasta hoy) y si vienen al revés se intercambian. */

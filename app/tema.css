@@ -212,6 +212,22 @@ body { background: var(--bg); color: var(--text); font-family: var(--font-body);
   .aviso { display: inline-flex; align-items: center; padding: .375rem .75rem; border-radius: var(--radius-sm); border: 1px solid var(--success-border); background: var(--success-bg); color: var(--success); font-size: .875rem; font-weight: 600; animation: aviso-difuminar 4.5s ease forwards; }
   @keyframes aviso-difuminar { 0%, 65% { opacity: 1; } 100% { opacity: 0; } }
   @media (prefers-reduced-motion: reduce) { .aviso { animation: none; } }
+  /* Gráficos de los reportes (una sola serie: un tono, marcas finas, esquina de 4 px solo en el extremo del dato, valor en el extremo). */
+  .rank { display: grid; gap: .5rem; }
+  .rank-fila { display: grid; grid-template-columns: minmax(8rem, 15rem) 1fr; align-items: center; gap: .75rem; border-radius: var(--radius-sm); }
+  .rank-nombre { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: .9375rem; }
+  .rank-pista { display: flex; align-items: center; gap: .5rem; min-width: 0; }
+  .rank-barra { height: 1.25rem; min-width: 2px; background: var(--primary); border-radius: 0 4px 4px 0; transition: opacity .15s; }
+  .rank-valor { font-size: .875rem; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .rank-fila:hover .rank-barra, .rank-fila:focus-visible .rank-barra { opacity: .8; }
+  .rank-fila:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
+  @media (max-width: 640px) { .rank-fila { grid-template-columns: 1fr; gap: .125rem; } }
+  .cols { display: flex; align-items: stretch; gap: 2px; height: 10rem; border-bottom: 1px solid var(--border-strong); }
+  .col-hit { flex: 1 1 0; min-width: 2px; display: flex; align-items: flex-end; border-radius: 4px 4px 0 0; }
+  .col-barra { width: 100%; min-height: 2px; background: var(--primary); border-radius: 4px 4px 0 0; transition: opacity .15s; }
+  .col-hit:hover .col-barra, .col-hit:focus-visible .col-barra { opacity: .8; }
+  .col-hit:focus-visible { outline: 2px solid var(--primary); outline-offset: 1px; }
+  .cols-ejes { display: flex; justify-content: space-between; gap: 1rem; font-size: .75rem; color: var(--text-muted); font-variant-numeric: tabular-nums; }
   /* Barra de progreso (trabajos en segundo plano): con avance conocido llena según el ancho; sin él (indeterminada) se desliza. */
   .progress { height: .5rem; border-radius: 999px; background: var(--surface-3); overflow: hidden; }
   .progress > span { display: block; height: 100%; background: var(--primary); border-radius: 999px; transition: width .4s ease; }

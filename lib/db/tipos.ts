@@ -2032,8 +2032,12 @@ export type Database = {
         Returns: Json
       }
       estado_trabajo_fudo: { Args: never; Returns: Json }
+      exportar_ventas_fudo: {
+        Args: { p_desde: string; p_hasta: string; p_motivo: string; p_q: string }
+        Returns: Json
+      }
       faltantes_ventas_fudo: {
-        Args: { p_desde: number; p_limite: number }
+        Args: { p_desde: string; p_hasta: string; p_lim: number; p_motivo: string; p_off: number; p_q: string }
         Returns: Json
       }
       fijar_clave: {
@@ -2080,6 +2084,10 @@ export type Database = {
         Returns: Json
       }
       listar_solicitantes: { Args: never; Returns: Json }
+      listar_ventas_fudo: {
+        Args: { p_desde: string; p_hasta: string; p_lim: number; p_motivo: string; p_off: number; p_q: string }
+        Returns: Json
+      }
       normalizar_busqueda: { Args: { p: string }; Returns: string }
       producto_de_item: { Args: { d: Json }; Returns: number }
       recepcionar_solicitud: {

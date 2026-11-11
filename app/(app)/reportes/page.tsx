@@ -8,6 +8,10 @@ export default async function ReportesPage() {
     <section className="space-y-4">
       <h1 className="page-title">Reportes</h1>
       <div className="grid gap-4 sm:grid-cols-2">
+        <Link href="/reportes/mas-vendidos" className="card card-link">
+          <div className="section-title">Productos más vendidos</div>
+          <p className="text-sm text-muted">Dashboard con el ranking de los productos más vendidos en Fudo y la evolución de las ventas.</p>
+        </Link>
         <Link href="/reportes/stock" className="card card-link">
           <div className="section-title">Stock valorizado</div>
           <p className="text-sm text-muted">Stock actual de cada producto en cada bodega, con su valor (cantidad × costo de compra).</p>
