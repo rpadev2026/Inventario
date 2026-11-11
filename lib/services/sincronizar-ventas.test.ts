@@ -38,4 +38,10 @@ describe("sincronizarVentasCon", () => {
     expect(res.procesadas).toBe(2);
     expect(res.errores).toEqual(["Venta B: boom"]);
   });
+  it("avisa el avance tras cada venta con el total por revisar", async () => {
+    const avances: [number, number][] = [];
+    const { origen, r } = armar([v("A"), v("B")]);
+    await sincronizarVentasCon(origen, r, { desde: DESDE, ahora: AHORA, alAvanzar: async (x, total) => { avances.push([x.revisadas, total]); } });
+    expect(avances).toEqual([[1, 2], [2, 2]]);
+  });
 });

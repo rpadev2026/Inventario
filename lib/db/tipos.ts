@@ -1800,6 +1800,56 @@ export type Database = {
         }
         Relationships: []
       }
+      TrabajosFudo: {
+        Row: {
+          Error: string | null
+          Estado: number
+          FechaCreacion: string
+          FechaFin: string | null
+          FechaInicio: string | null
+          IdTrabajo: number
+          IdUsuario: number | null
+          Intentos: number
+          Latido: string | null
+          Origen: string
+          Resumen: Json | null
+        }
+        Insert: {
+          Error?: string | null
+          Estado?: number
+          FechaCreacion?: string
+          FechaFin?: string | null
+          FechaInicio?: string | null
+          IdTrabajo?: never
+          IdUsuario?: number | null
+          Intentos?: number
+          Latido?: string | null
+          Origen: string
+          Resumen?: Json | null
+        }
+        Update: {
+          Error?: string | null
+          Estado?: number
+          FechaCreacion?: string
+          FechaFin?: string | null
+          FechaInicio?: string | null
+          IdTrabajo?: never
+          IdUsuario?: number | null
+          Intentos?: number
+          Latido?: string | null
+          Origen?: string
+          Resumen?: Json | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "TrabajosFudo_IdUsuario_fkey"
+            columns: ["IdUsuario"]
+            isOneToOne: false
+            referencedRelation: "Usuarios"
+            referencedColumns: ["IdUsuario"]
+          },
+        ]
+      }
       Usuarios: {
         Row: {
           Apellidos: string
@@ -1977,6 +2027,19 @@ export type Database = {
         Returns: number
       }
       etiqueta_producto: { Args: { p_id: number }; Returns: string }
+      encolar_trabajo_fudo: {
+        Args: { p_origen: string; p_usuario: number }
+        Returns: Json
+      }
+      estado_trabajo_fudo: { Args: never; Returns: Json }
+      exportar_ventas_fudo: {
+        Args: { p_desde: string; p_hasta: string; p_motivo: string; p_q: string }
+        Returns: Json
+      }
+      faltantes_ventas_fudo: {
+        Args: { p_desde: string; p_hasta: string; p_lim: number; p_motivo: string; p_off: number; p_q: string }
+        Returns: Json
+      }
       fijar_clave: {
         Args: {
           p_actor: number
@@ -2006,6 +2069,10 @@ export type Database = {
         }
         Returns: number
       }
+      latido_trabajo_fudo: {
+        Args: { p_avance: Json; p_id: number }
+        Returns: undefined
+      }
       listar_pagina: {
         Args: {
           p_estado: number
@@ -2017,6 +2084,10 @@ export type Database = {
         Returns: Json
       }
       listar_solicitantes: { Args: never; Returns: Json }
+      listar_ventas_fudo: {
+        Args: { p_desde: string; p_hasta: string; p_lim: number; p_motivo: string; p_off: number; p_q: string }
+        Returns: Json
+      }
       normalizar_busqueda: { Args: { p: string }; Returns: string }
       producto_de_item: { Args: { d: Json }; Returns: number }
       recepcionar_solicitud: {
@@ -2049,6 +2120,28 @@ export type Database = {
         SetofOptions: {
           from: "*"
           to: "CorreosPendientes"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
+      reclamar_trabajo_fudo: {
+        Args: never
+        Returns: {
+          Error: string | null
+          Estado: number
+          FechaCreacion: string
+          FechaFin: string | null
+          FechaInicio: string | null
+          IdTrabajo: number
+          IdUsuario: number | null
+          Intentos: number
+          Latido: string | null
+          Origen: string
+          Resumen: Json | null
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "TrabajosFudo"
           isOneToOne: false
           isSetofReturn: true
         }
@@ -2090,6 +2183,10 @@ export type Database = {
       }
       resolver_correo: {
         Args: { p_error: string; p_id: number; p_max?: number; p_ok: boolean }
+        Returns: undefined
+      }
+      terminar_trabajo_fudo: {
+        Args: { p_error: string; p_id: number; p_resumen: Json }
         Returns: undefined
       }
       revocar_sesiones: { Args: { p_usuario: number }; Returns: undefined }

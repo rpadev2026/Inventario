@@ -1,13 +1,12 @@
 "use server";
 import { revalidatePath } from "next/cache";
 import { requerirAdmin } from "@/lib/auth/session";
-import { sincronizarVentas } from "@/lib/services/ventas-fudo";
-import type { ResumenSincronizacion } from "@/lib/services/sincronizar-ventas";
+import { pedirSincronizacion } from "@/lib/services/trabajo-fudo";
 
-/** Trae las ventas de Fudo y descuenta el stock ahora (solo Administrador; el cron usa /api/fudo/sincronizar). */
-export async function sincronizarAhora(): Promise<{ error?: string; resumen?: ResumenSincronizacion }> {
-  await requerirAdmin();
-  const r = await sincronizarVentas();
+/** Pide la sincronización de ventas de Fudo y responde al tiro: corre en segundo plano (cola de trabajos). Solo Administrador; el cron usa /api/fudo/sincronizar. */
+export async function sincronizarAhora(): Promise<{ error?: string; nuevo?: boolean }> {
+  const s = await requerirAdmin();
+  const r = await pedirSincronizacion(s.uid, "manual");
   revalidatePath("/mantenedores/ventas-fudo");
   return r;
 }

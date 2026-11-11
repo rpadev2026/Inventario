@@ -8,7 +8,7 @@
  * Un filtro que llega con valor vacío (`?q=`) borra el guardado: así se limpian los filtros y se vuelve a la página 1.
  */
 export const COOKIE_FILTROS = "filtros";
-export const FILTRO_KEYS = ["pagina", "tam", "q", "estado", "solicitante", "desde", "hasta", "agrupar", "con_stock", "bodega"] as const;
+export const FILTRO_KEYS = ["pagina", "tam", "q", "estado", "solicitante", "desde", "hasta", "agrupar", "con_stock", "bodega", "motivo"] as const;
 const ES_FILTRO = new Set<string>(FILTRO_KEYS);
 export const esFiltro = (k: string) => ES_FILTRO.has(k);
 

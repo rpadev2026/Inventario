@@ -16,11 +16,12 @@ export type ResumenSincronizacion = { revisadas: number; procesadas: number; yaP
 /** Se vuelve a leer desde un poco antes del último cierre por si una venta cerró tarde o falló antes; la base ignora las ya procesadas. */
 export const SOLAPE_MS = 2 * 24 * 3600 * 1000;
 
-export async function sincronizarVentasCon(origen: OrigenVentas, repo: RepoVentas, o: { desde: Date; ahora: Date }): Promise<ResumenSincronizacion> {
+export async function sincronizarVentasCon(origen: OrigenVentas, repo: RepoVentas, o: { desde: Date; ahora: Date; alAvanzar?: (r: ResumenSincronizacion, total: number) => Promise<void> }): Promise<ResumenSincronizacion> {
   const ultimo = await repo.ultimoCierre();
   const inicio = ultimo ? new Date(Math.max(o.desde.getTime(), ultimo.getTime() - SOLAPE_MS)) : o.desde;
   const resumen: ResumenSincronizacion = { revisadas: 0, procesadas: 0, yaProcesadas: 0, lineasOmitidas: 0, errores: [] };
-  for (const v of await origen.ventasCerradas(inicio, o.ahora)) {
+  const ventas = await origen.ventasCerradas(inicio, o.ahora);
+  for (const v of ventas) {
     resumen.revisadas++;
     try {
       const r = await repo.procesar(v);
@@ -29,6 +30,7 @@ export async function sincronizarVentasCon(origen: OrigenVentas, repo: RepoVenta
       // Una venta que falla no frena a las demás: queda para el próximo intento (mientras esté dentro del solape).
       resumen.errores.push(`Venta ${v.id}: ${(e as Error).message}`);
     }
+    await o.alAvanzar?.(resumen, ventas.length);
   }
   return resumen;
 }

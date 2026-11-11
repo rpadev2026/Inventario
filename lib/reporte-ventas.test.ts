@@ -62,3 +62,12 @@ describe("etiquetaPeriodo", () => {
   it("semana de lunes a domingo", () => expect(etiquetaPeriodo("2026-10-05", "semana")).toBe("Semana 05-10-2026 al 11-10-2026"));
   it("mes con su nombre", () => expect(etiquetaPeriodo("2026-10-01", "mes")).toBe("octubre de 2026"));
 });
+
+describe("diasEntre", () => {
+  it("cuenta los días entre dos fechas, sin depender del horario de verano", async () => {
+    const { diasEntre } = await import("./reporte-ventas");
+    expect(diasEntre("2026-10-01", "2026-10-01")).toBe(0);
+    expect(diasEntre("2026-10-01", "2026-10-31")).toBe(30);
+    expect(diasEntre("2026-03-01", "2026-04-01")).toBe(31);
+  });
+});

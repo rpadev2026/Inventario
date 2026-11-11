@@ -18,7 +18,7 @@ const LEER_INSERTAR_ACTUALIZAR = [
 ];
 const SOLO_INSERTAR = ["CorreosPendientes"]; // la app encola; la cola se lee y resuelve por funciones
 const COLUMNAS = { Usuarios: ["Nombres", "Apellidos", "Correo", "IdEstado", "IdUsuarioModificacion"], Claves: ["IntentosFallidos", "BloqueadoHasta"] };
-const SIN_ACCESO = ["IntentosLogin"]; // solo por funciones
+const SIN_ACCESO = ["IntentosLogin", "TrabajosFudo"]; // solo por funciones
 
 const dir = join(__dirname, "..");
 let db: PGlite;
@@ -113,6 +113,14 @@ describe("rol app_servidor: lo que la aplicación hace, funciona", () => {
     await permitido(`select reporte_stock(null, '', false, 0, 10)`);
     await permitido(`select reporte_ventas_producto('2026-10-01', '2026-10-31', '', 0, 10)`);
     await permitido(`select reporte_ventas_periodo('2026-10-01', '2026-10-31', 'dia')`);
+    await permitido(`select encolar_trabajo_fudo(null, 'manual')`);
+    await permitido(`select * from reclamar_trabajo_fudo()`);
+    await permitido(`select latido_trabajo_fudo(1, '{}'::jsonb)`);
+    await permitido(`select terminar_trabajo_fudo(1, null, null)`);
+    await permitido(`select estado_trabajo_fudo()`);
+    await permitido(`select faltantes_ventas_fudo(null, null, '', '', 0, 10)`);
+    await permitido(`select listar_ventas_fudo(null, null, '', '', 0, 10)`);
+    await permitido(`select exportar_ventas_fudo(null, null, '', '')`);
   });
   it("revocar_sesiones sube la versión de sesión solo del usuario indicado (cerrar sesión invalida los tokens)", async () => {
     const v = async () => Number((await filas(`select "VersionSesion" v from "Claves" where "IdUsuario" = 1`))[0].v);
@@ -144,9 +152,12 @@ describe("rol app_servidor: lo que NO puede hacer", () => {
     await denegado(`update "Usuarios" set "Rut" = '9-9' where "IdUsuario" = 1`);
     await denegado(`select * from "CorreosPendientes"`);
     await denegado(`select * from "IntentosLogin"`);
+    await denegado(`select * from "TrabajosFudo"`);
+    await denegado(`insert into "TrabajosFudo"("Origen") values ('manual')`);
   });
   it("no ejecuta funciones que la aplicación no usa", async () => {
     await denegado(`select normalizar_busqueda('x')`);
+    await denegado(`select * from ventas_fudo_filtradas(null, null, '', '')`);
     await denegado(`select etiqueta_producto(1)`);
   });
 });
