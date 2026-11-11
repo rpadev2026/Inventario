@@ -52,7 +52,7 @@ export default async function ReporteVentasProductoPage({ searchParams }: { sear
       )}
       {r.ventas === 0 && (
         <p role="status" className="alert alert-warn">
-          No hay ventas guardadas en este rango. Las ventas se cargan al sincronizar con Fudo (Mantenedores → Ventas de Fudo); solo se guardan desde que esa carga está activa.
+          No hay ventas guardadas en este rango. Las ventas se cargan al sincronizar con Fudo (menú Ventas Fudo); solo se guardan desde que esa carga está activa.
         </p>
       )}
 

@@ -66,7 +66,7 @@ export default async function MasVendidosPage({ searchParams }: { searchParams: 
       </div>
       {prod.ventas === 0 && (
         <p role="status" className="alert alert-warn">
-          No hay ventas guardadas en este rango. Las ventas se cargan al sincronizar con Fudo (Mantenedores → Ventas de Fudo).
+          No hay ventas guardadas en este rango. Las ventas se cargan al sincronizar con Fudo (menú Ventas Fudo).
         </p>
       )}
       {prod.lineasSinMonto > 0 && (

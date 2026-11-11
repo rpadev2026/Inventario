@@ -7,6 +7,6 @@ import { pedirSincronizacion } from "@/lib/services/trabajo-fudo";
 export async function sincronizarAhora(): Promise<{ error?: string; nuevo?: boolean }> {
   const s = await requerirAdmin();
   const r = await pedirSincronizacion(s.uid, "manual");
-  revalidatePath("/mantenedores/ventas-fudo");
+  revalidatePath("/ventas-fudo");
   return r;
 }
