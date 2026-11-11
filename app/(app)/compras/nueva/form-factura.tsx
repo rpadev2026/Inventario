@@ -13,6 +13,7 @@ import type { Opcion } from "@/lib/buscar";
 import { calcularTotales } from "@/lib/factura-calculo";
 import { unidadDeLinea, unidadesDeFamilia, type UnidadInfo } from "@/lib/unidades";
 import { filtrarDecimal, filtrarDecimal2, parseCantidad, parseDecimal2, soloDigitos } from "@/lib/numeros";
+import { hoyChile } from "@/lib/reporte-ventas";
 
 type FormaPago = { codigo: string; nombre: string };
 type Linea = Borrador["lineas"][number];
@@ -31,6 +32,7 @@ export default function FormFactura(props: {
   lineasBsale?: { lineas: Linea[]; sinCruzar: string[]; productos: ProductoHallado[] };
 }) {
   const router = useRouter();
+  const hoy = hoyChile(); // no se pueden registrar fechas posteriores a hoy
   const [idProv, setIdProv] = useState("");
   const [folio, setFolio] = useState("");
   const [fechaFactura, setFechaFactura] = useState("");
@@ -140,11 +142,11 @@ export default function FormFactura(props: {
           <input value={folio} onChange={(e) => setFolio(soloDigitos(e.target.value).slice(0, 15))} type="text" inputMode="numeric" autoComplete="off" required className="input" />
         </Field>
         <Field label="Fecha de factura">
-          <input value={fechaFactura} onChange={(e) => cambiarFechaFactura(e.target.value)} type="date" required className="input" />
+          <input value={fechaFactura} onChange={(e) => cambiarFechaFactura(e.target.value)} type="date" required max={hoy} className="input" />
         </Field>
         <Field label="Fecha de recepción">
           <input
-            value={fechaRecepcion} onChange={(e) => setFechaRecepcion(e.target.value)} type="date" required min={fechaFactura || undefined}
+            value={fechaRecepcion} onChange={(e) => setFechaRecepcion(e.target.value)} type="date" required min={fechaFactura || undefined} max={hoy}
             aria-invalid={recepcionAnterior || undefined} aria-describedby={recepcionAnterior ? "err-recepcion" : undefined} className="input"
           />
           {recepcionAnterior && <span id="err-recepcion" role="alert" className="msg msg-error">{MSG_RECEPCION}</span>}

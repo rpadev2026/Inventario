@@ -1,4 +1,5 @@
 import { describe, it, expect } from "vitest";
+import { hoyChile, sumarDias } from "../reporte-ventas";
 import { facturaSchema, productoSchema, proveedorSchema, rolSchema, sucursalSchema } from "./schemas";
 import { catalogoSchema } from "./catalogo";
 
@@ -6,6 +7,18 @@ const base = { idProveedor: 1, folio: 10, fechaFactura: "2026-10-01", fechaRecep
   neto: 840, iva: 160, total: 1000, detalle: [{ producto: 1, unidad: "KG", precio: 500, cantidad: 2 }] };
 
 describe("factura", () => {
+  it("rechaza una fecha de factura o de recepción posterior a hoy", () => {
+    const hoy = hoyChile(), manana = sumarDias(hoy, 1);
+    const f = facturaSchema.safeParse({ ...base, fechaFactura: manana, fechaRecepcion: manana });
+    expect(f.success).toBe(false);
+    expect(f.error?.issues.map((i) => i.path[0])).toEqual(expect.arrayContaining(["fechaFactura", "fechaRecepcion"]));
+    const r = facturaSchema.safeParse({ ...base, fechaFactura: hoy, fechaRecepcion: manana });
+    expect(r.error?.issues.map((i) => i.path[0])).toEqual(["fechaRecepcion"]);
+  });
+  it("acepta fechas de hoy", () => {
+    const hoy = hoyChile();
+    expect(facturaSchema.safeParse({ ...base, fechaFactura: hoy, fechaRecepcion: hoy }).success).toBe(true);
+  });
   it("acepta factura consistente", () => expect(facturaSchema.safeParse(base).success).toBe(true));
   it("rechaza total inconsistente", () => expect(facturaSchema.safeParse({ ...base, total: 5000 }).success).toBe(false));
   it("rechaza un detalle cuya suma no coincide con el total (el precio ya incluye IVA)", () => {
