@@ -5,6 +5,7 @@ import { MSG_SIN_DESDE } from "@/lib/services/ventas-fudo";
 import { estadoTrabajoFudo } from "@/lib/services/trabajo-fudo";
 import Paginador from "@/components/app/paginador";
 import Field from "@/components/app/field";
+import { hoyChile } from "@/lib/reporte-ventas";
 import { fechaDMA, hayFiltros, leerFiltrosVentasFudo, MOTIVOS, paramsFiltros } from "@/lib/ventas-fudo-filtros";
 import { faltantesListado, resumenVentas, ventasListado } from "@/lib/services/ventas-fudo-listado";
 import { fmtCantidad, fmtPesos } from "@/app/(app)/reportes/comun";
@@ -21,6 +22,7 @@ export default async function VentasFudoPage({ searchParams }: { searchParams: P
   const sp = await searchParams;
   const configurado = !!process.env.FUDO_API_KEY && !!process.env.FUDO_API_SECRET;
   const f = leerFiltrosVentasFudo(sp);
+  const hoy = hoyChile(); // las fechas posteriores a hoy no se pueden elegir
 
   // Cada tabla pagina con sus propios parámetros (fpagina/ftam y vpagina/vtam), que siguen en la URL como los de las subtablas de otros módulos.
   const [trabajos, resumen, ventas, faltantes, ultima] = await Promise.all([
@@ -67,8 +69,8 @@ export default async function VentasFudoPage({ searchParams }: { searchParams: P
         <input type="hidden" name="vpagina" value="" />
         <input type="hidden" name="fpagina" value="" />
         <div className="form-grid form-grid-4 items-end">
-          <Field label="Venta desde"><input name="desde" type="date" defaultValue={f.desde} className="input" /></Field>
-          <Field label="Venta hasta"><input name="hasta" type="date" defaultValue={f.hasta} className="input" /></Field>
+          <Field label="Venta desde"><input name="desde" type="date" defaultValue={f.desde} max={hoy} className="input" /></Field>
+          <Field label="Venta hasta"><input name="hasta" type="date" defaultValue={f.hasta} max={hoy} className="input" /></Field>
           <Field label="Producto"><input name="q" type="search" defaultValue={f.q} className="input" autoComplete="off" /></Field>
           <Field label="Motivo sin descontar">
             <select name="motivo" defaultValue={f.motivo} className="input">

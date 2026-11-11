@@ -28,7 +28,12 @@ describe("leerRango", () => {
     expect(leerRango({ desde: ["2026-10-01"] }, AHORA).desde).toBe("2026-09-18");
   });
   it("si vienen al revés las intercambia", () => expect(leerRango({ desde: "2026-10-15", hasta: "2026-10-01" }, AHORA)).toEqual({ desde: "2026-10-01", hasta: "2026-10-15" }));
-  it("solo hasta: 30 días hacia atrás desde esa fecha", () => expect(leerRango({ hasta: "2026-10-31" }, AHORA)).toEqual({ desde: "2026-10-02", hasta: "2026-10-31" }));
+  it("solo hasta: 30 días hacia atrás desde esa fecha", () => expect(leerRango({ hasta: "2026-10-10" }, AHORA)).toEqual({ desde: "2026-09-11", hasta: "2026-10-10" }));
+  it("una fecha posterior a hoy (hora de Chile) se cambia por hoy", () => {
+    expect(leerRango({ desde: "2026-10-01", hasta: "2026-10-31" }, AHORA)).toEqual({ desde: "2026-10-01", hasta: "2026-10-17" });
+    expect(leerRango({ desde: "2026-10-18", hasta: "2026-10-20" }, AHORA)).toEqual({ desde: "2026-10-17", hasta: "2026-10-17" });
+    expect(leerRango({ hasta: "2026-12-31" }, AHORA)).toEqual({ desde: "2026-09-18", hasta: "2026-10-17" });
+  });
 });
 
 describe("leerAgrupacion", () => {
