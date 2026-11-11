@@ -81,9 +81,6 @@ export default async function VentasFudoPage({ searchParams }: { searchParams: P
           <button className="btn btn-primary">Filtrar</button>
           {hayFiltros(f) && <Link href={`${RUTA}?desde=&hasta=&q=&motivo=&vpagina=&fpagina=`} className="btn btn-secondary">Limpiar</Link>}
         </div>
-        <p className="text-sm text-muted">
-          Las fechas son las de Chile. El filtro de producto y de motivo busca ventas con ese producto vendido o con líneas sin descontar por ese motivo, y se aplica a las dos tablas.
-        </p>
       </form>
 
       <div className="space-y-3">
