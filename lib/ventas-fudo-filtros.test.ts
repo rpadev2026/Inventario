@@ -18,6 +18,12 @@ describe("leerFiltrosVentasFudo", () => {
     const f = leerFiltrosVentasFudo({ desde: "2026-10-31", hasta: "2026-10-01", q: "x".repeat(200) });
     expect([f.desde, f.hasta, f.q.length]).toEqual(["2026-10-01", "2026-10-31", 80]);
   });
+  it("una fecha posterior a hoy (hora de Chile) se cambia por hoy", () => {
+    const ahora = new Date("2026-11-11T20:00:00Z"); // 17:00 del 11-11 en Chile
+    expect(leerFiltrosVentasFudo({ desde: "2026-11-12", hasta: "2026-11-30" }, ahora)).toMatchObject({ desde: "2026-11-11", hasta: "2026-11-11" });
+    expect(leerFiltrosVentasFudo({ desde: "2026-11-01", hasta: "2027-01-01" }, ahora)).toMatchObject({ desde: "2026-11-01", hasta: "2026-11-11" });
+    expect(leerFiltrosVentasFudo({ desde: "2026-11-11" }, ahora).hasta).toBe("");
+  });
   it("ignora valores que no son texto (listas repetidas en la URL)", () => {
     expect(leerFiltrosVentasFudo({ q: ["a", "b"], desde: ["2026-10-01"] })).toEqual({ desde: "", hasta: "", q: "", motivo: "" });
   });

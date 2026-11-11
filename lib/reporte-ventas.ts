@@ -18,11 +18,12 @@ export const hoyChile = (ahora = new Date()) => ahora.toLocaleDateString("sv-SE"
 export const diasEntre = (desde: string, hasta: string) => Math.round((aUtc(hasta).getTime() - aUtc(desde).getTime()) / 86_400_000);
 export const sumarDias = (iso: string, n: number) => aIso(new Date(aUtc(iso).getTime() + n * 86_400_000));
 
-/** Rango pedido; lo inválido o ausente toma los últimos 30 días (hasta hoy) y si vienen al revés se intercambian. */
+/** Rango pedido; lo inválido o ausente toma los últimos 30 días (hasta hoy), una fecha posterior a hoy se cambia por hoy y si vienen al revés se intercambian. */
 export function leerRango(sp: Entrada, ahora = new Date()): Rango {
   const hoy = hoyChile(ahora);
-  const hasta = esFecha(texto(sp.hasta)) ? texto(sp.hasta)! : hoy;
-  const desde = esFecha(texto(sp.desde)) ? texto(sp.desde)! : sumarDias(hasta, -29);
+  const noFutura = (f: string) => (f > hoy ? hoy : f);
+  const hasta = noFutura(esFecha(texto(sp.hasta)) ? texto(sp.hasta)! : hoy);
+  const desde = noFutura(esFecha(texto(sp.desde)) ? texto(sp.desde)! : sumarDias(hasta, -29));
   return desde <= hasta ? { desde, hasta } : { desde: hasta, hasta: desde };
 }
 
