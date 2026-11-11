@@ -55,7 +55,7 @@ export default async function ReporteVentasPeriodoPage({ searchParams }: { searc
       )}
       {r.ventas === 0 && (
         <p role="status" className="alert alert-warn">
-          No hay ventas guardadas en este rango. Las ventas se cargan al sincronizar con Fudo (Mantenedores → Ventas de Fudo); solo se guardan desde que esa carga está activa.
+          No hay ventas guardadas en este rango. Las ventas se cargan al sincronizar con Fudo (menú Ventas Fudo); solo se guardan desde que esa carga está activa.
         </p>
       )}
       {agrupar !== "dia" && <p className="text-sm text-muted">El primer y el último período pueden ser parciales: solo cuentan los días dentro del rango.</p>}

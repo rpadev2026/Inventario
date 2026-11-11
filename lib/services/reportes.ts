@@ -46,6 +46,9 @@ export async function ventasProductoPagina(r: Rango, q: string, entrada: { pagin
   return { reporte, pg };
 }
 
+/** Solo los totales del rango (ventas, unidades, monto y productos distintos), sin filas. */
+export const resumenVentasProducto = (r: Rango, q: string) => pedirVentasProducto(r, q, 0, 1);
+
 /** Todos los productos del rango (para el CSV), con un tope. */
 export const ventasProductoCompleto = (r: Rango, q: string) => pedirVentasProducto(r, q, 0, 100000);
 

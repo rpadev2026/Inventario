@@ -16,6 +16,7 @@ const MENU: (MenuItem & { permisos: string[] | "admin" | null })[] = [
   { href: "/bodegas", label: "Bodegas", icon: "warehouse", permisos: ["bodegas.ver"] },
   { href: "/movimientos", label: "Movimientos", icon: "repeat", permisos: ["movimientos.ver"] },
   { href: "/reportes", label: "Reportes", icon: "chart", permisos: ["reportes.ver"] },
+  { href: "/ventas-fudo", label: "Ventas Fudo", icon: "cart", permisos: "admin" },
   { href: "/usuarios", label: "Usuarios", icon: "users", permisos: "admin" },
   { href: "/mantenedores", label: "Mantenedores", icon: "settings", permisos: "admin" },
 ];
