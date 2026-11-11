@@ -2,11 +2,18 @@ import "server-only";
 import { db } from "@/lib/db/supabase";
 import { paginar, type Paginacion } from "@/lib/paginacion";
 import type { FiltrosVentasFudo } from "@/lib/ventas-fudo-filtros";
-import type { FilaExportada, ListadoFaltantes, ListadoVentas } from "@/lib/ventas-fudo-tipos";
+import type { FilaExportada, ListadoFaltantes, ListadoVentas, ResumenVentas } from "@/lib/ventas-fudo-tipos";
 
 const INT_MAX = 2_000_000_000; // el desplazamiento de la RPC es un int de Postgres
 // Las fechas vacías van como null (sin límite); los tipos generados no admiten null en argumentos sin DEFAULT, de ahí el `as never`.
 const args = (f: FiltrosVentasFudo) => ({ p_desde: (f.desde || null) as never, p_hasta: (f.hasta || null) as never, p_q: f.q, p_motivo: f.motivo });
+
+/** Totales de las ventas que cumplen los mismos filtros que las tablas (0 si no hay ninguna). */
+export async function resumenVentas(f: FiltrosVentasFudo): Promise<ResumenVentas> {
+  const { data, error } = await db.rpc("resumen_ventas_fudo", args(f));
+  if (error || !data) throw new Error("No se pudo calcular el resumen de ventas");
+  return data as unknown as ResumenVentas;
+}
 
 /** Una página de las ventas descontadas con su detalle; el total es el de todo el filtro. */
 export async function ventasListado(f: FiltrosVentasFudo, entrada: { pagina?: unknown; tam?: unknown }): Promise<{ listado: ListadoVentas; pg: Paginacion }> {

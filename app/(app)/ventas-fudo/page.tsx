@@ -6,9 +6,7 @@ import { estadoTrabajoFudo } from "@/lib/services/trabajo-fudo";
 import Paginador from "@/components/app/paginador";
 import Field from "@/components/app/field";
 import { hayFiltros, leerFiltrosVentasFudo, MOTIVOS, paramsFiltros } from "@/lib/ventas-fudo-filtros";
-import { faltantesListado, ventasListado } from "@/lib/services/ventas-fudo-listado";
-import { resumenVentasProducto } from "@/lib/services/reportes";
-import { hoyChile } from "@/lib/reporte-ventas";
+import { faltantesListado, resumenVentas, ventasListado } from "@/lib/services/ventas-fudo-listado";
 import { fmtCantidad, fmtPesos } from "@/app/(app)/reportes/comun";
 import Sincronizar from "./sincronizar";
 import FilaVenta from "./fila-venta";
@@ -27,7 +25,7 @@ export default async function VentasFudoPage({ searchParams }: { searchParams: P
   // Cada tabla pagina con sus propios parámetros (fpagina/ftam y vpagina/vtam), que siguen en la URL como los de las subtablas de otros módulos.
   const [trabajos, resumen, ventas, faltantes, ultima] = await Promise.all([
     estadoTrabajoFudo(),
-    resumenVentasProducto({ desde: f.desde || "2000-01-01", hasta: f.hasta || hoyChile() }, f.q),
+    resumenVentas(f),
     ventasListado(f, { pagina: texto(sp.vpagina), tam: texto(sp.vtam) }),
     faltantesListado(f, { pagina: texto(sp.fpagina), tam: texto(sp.ftam) }),
     db.from("VentasFudo").select("FechaCierre").order("FechaCierre", { ascending: false }).limit(1),
@@ -52,12 +50,12 @@ export default async function VentasFudoPage({ searchParams }: { searchParams: P
           <div className="grid gap-4 sm:grid-cols-4">
             <div><div className="kpi-value">{fmtPesos(Number(resumen.monto))}</div><div className="text-sm text-muted">Monto vendido</div></div>
             <div><div className="kpi-value">{fmtCantidad(Number(resumen.unidades))}</div><div className="text-sm text-muted">Unidades vendidas</div></div>
-            <div><div className="kpi-value">{resumen.total}</div><div className="text-sm text-muted">Productos distintos</div></div>
+            <div><div className="kpi-value">{resumen.productos}</div><div className="text-sm text-muted">Productos distintos</div></div>
             <div><div className="kpi-value">{resumen.ventas}</div><div className="text-sm text-muted">Ventas cerradas</div></div>
           </div>
           <p className="text-sm text-muted">
-            {f.desde || f.hasta ? `Ventas ${f.desde ? `desde el ${f.desde}` : ""}${f.desde && f.hasta ? " " : ""}${f.hasta ? `hasta el ${f.hasta}` : ""}` : "Todo el historial cargado"}{f.q ? `, producto «${f.q}»` : ""}.
-            {f.motivo && " Este resumen no considera el filtro de motivo."}
+            {f.desde || f.hasta ? `Ventas ${f.desde ? `desde el ${f.desde}` : ""}${f.desde && f.hasta ? " " : ""}${f.hasta ? `hasta el ${f.hasta}` : ""}` : "Todo el historial cargado"}{f.q ? `, producto «${f.q}» (solo cuentan sus líneas)` : ""}.
+            {f.motivo ? ` Motivo: ${MOTIVOS.find((m) => m.valor === f.motivo)?.nombre}.` : ""}
             {resumen.lineasSinMonto > 0 && ` ${resumen.lineasSinMonto} líneas no traen precio desde Fudo: cuentan en las unidades, pero no en el monto.`}
           </p>
         </div>

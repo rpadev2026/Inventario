@@ -105,3 +105,23 @@ describe("0044: exportar_ventas_fudo", () => {
     expect((await exportar("'2026-10-02'", "'2026-10-02'", "''", "'sin receta'")).filas.map((f: any) => f.venta)).toEqual(["V2"]);
   });
 });
+
+describe("0045: resumen_ventas_fudo", () => {
+  const resumen = (d = "null", h = "null", q = "''", m = "''") => val(`select resumen_ventas_fudo(${d}, ${h}, ${q}, ${m})`);
+  it("sin filtros suma todas las ventas", async () => {
+    expect(await resumen()).toEqual({ ventas: 4, unidades: 8, monto: 42000, productos: 2, lineasSinMonto: 1 });
+  });
+  it("coincide con las tablas: el filtro de motivo limita el resumen a esas ventas", async () => {
+    expect(await resumen("null", "null", "''", "'sin bodega'")).toEqual({ ventas: 1, unidades: 1, monto: 10000, productos: 1, lineasSinMonto: 0 });
+    expect((await listar("null", "null", "''", "'sin bodega'")).total).toBe(1);
+  });
+  it("con producto solo cuentan las líneas de ese producto", async () => {
+    expect(await resumen("null", "null", "'coca'")).toEqual({ ventas: 2, unidades: 4, monto: 2000, productos: 1, lineasSinMonto: 1 });
+  });
+  it("si no hay ventas todo sale en 0", async () => {
+    const cero = { ventas: 0, unidades: 0, monto: 0, productos: 0, lineasSinMonto: 0 };
+    expect(await resumen("'2030-01-01'", "'2030-01-31'")).toEqual(cero);
+    expect(await resumen("null", "null", "'inexistente'")).toEqual(cero);
+    expect(await resumen("null", "null", "''", "'sin receta'", )).toMatchObject({ ventas: 2 });
+  });
+});

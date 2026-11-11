@@ -121,6 +121,7 @@ describe("rol app_servidor: lo que la aplicación hace, funciona", () => {
     await permitido(`select faltantes_ventas_fudo(null, null, '', '', 0, 10)`);
     await permitido(`select listar_ventas_fudo(null, null, '', '', 0, 10)`);
     await permitido(`select exportar_ventas_fudo(null, null, '', '')`);
+    await permitido(`select resumen_ventas_fudo(null, null, '', '')`);
   });
   it("revocar_sesiones sube la versión de sesión solo del usuario indicado (cerrar sesión invalida los tokens)", async () => {
     const v = async () => Number((await filas(`select "VersionSesion" v from "Claves" where "IdUsuario" = 1`))[0].v);
