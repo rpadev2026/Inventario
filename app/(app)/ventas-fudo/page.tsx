@@ -5,7 +5,7 @@ import { MSG_SIN_DESDE } from "@/lib/services/ventas-fudo";
 import { estadoTrabajoFudo } from "@/lib/services/trabajo-fudo";
 import Paginador from "@/components/app/paginador";
 import Field from "@/components/app/field";
-import { hayFiltros, leerFiltrosVentasFudo, MOTIVOS, paramsFiltros } from "@/lib/ventas-fudo-filtros";
+import { fechaDMA, hayFiltros, leerFiltrosVentasFudo, MOTIVOS, paramsFiltros } from "@/lib/ventas-fudo-filtros";
 import { faltantesListado, resumenVentas, ventasListado } from "@/lib/services/ventas-fudo-listado";
 import { fmtCantidad, fmtPesos } from "@/app/(app)/reportes/comun";
 import Sincronizar from "./sincronizar";
@@ -54,7 +54,7 @@ export default async function VentasFudoPage({ searchParams }: { searchParams: P
             <div><div className="kpi-value">{resumen.ventas}</div><div className="text-sm text-muted">Ventas cerradas</div></div>
           </div>
           <p className="text-sm text-muted">
-            {f.desde || f.hasta ? `Ventas ${f.desde ? `desde el ${f.desde}` : ""}${f.desde && f.hasta ? " " : ""}${f.hasta ? `hasta el ${f.hasta}` : ""}` : "Todo el historial cargado"}{f.q ? `, producto «${f.q}» (solo cuentan sus líneas)` : ""}.
+            {f.desde || f.hasta ? `Ventas ${f.desde ? `desde el ${fechaDMA(f.desde)}` : ""}${f.desde && f.hasta ? " " : ""}${f.hasta ? `hasta el ${fechaDMA(f.hasta)}` : ""}` : "Todo el historial cargado"}{f.q ? `, producto «${f.q}» (solo cuentan sus líneas)` : ""}.
             {f.motivo ? ` Motivo: ${MOTIVOS.find((m) => m.valor === f.motivo)?.nombre}.` : ""}
             {resumen.lineasSinMonto > 0 && ` ${resumen.lineasSinMonto} líneas no traen precio desde Fudo: cuentan en las unidades, pero no en el monto.`}
           </p>
