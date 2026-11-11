@@ -3,6 +3,7 @@ import { validarRut } from "./rut";
 import { codigoCatalogo } from "./catalogo";
 import { esCorreoValido, MSG_CORREO } from "./correo";
 import { parseCantidad, parseDecimal2 } from "../numeros";
+import { hoyChile } from "../reporte-ventas";
 
 const txt = (max = 150) => z.string().trim().max(max);
 const opt = (max = 150) => txt(max).optional().transform((v) => v || null);
@@ -77,6 +78,8 @@ export const productoSchema = z.object({
   estado,
 });
 
+export const MSG_FECHA_FUTURA = "La fecha no puede ser posterior a hoy";
+
 export const facturaSchema = z.object({
   idProveedor: z.coerce.number().int().positive(),
   folio,
@@ -93,7 +96,10 @@ export const facturaSchema = z.object({
   })
   .refine((f) => f.fechaRecepcion >= f.fechaFactura, {
     message: "La fecha de recepción no puede ser anterior a la fecha de factura", path: ["fechaRecepcion"],
-  });
+  })
+  // Ni la factura ni la recepción pueden ser posteriores a hoy (fecha de Chile): no se registran compras futuras.
+  .refine((f) => f.fechaFactura <= hoyChile(), { message: MSG_FECHA_FUTURA, path: ["fechaFactura"] })
+  .refine((f) => f.fechaRecepcion <= hoyChile(), { message: MSG_FECHA_FUTURA, path: ["fechaRecepcion"] });
 
 export const rolSchema = z.object({
   id: z.coerce.number().int().positive().optional(),

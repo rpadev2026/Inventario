@@ -157,6 +157,17 @@ describe("maestros y reglas de factura", () => {
     await fails(FP("2026-10-01", "CONTADO", 70), /fecha de recepción/i);
     await db.query(FP("2026-10-02", "CONTADO", 70));
   });
+  it("rechaza fechas de factura o de recepción posteriores a hoy (fecha de Chile)", async () => {
+    const hoy = `(now() at time zone 'America/Santiago')::date`;
+    const F = (ff: string, fr: string, folio: number) =>
+      `select registrar_factura(1,1,${folio},${ff},${fr},'CONTADO',840,160,1000,'[{"producto":2,"unidad":"L","precio":100,"cantidad":10}]'::jsonb)`;
+    const antes = Number(await val(`select count(*) from "Compras"`));
+    await fails(F(`${hoy} + 1`, `${hoy} + 1`, 80), /fecha de factura no puede ser posterior a hoy/i);
+    await fails(F(hoy, `${hoy} + 1`, 81), /fecha de recepción no puede ser posterior a hoy/i);
+    expect(Number(await val(`select count(*) from "Compras"`))).toBe(antes); // nada a medias
+    await db.query(F(hoy, hoy, 82)); // hoy sí se acepta
+    expect(Number(await val(`select count(*) from "Compras"`))).toBe(antes + 1);
+  });
   it("rechaza forma de pago inexistente", async () => {
     await fails(FP("2026-10-02", "NOPE", 71), /forma de pago/i);
   });
