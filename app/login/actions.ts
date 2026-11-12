@@ -28,6 +28,11 @@ export async function login(_: unknown, fd: FormData): Promise<{ error: string }
   redirect(res.cambiar ? "/cambiar-clave" : "/");
 }
 
+/** Cierre por inactividad pedido por el navegador: revoca los tokens del usuario y borra la cookie (el navegador redirige después). */
+export async function cerrarPorInactividad() {
+  await cerrarSesion();
+}
+
 export async function logout() {
   await cerrarSesion();
   redirect("/login");

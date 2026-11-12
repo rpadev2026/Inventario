@@ -32,7 +32,8 @@ export async function crearSesion(s: DatosSesion, version?: number) {
     if (!c) throw new Error("No se pudo crear la sesión");
     v = c.VersionSesion;
   }
-  const token = await new SignJWT({ roles: s.roles, cambiar: s.cambiar, v })
+  // `la`: última actividad (ms). El proxy la renueva en cada petición y cierra la sesión si pasa SESSION_IDLE_MINUTES sin actividad.
+  const token = await new SignJWT({ roles: s.roles, cambiar: s.cambiar, v, la: Date.now() })
     .setProtectedHeader({ alg: "HS256" })
     .setSubject(String(s.uid))
     .setIssuedAt()
