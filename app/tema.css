@@ -228,6 +228,10 @@ body { background: var(--bg); color: var(--text); font-family: var(--font-body);
   .col-hit:hover .col-barra, .col-hit:focus-visible .col-barra { opacity: .8; }
   .col-hit:focus-visible { outline: 2px solid var(--primary); outline-offset: 1px; }
   .cols-ejes { display: flex; justify-content: space-between; gap: 1rem; font-size: .75rem; color: var(--text-muted); font-variant-numeric: tabular-nums; }
+  /* Esqueletos de carga (loading.tsx): bloques planos que laten suavemente mientras llega la página; sin degradados. */
+  .skeleton { display: block; background: var(--surface-3); border-radius: var(--radius-sm); animation: skeleton-latido 1.4s ease-in-out infinite; }
+  @keyframes skeleton-latido { 0%, 100% { opacity: 1; } 50% { opacity: .45; } }
+  @media (prefers-reduced-motion: reduce) { .skeleton { animation: none; } }
   /* Barra de progreso (trabajos en segundo plano): con avance conocido llena según el ancho; sin él (indeterminada) se desliza. */
   .progress { height: .5rem; border-radius: 999px; background: var(--surface-3); overflow: hidden; }
   .progress > span { display: block; height: 100%; background: var(--primary); border-radius: 999px; transition: width .4s ease; }

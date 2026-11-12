@@ -90,3 +90,11 @@ describe("filtros, estado SII y líneas del DTE", () => {
     expect((await cliente.facturasRecibidas(1, { folio: 1001 })).facturas[0].estadoSii).toEqual(["ACD", "ERM"]);
   });
 });
+
+describe("Bsale no responde", () => {
+  it("la consulta se corta por tiempo en vez de esperar para siempre", async () => {
+    const colgado = ((_u: string, init?: RequestInit) => new Promise((_, rechazar) => init?.signal?.addEventListener("abort", () => rechazar(init.signal!.reason)))) as unknown as typeof fetch;
+    const cliente = crearClienteBsale({ token: "t", fetch: colgado, timeoutMs: 40 });
+    await expect(cliente.facturasRecibidas(1)).rejects.toThrow("Bsale no respondió en 40 ms");
+  });
+});

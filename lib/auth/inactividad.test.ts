@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { inactiva, MINUTOS_DEFECTO, minutosInactividad } from "./inactividad";
+import { inactiva, intervaloLatidoMs, MINUTOS_DEFECTO, minutosInactividad } from "./inactividad";
 
 describe("minutosInactividad", () => {
   it("lee los minutos de la variable de entorno", () => {
@@ -11,6 +11,18 @@ describe("minutosInactividad", () => {
     for (const v of [undefined, "", "  ", "abc", "0", "-3", "0.5", "1441", "NaN", "Infinity"]) expect(minutosInactividad(v)).toBe(MINUTOS_DEFECTO);
   });
   it("acepta el máximo de un día", () => expect(minutosInactividad("1440")).toBe(1440));
+});
+
+describe("intervaloLatidoMs", () => {
+  it("es un tercio del límite, entre 10 y 60 segundos", () => {
+    expect(intervaloLatidoMs(1)).toBe(20_000);
+    expect(intervaloLatidoMs(2)).toBe(40_000);
+    expect(intervaloLatidoMs(30)).toBe(60_000); // tope
+    expect(intervaloLatidoMs(1.5)).toBe(30_000);
+  });
+  it("siempre deja margen: el latido llega antes de que el servidor dé por inactiva la sesión", () => {
+    for (const m of [1, 1.2, 2, 5, 30, 1440]) expect(intervaloLatidoMs(m)).toBeLessThan(m * 60_000);
+  });
 });
 
 describe("inactiva", () => {

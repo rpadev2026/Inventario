@@ -2,6 +2,8 @@
  * Cliente de la API de Fudo (v1alpha1, JSON:API). Sin saber de Next ni del entorno: recibe las credenciales, `fetch` y el reloj
  * como dependencias, así se prueba con respuestas falsas (`fudo.test.ts`). `fudo()` arma el cliente real desde las variables de entorno.
  */
+import { conTimeout } from "@/lib/http-timeout";
+
 export type ProductoFudo = { id: string; nombre: string; codigo: string | null; precio: number; costo: number | null; activo: boolean };
 export type ClienteFudo = {
   /** Productos activos cuyo nombre contiene `q` (vacío = los primeros por nombre); máximo 20. */
@@ -13,15 +15,16 @@ export type ClienteFudo = {
 };
 /** Una venta cerrada; `lineas` trae el id de Fudo del producto, la cantidad vendida y su monto (precio × cantidad; null si Fudo no lo informa). */
 export type VentaFudo = { id: string; cierre: string; lineas: { producto: string; nombre: string; cantidad: number; monto: number | null }[] };
-type Deps = { apiKey: string; apiSecret: string; fetch?: typeof fetch; ahora?: () => number; base?: string; auth?: string };
+type Deps = { apiKey: string; apiSecret: string; fetch?: typeof fetch; ahora?: () => number; base?: string; auth?: string; timeoutMs?: number };
 type Recurso = { id: string; attributes: { name: string; code?: string | null; price: number; cost?: number | null; active: boolean } };
 type Respuesta = { data: any[]; included?: any[] }; // eslint-disable-line @typescript-eslint/no-explicit-any -- JSON:API genérico: se lee solo lo necesario más abajo
 
 const PAGINA_VENTAS = 100; // las ventas traen sus líneas incluidas: páginas más chicas que el máximo de la API (500)
 const MARGEN_S = 60; // se renueva el token si le quedan menos segundos
+const TIMEOUT_MS = 30_000; // por petición; una página de ventas con sus líneas es la respuesta más pesada
 
 export function crearClienteFudo(d: Deps): ClienteFudo {
-  const f = d.fetch ?? fetch;
+  const f = conTimeout(d.fetch ?? fetch, d.timeoutMs ?? TIMEOUT_MS, "Fudo");
   const ahora = d.ahora ?? (() => Date.now());
   const base = d.base ?? "https://api.fu.do/v1alpha1";
   const urlAuth = d.auth ?? "https://auth.fu.do/api";
