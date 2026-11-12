@@ -4,6 +4,8 @@ import { tienePermiso } from "@/lib/auth/permisos";
 import { BottomNav, SideNav, type MenuItem } from "@/components/app/nav-links";
 import Icon from "@/components/app/icon";
 import LimpiarUrl from "@/components/app/limpiar-url";
+import Inactividad from "@/components/app/inactividad";
+import { minutosInactividad } from "@/lib/auth/inactividad";
 import { logout } from "../login/actions";
 
 const MENU: (MenuItem & { permisos: string[] | "admin" | null })[] = [
@@ -44,7 +46,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         <header className="app-header">
           <div className="app-header-inner"><Marca />{salir}</div>
         </header>
-        <main className="app-main"><LimpiarUrl />{children}</main>
+        <main className="app-main"><LimpiarUrl /><Inactividad minutos={minutosInactividad(process.env.SESSION_IDLE_MINUTES)} />{children}</main>
       </div>
       <BottomNav items={items} />
     </div>

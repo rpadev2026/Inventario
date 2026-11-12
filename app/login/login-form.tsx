@@ -6,7 +6,7 @@ import CampoCorreo from "@/components/app/campo-correo";
 import Icon from "@/components/app/icon";
 import FondoShader from "@/components/app/fondo-shader";
 
-export default function LoginForm() {
+export default function LoginForm({ porInactividad = false }: { porInactividad?: boolean }) {
   const [state, action, pending] = useActionState(login, undefined);
   return (
     <main className="auth-wrap auth-wrap-fondo">
@@ -23,6 +23,7 @@ export default function LoginForm() {
         <Field label="Clave">
           <input name="password" type="password" required autoComplete="current-password" className="input" aria-invalid={!!state?.error} />
         </Field>
+        {porInactividad && !state?.error && <p role="status" className="alert alert-warn">Su sesión se cerró por inactividad. Ingrese nuevamente.</p>}
         {state?.error && <p role="alert" className="alert alert-error">{state.error}</p>}
         <button disabled={pending} className="btn btn-primary btn-block">
           {pending ? "Ingresando…" : "Ingresar"}

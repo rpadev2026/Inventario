@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { jwtVerify } from "jose";
+import { jwtVerify, SignJWT } from "jose";
+import { inactiva, minutosInactividad, REFRESCO_MS } from "@/lib/auth/inactividad";
 import { COOKIE_FILTROS, resolverFiltros } from "@/lib/filtros-url";
 
 // /api/correos/procesar se autentica con CRON_SECRET (lo llama un programador, sin sesión).
@@ -25,13 +26,33 @@ export async function proxy(req: NextRequest) {
   const { pathname } = req.nextUrl;
   const token = req.cookies.get("sesion")?.value;
   let valido = false;
+  let porInactividad = false;
+  let renovado: { token: string; segundos: number } | null = null;
   if (token && process.env.SESSION_SECRET) {
     try {
-      await jwtVerify(token, new TextEncoder().encode(process.env.SESSION_SECRET), { algorithms: ["HS256"] });
-      valido = true;
+      const clave = new TextEncoder().encode(process.env.SESSION_SECRET);
+      const { payload } = await jwtVerify(token, clave, { algorithms: ["HS256"] });
+      const ahora = Date.now();
+      // Última actividad: la del token; los emitidos antes de existir esta marca cuentan desde que se emitieron.
+      const la = typeof payload.la === "number" ? payload.la : (payload.iat ?? 0) * 1000;
+      if (inactiva(la, ahora, minutosInactividad(process.env.SESSION_IDLE_MINUTES))) porInactividad = true;
+      else {
+        valido = true;
+        // Sesión deslizante: cada petición válida renueva la marca (el vencimiento absoluto de 8 h no cambia).
+        if (ahora - la > REFRESCO_MS) {
+          renovado = {
+            token: await new SignJWT({ ...payload, la: ahora }).setProtectedHeader({ alg: "HS256" }).sign(clave),
+            segundos: Math.max(1, (payload.exp ?? 0) - Math.floor(ahora / 1000)),
+          };
+        }
+      }
     } catch {}
   }
-  if (!valido && !PUBLICAS.includes(pathname)) return NextResponse.redirect(new URL("/login", req.url));
+  if (!valido && !PUBLICAS.includes(pathname)) {
+    const r = NextResponse.redirect(new URL(porInactividad ? "/login?cierre=inactividad" : "/login", req.url));
+    if (porInactividad) { r.cookies.delete("sesion"); r.cookies.delete(COOKIE_FILTROS); }
+    return r;
+  }
   // Filtros de los listados: fuera de la URL (ver lib/filtros-url.ts). Solo páginas (no /api ni /login) y peticiones GET.
   const filtrable = req.method === "GET" && valido && !pathname.startsWith("/api/") && pathname !== "/login";
   const f = filtrable ? resolverFiltros(pathname, req.nextUrl.search.slice(1), req.cookies.get(COOKIE_FILTROS)?.value) : null;
@@ -48,6 +69,7 @@ export async function proxy(req: NextRequest) {
     res = NextResponse.rewrite(url, { request: { headers } });
   } else res = NextResponse.next({ request: { headers } });
   res.headers.set("Content-Security-Policy", csp);
+  if (renovado) res.cookies.set("sesion", renovado.token, { httpOnly: true, sameSite: "lax", secure: process.env.NODE_ENV === "production", path: "/", maxAge: renovado.segundos });
   // Una precarga (prefetch) no cambia lo guardado: solo el clic real lo hace.
   const precarga = req.headers.get("next-router-prefetch") || req.headers.get("purpose") === "prefetch";
   if (f && f.cookie !== undefined && !precarga) {
