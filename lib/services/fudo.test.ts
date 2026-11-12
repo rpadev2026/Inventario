@@ -109,3 +109,20 @@ describe("cliente de Fudo", () => {
     await expect(falso({ estados: [500] }).cliente.buscar("")).rejects.toThrow(/error 500/);
   });
 });
+
+describe("Fudo no responde", () => {
+  /** Servidor que se queda esperando hasta que lo abortan, como un Fudo colgado. */
+  const colgado = ((_u: string, init?: RequestInit) => new Promise((_, rechazar) => init?.signal?.addEventListener("abort", () => rechazar(init.signal!.reason)))) as unknown as typeof fetch;
+  it("la autenticación se corta por tiempo en vez de esperar para siempre", async () => {
+    const cliente = crearClienteFudo({ apiKey: "k", apiSecret: "s", fetch: colgado, timeoutMs: 40 });
+    await expect(cliente.buscar("pizza")).rejects.toThrow("Fudo no respondió en 40 ms");
+  });
+  it("las ventas también: una página que no llega no deja la sincronización colgada", async () => {
+    const f = (async (url: string, init?: RequestInit) => {
+      if (String(url).includes("auth.fu.do")) return new Response(JSON.stringify({ token: "t", exp: String(Math.floor(Date.now() / 1000) + 86400) }), { status: 200 });
+      return colgado(url, init);
+    }) as unknown as typeof fetch;
+    const cliente = crearClienteFudo({ apiKey: "k", apiSecret: "s", fetch: f, timeoutMs: 40 });
+    await expect(cliente.ventasCerradas(new Date("2026-11-01T00:00:00Z"), new Date("2026-11-02T00:00:00Z"))).rejects.toThrow(/no respondió/);
+  });
+});

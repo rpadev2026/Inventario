@@ -2,6 +2,7 @@ import "server-only";
 import { Resend } from "resend";
 import { after } from "next/server";
 import { db, nulo } from "@/lib/db/supabase";
+import { conLimite } from "@/lib/http-timeout";
 import { procesarColaCon, type ColaCorreos, type Enviador } from "./cola-correos";
 
 const esc = (s: string) => s.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]!));
@@ -35,7 +36,8 @@ const colaSupabase: ColaCorreos = {
 const enviadorResend = (key: string, from: string): Enviador => {
   const resend = new Resend(key);
   return async (c) => {
-    const { error } = await resend.emails.send({ from, to: c.para, subject: c.asunto, html: c.html }, { idempotencyKey: `correo-${c.id}` });
+    // El SDK no admite `signal`: la espera se corta a los 15 s y el correo queda para reintento (la clave de idempotencia evita duplicarlo).
+    const { error } = await conLimite(resend.emails.send({ from, to: c.para, subject: c.asunto, html: c.html }, { idempotencyKey: `correo-${c.id}` }), 15_000, "Resend");
     return error ? error.message : null;
   };
 };

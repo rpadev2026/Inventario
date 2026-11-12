@@ -3,6 +3,8 @@
  * Solo trae la cabecera del documento (la API no entrega las líneas). Sin saber de Next ni del entorno: recibe el token y
  * `fetch` como dependencias para probarlo con respuestas falsas (`bsale.test.ts`); `bsale()` arma el cliente real.
  */
+import { conTimeout } from "@/lib/http-timeout";
+
 export type FacturaRecibida = {
   id: number;
   /** Código tributario del SII: 33 factura electrónica, 34 factura exenta. */
@@ -31,7 +33,7 @@ export type ClienteBsale = {
 };
 /** `folio` y `rut` (formato de Bsale: sin puntos, con guion) se combinan con «y». */
 export type FiltroFacturas = { folio?: number; rut?: string };
-type Deps = { token: string; fetch?: typeof fetch; base?: string };
+type Deps = { token: string; fetch?: typeof fetch; base?: string; timeoutMs?: number };
 type Documento = {
   id: number; codeSii: string; emissionDate: number; number: number; clientCode: string; clientActivity: string;
   netAmount: number; exemptAmount: number; ivaAmount: number; totalAmount: number; bookType: string; canceled: number; urlPdf: string | null; urlXml?: string | null; siiStatus?: unknown;
@@ -67,7 +69,7 @@ export function parsearLineasDte(xml: string): LineaDte[] {
 }
 
 export function crearClienteBsale(d: Deps): ClienteBsale {
-  const f = d.fetch ?? fetch;
+  const f = conTimeout(d.fetch ?? fetch, d.timeoutMs ?? 20_000, "Bsale");
   const base = d.base ?? "https://api.bsale.io/v1";
 
   async function pedir<T>(ruta: string): Promise<T> {
