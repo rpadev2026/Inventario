@@ -55,4 +55,16 @@ describe("leerGuardado", () => {
   it("una cookie manipulada no puede inyectar vistas ni valores enormes", () => {
     expect(resolverFiltros("/p", "", guardar({ "/p": { ver: "otro", q: "x".repeat(500) } })).efectiva).toBe("");
   });
+
+  it("las fechas no se recuerdan: pasan por la URL, no se guardan y una cookie vieja con fechas se ignora", () => {
+    const nueva = resolverFiltros("/ventas-fudo", "desde=2026-11-01&hasta=2026-11-10&q=pizza", undefined);
+    expect(q(nueva.efectiva)).toEqual({ desde: "2026-11-01", hasta: "2026-11-10", q: "pizza" });
+    expect(JSON.parse(nueva.cookie!)).toEqual({ "/ventas-fudo": { q: "pizza" } });
+    // Cookie de antes del cambio: las fechas guardadas ya no reaparecen al volver al módulo.
+    const vieja = guardar({ "/ventas-fudo": { desde: "2026-11-12", hasta: "2026-11-11", q: "pizza" } });
+    expect(leerGuardado(vieja)).toEqual({ "/ventas-fudo": { q: "pizza" } });
+    const vuelta = resolverFiltros("/ventas-fudo", "", vieja);
+    expect(q(vuelta.efectiva)).toEqual({ q: "pizza" });
+    expect(vuelta.cookie).toBeUndefined();
+  });
 });
