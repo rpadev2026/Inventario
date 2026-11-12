@@ -66,6 +66,13 @@ describe("proxy: inactividad", () => {
     expect((await pedir(await token({ la: AHORA - 31 * 60_000 }))).status).toBe(307);
   });
 
+  it("un token vencido por inactividad se borra del navegador también al llegar a una ruta pública (el ingreso)", async () => {
+    process.env.SESSION_IDLE_MINUTES = "2"; enHora();
+    const r = await pedir(await token({ la: AHORA - 300_000 }), "/login");
+    expect(r.status).toBe(200);
+    expect(r.cookies.get("sesion")?.value).toBe("");
+  });
+
   it("sin sesión sigue redirigiendo al ingreso sin el aviso de inactividad", async () => {
     const r = await pedir(undefined);
     expect(r.status).toBe(307);

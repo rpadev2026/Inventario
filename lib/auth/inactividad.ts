@@ -14,6 +14,9 @@ export function minutosInactividad(valor: string | undefined): number {
   return Number.isFinite(n) && n >= 1 && n <= MINUTOS_MAX ? n : MINUTOS_DEFECTO;
 }
 
+/** Cada cuánto, como máximo, el navegador avisa al servidor que el usuario sigue activo: un tercio del límite, entre 10 y 60 s. */
+export const intervaloLatidoMs = (limiteMin: number): number => Math.min(60_000, Math.max(10_000, (limiteMin * 60_000) / 3));
+
 /** ¿Pasó el límite sin actividad? `ultimaActividadMs` y `ahoraMs` en milisegundos de época. */
 export const inactiva = (ultimaActividadMs: number, ahoraMs: number, limiteMin: number): boolean =>
   ahoraMs - ultimaActividadMs > limiteMin * 60_000;

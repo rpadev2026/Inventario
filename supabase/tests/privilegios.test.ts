@@ -64,9 +64,8 @@ describe("S08: toda server action comprueba la autorización", () => {
       const p = join(d, n);
       return statSync(p).isDirectory() ? archivos(p) : n === "actions.ts" ? [p] : [];
     });
-  // Acciones públicas a propósito: autentican con las credenciales del formulario o solo cierran la sesión de quien las llama
-  // (`cerrarSesion` revoca los tokens de la sesión vigente y no recibe ningún dato del cliente).
-  const PUBLICAS = new Set(["login", "logout", "cerrarPorInactividad"]);
+  // Acciones públicas a propósito: autentican con las credenciales del formulario o solo cierran la sesión de quien las llama.
+  const PUBLICAS = new Set(["login", "logout"]);
   const AUTORIZA = /\b(requerirPermiso|requerirAdmin|leerSesion)\(/;
 
   it("cada función exportada de un actions.ts llama requerirPermiso, requerirAdmin o leerSesion", () => {

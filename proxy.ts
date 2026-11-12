@@ -69,6 +69,7 @@ export async function proxy(req: NextRequest) {
     res = NextResponse.rewrite(url, { request: { headers } });
   } else res = NextResponse.next({ request: { headers } });
   res.headers.set("Content-Security-Policy", csp);
+  if (porInactividad) { res.cookies.delete("sesion"); res.cookies.delete(COOKIE_FILTROS); } // token vencido por inactividad: no se deja una copia inútil en el navegador
   if (renovado) res.cookies.set("sesion", renovado.token, { httpOnly: true, sameSite: "lax", secure: process.env.NODE_ENV === "production", path: "/", maxAge: renovado.segundos });
   // Una precarga (prefetch) no cambia lo guardado: solo el clic real lo hace.
   const precarga = req.headers.get("next-router-prefetch") || req.headers.get("purpose") === "prefetch";
