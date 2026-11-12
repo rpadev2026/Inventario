@@ -8,7 +8,9 @@
  * Un filtro que llega con valor vacío (`?q=`) borra el guardado: así se limpian los filtros y se vuelve a la página 1.
  */
 export const COOKIE_FILTROS = "filtros";
-export const FILTRO_KEYS = ["pagina", "tam", "q", "estado", "solicitante", "desde", "hasta", "agrupar", "con_stock", "bodega", "motivo"] as const;
+// Las fechas (`desde`, `hasta`) NO se recuerdan: al entrar de nuevo a un módulo los campos de fecha parten vacíos (o con el rango por defecto del reporte).
+// Quedan en la URL como cualquier otro parámetro, así que se conservan al paginar pero no al salir y volver.
+export const FILTRO_KEYS = ["pagina", "tam", "q", "estado", "solicitante", "agrupar", "con_stock", "bodega", "motivo"] as const;
 const ES_FILTRO = new Set<string>(FILTRO_KEYS);
 export const esFiltro = (k: string) => ES_FILTRO.has(k);
 
