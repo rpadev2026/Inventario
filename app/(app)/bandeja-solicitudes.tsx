@@ -40,6 +40,7 @@ export default function BandejaSolicitudes({ items, total, ahora = new Date(), e
                   </span>
                   <Badge tone={ESTADO_TONO[i.EstadoSolicitud]}>{ESTADOS[i.EstadoSolicitud]}</Badge>
                   <span className="bandeja-detalle">{i.propia ? "yo" : i.Solicitante} · {antiguedad(i.FechaSolicitud, ahora)} · {i.espera}</span>
+                  {i.EstadoSolicitud === 5 && i.MotivoRechazo && <span className="bandeja-motivo">{`Motivo: ${i.MotivoRechazo}`}</span>}
                 </Link>
               </li>
             ))}

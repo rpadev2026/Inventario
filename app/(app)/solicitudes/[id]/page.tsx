@@ -8,7 +8,8 @@ import { mapaNombres } from "@/lib/catalogo-nombres";
 import { tienePermiso } from "@/lib/auth/permisos";
 import { ESTADOS, ESTADO_TONO } from "../estados";
 import Badge from "@/components/app/badge";
-import { enviarSolicitud, rechazarSolicitud } from "../actions";
+import { enviarSolicitud } from "../actions";
+import FormRechazar from "../form-rechazar";
 import { PanelAprobar, PanelRecepcion } from "../paneles";
 import FormSolicitud from "../form-solicitud";
 
@@ -59,6 +60,10 @@ export default async function SolicitudPage({ params }: { params: Promise<{ id: 
         {sol.Usuarios?.Nombres} {sol.Usuarios?.Apellidos} · Destino: {sol.Bodegas.NombreBodega} · {new Date(sol.FechaSolicitud).toLocaleDateString("es-CL")}
       </p>
 
+      {estado === 5 && sol.MotivoRechazo && (
+        <p className="alert alert-error"><strong>Motivo del rechazo:</strong> {sol.MotivoRechazo}</p>
+      )}
+
       {edicion ? (
         <>
           <FormSolicitud
@@ -98,10 +103,7 @@ export default async function SolicitudPage({ params }: { params: Promise<{ id: 
             const max = Math.min(Number(d.Cantidad), disp);
             return { producto: d.IdProducto as number, nombre: `${etiquetaProducto(d.Productos.Codigo, d.Productos.Nombre)} · stock central ${disp}`, max, inicial: max };
           })} />
-          <form action={rechazarSolicitud}>
-            <input type="hidden" name="id" value={id} />
-            <button className="btn btn-danger">Rechazar solicitud</button>
-          </form>
+          <FormRechazar id={id} />
         </>
       )}
 

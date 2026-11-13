@@ -5,7 +5,8 @@ import { db } from "@/lib/db/supabase";
 import { requerirPermiso } from "@/lib/auth/session";
 import { after } from "next/server";
 import { notificarEnviada, notificarResuelta } from "@/lib/services/correo";
-import { notificarPushEnviada, notificarPushResuelta } from "@/lib/services/push";
+import { notificarPushEnviada, notificarPushRecepcionada, notificarPushResuelta } from "@/lib/services/push";
+import { motivoRechazoSchema } from "@/lib/validation/motivo-rechazo";
 
 type R = { error?: string; ok?: boolean; id?: number; token?: string };
 
@@ -76,26 +77,33 @@ export async function aprobarSolicitud(input: unknown): Promise<R> {
   return { ok: true };
 }
 
-export async function rechazarSolicitud(fd: FormData) {
+export async function rechazarSolicitud(_: unknown, fd: FormData): Promise<R> {
   const s = await requerirPermiso("solicitudes.gestionar");
-  const id = idSchema.parse(fd.get("id"));
-  if (await esPropia(id, s.uid)) return;
-  const { error } = await db.rpc("cambiar_estado_solicitud", { p_usuario: s.uid, p_solicitud: id, p_nuevo: 5 });
-  if (error) return;
-  const sol = await correoSolicitante(id);
+  const p = z.object({ id: idSchema, motivo: motivoRechazoSchema }).safeParse({ id: fd.get("id"), motivo: fd.get("motivo") });
+  if (!p.success) return { error: p.error.issues[0].message };
+  if (await esPropia(p.data.id, s.uid)) return { error: "No puede rechazar su propia solicitud" };
+  const { error } = await db.rpc("rechazar_solicitud", { p_usuario: s.uid, p_solicitud: p.data.id, p_motivo: p.data.motivo });
+  if (error) return { error: mapError(error) };
+  const sol = await correoSolicitante(p.data.id);
   if (sol) {
-    await notificarResuelta(sol.numero, sol.correo, false);
-    after(() => notificarPushResuelta(sol.numero, sol.idSolicitante, sol.token, false));
+    await notificarResuelta(sol.numero, sol.correo, false, p.data.motivo);
+    after(() => notificarPushResuelta(sol.numero, sol.idSolicitante, sol.token, false, p.data.motivo));
   }
   revalidatePath("/solicitudes");
+  return { ok: true };
 }
 
 export async function recepcionarSolicitud(input: unknown): Promise<R> {
   const s = await requerirPermiso("solicitudes.ver_propias");
   const p = z.object({ id: idSchema, items: items.transform((l) => l.filter((i) => i.cantidad > 0)).refine((l) => l.length > 0, "Indique al menos una cantidad recibida") }).safeParse(input);
   if (!p.success) return { error: p.error.issues[0].message };
-  const { error } = await db.rpc("recepcionar_solicitud", { p_usuario: s.uid, p_solicitud: p.data.id, p_items: p.data.items });
+  const { data: estadoNuevo, error } = await db.rpc("recepcionar_solicitud", { p_usuario: s.uid, p_solicitud: p.data.id, p_items: p.data.items });
   if (error) return { error: mapError(error) };
+  // El RPC devuelve el estado nuevo: 3 = todo recibido, 4 = parcial. En ambos casos se avisa a quienes gestionan.
+  const { data: sol } = await db.from("Solicitudes")
+    .select("NumeroSolicitud,Token,IdUsuarioSolicitante,Bodegas!inner(NombreBodega),Usuarios!Solicitudes_IdUsuarioSolicitante_fkey!inner(Nombres,Apellidos)")
+    .eq("IdSolicitud", p.data.id).maybeSingle();
+  if (sol) after(() => notificarPushRecepcionada(sol.NumeroSolicitud, `${sol.Usuarios.Nombres} ${sol.Usuarios.Apellidos}`, sol.Bodegas.NombreBodega, sol.Token, sol.IdUsuarioSolicitante, Number(estadoNuevo) === 3));
   revalidatePath("/solicitudes");
   revalidatePath("/bodegas");
   return { ok: true };

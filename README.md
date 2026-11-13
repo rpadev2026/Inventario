@@ -81,6 +81,10 @@ Avisan a quien atiende una solicitud cuando se envía, y al solicitante cuando s
 3. Cada persona toca «Activar avisos» en el Inicio, en cada dispositivo. En iPhone/iPad primero hay que agregar la aplicación a la pantalla de inicio (iOS 16.4 o superior).
 4. Requiere HTTPS (o `localhost`).
 
+## Motivo del rechazo
+
+Rechazar una solicitud exige un motivo (hasta 100 caracteres). Aplicar la migración `0048_motivo_rechazo.sql` en Supabase (SQL Editor) **antes** de desplegar este código: el botón «Rechazar» llama a la función nueva `rechazar_solicitud`, y la bandeja del Inicio lee la columna `MotivoRechazo`. Sin la migración fallan el Inicio (aviso de que la bandeja no se pudo cargar), el listado `/solicitudes` («No se pudo cargar las solicitudes») y el rechazo; el detalle de una solicitud sigue funcionando.
+
 ## Pendiente para el despliegue
 Aún no está definido dónde se desplegará la aplicación. Cuando se defina, hay que hacer esto (hoy los correos quedan en la cola `CorreosPendientes` y no se pierden):
 1. **`CRON_SECRET`**: inventar un valor de 16+ caracteres (`node -e "console.log(require('crypto').randomBytes(32).toString('base64url'))"`) y guardarlo como variable de entorno del despliegue. No va en el repositorio.

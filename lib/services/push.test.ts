@@ -7,7 +7,7 @@ vi.mock("server-only", () => ({}));
 vi.mock("@/lib/db/supabase", () => ({ db: { rpc: (...a: unknown[]) => rpc(...a) }, nulo: null }));
 vi.mock("web-push", () => ({ default: { sendNotification: (...a: unknown[]) => sendNotification(...a), setVapidDetails: (...a: unknown[]) => setVapidDetails(...a) } }));
 
-import { notificarPushEnviada, notificarPushResuelta, pushConfigurado } from "./push";
+import { notificarPushEnviada, notificarPushRecepcionada, notificarPushResuelta, pushConfigurado } from "./push";
 
 const VAPID = { VAPID_PUBLIC_KEY: "pub", VAPID_PRIVATE_KEY: "priv", VAPID_SUBJECT: "mailto:a@x.cl" };
 const SUB = { Endpoint: "https://push.x/1", P256dh: "k", Auth: "a" };
@@ -79,6 +79,14 @@ describe("notificarPushResuelta", () => {
     expect(cuerpoEnviado()).toEqual({ titulo: "Solicitud #7 aprobada", cuerpo: "Ya puede recepcionar los productos cuando lleguen.", url: "/solicitudes/tok-2", tag: "solicitud-tok-2" });
   });
 
+  it("rechazada con motivo: el cuerpo lleva el motivo", async () => {
+    conVapid();
+    rpc.mockResolvedValueOnce({ data: [SUB], error: null });
+    sendNotification.mockResolvedValue({});
+    await notificarPushResuelta(7, 3, "tok-2", false, "Sin stock en central");
+    expect(cuerpoEnviado()).toMatchObject({ titulo: "Solicitud #7 rechazada", cuerpo: "Motivo: Sin stock en central", url: "/solicitudes/tok-2" });
+  });
+
   it("texto de rechazada", async () => {
     conVapid();
     rpc.mockResolvedValueOnce({ data: [SUB], error: null });
@@ -89,6 +97,30 @@ describe("notificarPushResuelta", () => {
 
   it("sin claves VAPID no hace nada", async () => {
     await notificarPushResuelta(7, 3, "tok-2", true);
+    expect(rpc).not.toHaveBeenCalled();
+  });
+});
+
+describe("notificarPushRecepcionada", () => {
+  it("recepción total: avisa a quienes gestionan (menos al solicitante) con título y URL por token", async () => {
+    conVapid();
+    rpc.mockResolvedValueOnce({ data: [SUB], error: null });
+    sendNotification.mockResolvedValue({});
+    await notificarPushRecepcionada(5, "BETO SOLICITANTE", "COCINA", "tok-9", 4, true);
+    expect(rpc).toHaveBeenCalledWith("suscripciones_push_permiso", { p_permiso: "solicitudes.gestionar", p_excluir: 4 });
+    expect(cuerpoEnviado()).toEqual({ titulo: "Solicitud #5 recepcionada", cuerpo: "BETO SOLICITANTE recibió los productos para COCINA.", url: "/solicitudes/tok-9", tag: "solicitud-tok-9" });
+  });
+
+  it("recepción parcial: el título y el texto lo dicen", async () => {
+    conVapid();
+    rpc.mockResolvedValueOnce({ data: [SUB], error: null });
+    sendNotification.mockResolvedValue({});
+    await notificarPushRecepcionada(5, "BETO SOLICITANTE", "COCINA", "tok-9", 4, false);
+    expect(cuerpoEnviado()).toEqual({ titulo: "Solicitud #5 recepcionada parcialmente", cuerpo: "BETO SOLICITANTE recibió una parte de los productos para COCINA.", url: "/solicitudes/tok-9", tag: "solicitud-tok-9" });
+  });
+
+  it("sin claves VAPID no consulta la base", async () => {
+    await notificarPushRecepcionada(5, "BETO", "COCINA", "tok-9", 4, true);
     expect(rpc).not.toHaveBeenCalled();
   });
 });
