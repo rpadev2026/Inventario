@@ -19,3 +19,21 @@ export function estadoAvisos(e: {
   if (e.permiso === "denied") return "bloqueado";
   return e.permiso === "granted" && e.suscrito ? "activo" : "inactivo";
 }
+
+/**
+ * Dispositivo compartido: si el navegador ya tiene una suscripción (de quien usó el equipo antes), se vuelve a guardar para el usuario
+ * de la sesión actual; el servidor reasigna la fila por su endpoint. También recupera una fila que se borró por vencida. Nunca lanza.
+ */
+export async function reasignarSuscripcion(
+  sub: { toJSON(): { endpoint?: string; keys?: { p256dh?: string; auth?: string } } } | null,
+  guardar: (s: { endpoint?: string; p256dh?: string; auth?: string }) => Promise<{ ok?: true; error?: string }>,
+): Promise<boolean> {
+  if (!sub) return false;
+  try {
+    const j = sub.toJSON();
+    const r = await guardar({ endpoint: j.endpoint, p256dh: j.keys?.p256dh, auth: j.keys?.auth });
+    return !!r.ok;
+  } catch {
+    return false;
+  }
+}

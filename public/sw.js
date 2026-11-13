@@ -4,6 +4,9 @@ function rutaInterna(url) {
   return typeof url === "string" && url.startsWith("/") && !url.startsWith("//") && !url.includes("\\") ? url : "/";
 }
 
+// Toma el control de las pestañas ya abiertas: sin esto, WindowClient.navigate() rechaza en la pestaña donde se activaron los avisos.
+self.addEventListener("activate", (event) => { event.waitUntil(self.clients.claim()); });
+
 self.addEventListener("push", (event) => {
   let datos = {};
   try { datos = event.data ? event.data.json() : {}; } catch { datos = {}; }
@@ -21,7 +24,9 @@ self.addEventListener("notificationclick", (event) => {
   event.waitUntil((async () => {
     const ventanas = await self.clients.matchAll({ type: "window", includeUncontrolled: true });
     for (const v of ventanas) {
-      if ("focus" in v && "navigate" in v) { await v.focus(); await v.navigate(destino); return; }
+      if ("focus" in v && "navigate" in v) {
+        try { await v.focus(); await v.navigate(destino); return; } catch { break; } // ventana no controlada: se abre una nueva
+      }
     }
     await self.clients.openWindow(rutaInterna(destino));
   })());

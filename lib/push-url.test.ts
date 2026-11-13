@@ -36,14 +36,15 @@ describe("public/sw.js: comportamiento con un `self` falso", () => {
     const manejadores: Record<string, (e: any) => void> = {};
     const mostradas: Array<[string, any]> = [];
     const abiertas: string[] = [];
+    const reclamado = { n: 0 };
     const self = {
       addEventListener: (n: string, f: (e: any) => void) => { manejadores[n] = f; },
       registration: { showNotification: async (t: string, o: any) => { mostradas.push([t, o]); } },
-      clients: { matchAll: async () => ventanas, openWindow: async (u: string) => { abiertas.push(u); } },
+      clients: { matchAll: async () => ventanas, openWindow: async (u: string) => { abiertas.push(u); }, claim: async () => { reclamado.n++; } },
     };
     new Function("self", codigo)(self);
     const esperar = async (e: any) => { const ps: Promise<unknown>[] = []; e.waitUntil = (p: Promise<unknown>) => ps.push(p); return ps; };
-    return { manejadores, mostradas, abiertas, esperar };
+    return { manejadores, mostradas, abiertas, esperar, reclamado };
   }
 
   it("al recibir un push muestra el título y el texto, con la ruta del aviso y su tag", async () => {
@@ -93,5 +94,19 @@ describe("public/sw.js: comportamiento con un `self` falso", () => {
     const e: any = { notification: { close: () => {}, data: { url: "//evil.com" } } };
     const ps = await t.esperar(e); t.manejadores.notificationclick(e); await Promise.all(ps);
     expect(t.abiertas).toEqual(["/"]);
+  });
+
+  it("al activarse toma el control de las pestañas ya abiertas (si no, navigate() rechaza en ellas)", async () => {
+    const t = cargar();
+    const e: any = {};
+    const ps = await t.esperar(e); t.manejadores.activate(e); await Promise.all(ps);
+    expect(t.reclamado.n).toBe(1);
+  });
+
+  it("si navigate() falla en la ventana abierta, abre la solicitud en una ventana nueva en vez de quedarse sin navegar", async () => {
+    const t = cargar([{ focus: async () => {}, navigate: async () => { throw new TypeError("no controlada"); } }]);
+    const e: any = { notification: { close: () => {}, data: { url: "/solicitudes/tok-3" } } };
+    const ps = await t.esperar(e); t.manejadores.notificationclick(e); await Promise.all(ps);
+    expect(t.abiertas).toEqual(["/solicitudes/tok-3"]);
   });
 });

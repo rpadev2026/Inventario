@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
-import { claveAplicacion, estadoAvisos } from "./push-cliente";
+import { vi } from "vitest";
+import { claveAplicacion, estadoAvisos, reasignarSuscripcion } from "./push-cliente";
 
 describe("claveAplicacion", () => {
   it("decodifica base64url con y sin relleno a los mismos bytes", () => {
@@ -28,5 +29,23 @@ describe("estadoAvisos", () => {
   });
   it("ordena: no soportado/iOS primero, luego sin configurar, luego bloqueado", () => {
     expect(estadoAvisos({ ...base, configurado: false, permiso: "denied" })).toBe("sin-configurar");
+  });
+});
+
+describe("reasignarSuscripcion", () => {
+  const sub = { toJSON: () => ({ endpoint: "https://push.x/1", keys: { p256dh: "k", auth: "a" } }) };
+  it("con una suscripción del navegador la vuelve a guardar para el usuario de la sesión (dispositivo compartido)", async () => {
+    const guardar = vi.fn(async () => ({ ok: true as const }));
+    expect(await reasignarSuscripcion(sub, guardar)).toBe(true);
+    expect(guardar).toHaveBeenCalledWith({ endpoint: "https://push.x/1", p256dh: "k", auth: "a" });
+  });
+  it("sin suscripción no llama al servidor", async () => {
+    const guardar = vi.fn(async () => ({ ok: true as const }));
+    expect(await reasignarSuscripcion(null, guardar)).toBe(false);
+    expect(guardar).not.toHaveBeenCalled();
+  });
+  it("si el servidor rechaza o lanza, devuelve false y no propaga", async () => {
+    expect(await reasignarSuscripcion(sub, async () => ({ error: "x" }))).toBe(false);
+    expect(await reasignarSuscripcion(sub, async () => { throw new Error("red"); })).toBe(false);
   });
 });

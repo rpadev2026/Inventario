@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { suscribirPush, desuscribirPush } from "@/app/(app)/push/actions";
-import { claveAplicacion, estadoAvisos, type EstadoAvisos } from "@/lib/push-cliente";
+import { claveAplicacion, estadoAvisos, reasignarSuscripcion, type EstadoAvisos } from "@/lib/push-cliente";
 
 const TEXTO: Record<EstadoAvisos, string> = {
   "no-soportado": "Este navegador no permite avisos. Pruebe con Chrome, Edge, Firefox o Safari actualizado.",
@@ -27,7 +27,13 @@ export default function ActivarAvisos({ clavePublica }: { clavePublica?: string 
       const instalada = window.matchMedia("(display-mode: standalone)").matches || (navigator as Navigator & { standalone?: boolean }).standalone === true;
       let suscrito = false;
       if (soportado) {
-        try { suscrito = !!(await (await navigator.serviceWorker.getRegistration("/sw.js"))?.pushManager.getSubscription()); } catch { /* sin registro todavía */ }
+        try {
+          const registro = await navigator.serviceWorker.getRegistration("/sw.js");
+          const sub = registro ? await registro.pushManager.getSubscription() : null;
+          suscrito = !!sub;
+          // Dispositivo compartido: la suscripción pasa a quien tiene la sesión abierta ahora (si no, seguiría avisando a la persona anterior).
+          if (sub && Notification.permission === "granted") await reasignarSuscripcion(sub, suscribirPush);
+        } catch { /* sin registro todavía */ }
       }
       if (vivo) setEstado(estadoAvisos({ soportado, esIos, instalada, permiso: soportado ? Notification.permission : "default", configurado: !!clavePublica, suscrito }));
     })();
