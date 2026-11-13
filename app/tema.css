@@ -253,3 +253,10 @@ body { background: var(--bg); color: var(--text); font-family: var(--font-body);
   /* Login con fondo animado (excepción aprobada a «sin degradados»): crea el contexto de apilamiento para que el fondo (z -10) quede detrás de la tarjeta. */
   .auth-wrap-fondo { position: relative; z-index: 0; }
 }
+
+/* Requisitos de clave: lista siempre visible; el cumplido lleva ícono de visto además del color. */
+.requisitos { list-style: none; margin: 0; padding: 0; display: grid; gap: .25rem; font-size: .8125rem; color: var(--text-muted); }
+.requisito { display: flex; align-items: center; gap: .5rem; }
+.requisito-marca { display: inline-flex; align-items: center; justify-content: center; width: 1.125rem; height: 1.125rem; border: 1.5px solid var(--border-strong, var(--text-faint)); border-radius: 50%; flex: none; }
+.requisito-ok { color: var(--accent-text); }
+.requisito-ok .requisito-marca { border-color: var(--primary); background: var(--primary-soft); }
