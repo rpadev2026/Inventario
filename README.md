@@ -85,6 +85,13 @@ Avisan a quien atiende una solicitud cuando se envía, y al solicitante cuando s
 
 Rechazar una solicitud exige un motivo (hasta 100 caracteres). Aplicar la migración `0048_motivo_rechazo.sql` en Supabase (SQL Editor) **antes** de desplegar este código: el botón «Rechazar» llama a la función nueva `rechazar_solicitud`, y la bandeja del Inicio lee la columna `MotivoRechazo`. Sin la migración fallan el Inicio (aviso de que la bandeja no se pudo cargar), el listado `/solicitudes` («No se pudo cargar las solicitudes») y el rechazo; el detalle de una solicitud sigue funcionando.
 
+## Aprobación parcial y cierre automático
+
+Aprobar menos de lo pedido exige un motivo y deja la solicitud «Aprobada parcialmente» hasta que el Administrador la confirme o la cierre; a los 7 días se cierra sola.
+1. Aplicar la migración `0049_aprobacion_parcial_cierre.sql` en Supabase (SQL Editor) **antes** de desplegar este código (cambia `aprobar_solicitud` y los estados válidos).
+2. El cierre automático necesita que alguien lo dispare: programar un cron diario que llame `GET` o `POST /api/solicitudes/cerrar-caducadas` con `Authorization: Bearer <CRON_SECRET>` (en Vercel, un cron en `vercel.json` ya envía ese encabezado si `CRON_SECRET` está definida). Sin cron igual funciona de forma diferida: cuando alguien con permiso de gestionar solicitudes abre el Inicio, se cierran las vencidas y se avisa.
+3. `CRON_SECRET` (mínimo 16 caracteres) ya se usa para los correos y la sincronización de Fudo.
+
 ## Pendiente para el despliegue
 Aún no está definido dónde se desplegará la aplicación. Cuando se defina, hay que hacer esto (hoy los correos quedan en la cola `CorreosPendientes` y no se pierden):
 1. **`CRON_SECRET`**: inventar un valor de 16+ caracteres (`node -e "console.log(require('crypto').randomBytes(32).toString('base64url'))"`) y guardarlo como variable de entorno del despliegue. No va en el repositorio.
