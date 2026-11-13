@@ -1,5 +1,7 @@
 {
   "crons": [
-    { "path": "/api/solicitudes/cerrar-caducadas", "schedule": "17 11 * * *" }
+    { "path": "/api/solicitudes/cerrar-caducadas", "schedule": "17 11 * * *" },
+    { "path": "/api/fudo/sincronizar", "schedule": "37 6 * * *" },
+    { "path": "/api/correos/procesar", "schedule": "47 6 * * *" }
   ]
 }
