@@ -73,6 +73,14 @@ Menú **Reportes** (permiso `reportes.ver`: lo tiene el Administrador y el rol C
 - **Ventas por producto** (`/reportes/ventas-producto`) y **Ventas por período** (`/reportes/ventas`: por día, semana de lunes a domingo o mes, con rangos rápidos): salen de las líneas de las ventas de Fudo que se guardan al sincronizar (menú Ventas Fudo, o el cron `/api/fudo/sincronizar`). Las fechas son las de Chile. **Las ventas procesadas antes de la migración 0042 no tienen líneas** y no aparecen.
 - **Por confirmar con credenciales reales de Fudo:** el monto de cada línea se calcula como `price` de la línea × `quantity` (si la línea no trae precio, el precio actual del producto); los descuentos o propinas de la venta completa no se reparten entre líneas, así que el total puede diferir del cierre de caja de Fudo.
 
+## Avisos push
+
+Avisan a quien atiende una solicitud cuando se envía, y al solicitante cuando se aprueba o rechaza.
+1. Aplicar la migración `0047_suscripciones_push.sql` en Supabase (SQL Editor).
+2. Generar las claves: `npm run gen:vapid`. Poner `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY` y `VAPID_SUBJECT` (`mailto:...`) en `.env.local` y en las variables del despliegue. La clave privada no se sube al repositorio. Sin ellas, la aplicación funciona y el Inicio indica que los avisos no están configurados.
+3. Cada persona toca «Activar avisos» en el Inicio, en cada dispositivo. En iPhone/iPad primero hay que agregar la aplicación a la pantalla de inicio (iOS 16.4 o superior).
+4. Requiere HTTPS (o `localhost`).
+
 ## Pendiente para el despliegue
 Aún no está definido dónde se desplegará la aplicación. Cuando se defina, hay que hacer esto (hoy los correos quedan en la cola `CorreosPendientes` y no se pierden):
 1. **`CRON_SECRET`**: inventar un valor de 16+ caracteres (`node -e "console.log(require('crypto').randomBytes(32).toString('base64url'))"`) y guardarlo como variable de entorno del despliegue. No va en el repositorio.

@@ -6,7 +6,7 @@ function rutaInterna(url) {
 
 self.addEventListener("push", (event) => {
   let datos = {};
-  try { datos = event.data ? event.data.json() : {}; } catch (e) { datos = {}; }
+  try { datos = event.data ? event.data.json() : {}; } catch { datos = {}; }
   const titulo = typeof datos.titulo === "string" && datos.titulo ? datos.titulo : "Inventario del Restaurant";
   event.waitUntil(self.registration.showNotification(titulo, {
     body: typeof datos.cuerpo === "string" ? datos.cuerpo : "",

@@ -5,6 +5,7 @@ import { leerSesion } from "@/lib/auth/session";
 import { tienePermiso } from "@/lib/auth/permisos";
 import { cargarBandeja } from "@/lib/services/bandeja";
 import BandejaSolicitudes from "./bandeja-solicitudes";
+import ActivarAvisos from "@/components/app/activar-avisos";
 
 function Tarjeta({ titulo, valor, href, alerta }: { titulo: string; valor: number; href: string; alerta?: boolean }) {
   return (
@@ -49,6 +50,7 @@ export default async function Inicio({ searchParams }: { searchParams: Promise<{
         {stock && <Tarjeta titulo="Productos bajo mínimo (Central)" valor={bajos.length} href="/bodegas" alerta />}
         {stock && <Tarjeta titulo="Productos en nivel crítico" valor={criticos.length} href="/bodegas" alerta />}
       </div>
+      {veSolicitudes && <ActivarAvisos clavePublica={process.env.VAPID_PUBLIC_KEY || undefined} />}
       {veSolicitudes && (bandeja ? <BandejaSolicitudes items={bandeja.items} total={bandeja.total} /> : <BandejaSolicitudes items={[]} total={0} error />)}
     </section>
   );
