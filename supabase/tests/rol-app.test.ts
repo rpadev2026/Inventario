@@ -18,7 +18,7 @@ const LEER_INSERTAR_ACTUALIZAR = [
 ];
 const SOLO_INSERTAR = ["CorreosPendientes"]; // la app encola; la cola se lee y resuelve por funciones
 const COLUMNAS = { Usuarios: ["Nombres", "Apellidos", "Correo", "IdEstado", "IdUsuarioModificacion"], Claves: ["IntentosFallidos", "BloqueadoHasta"] };
-const SIN_ACCESO = ["IntentosLogin", "TrabajosFudo"]; // solo por funciones
+const SIN_ACCESO = ["IntentosLogin", "TrabajosFudo", "SuscripcionesPush"]; // solo por funciones
 
 const dir = join(__dirname, "..");
 let db: PGlite;
