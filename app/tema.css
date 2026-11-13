@@ -232,6 +232,14 @@ body { background: var(--bg); color: var(--text); font-family: var(--font-body);
   .skeleton { display: block; background: var(--surface-3); border-radius: var(--radius-sm); animation: skeleton-latido 1.4s ease-in-out infinite; }
   @keyframes skeleton-latido { 0%, 100% { opacity: 1; } 50% { opacity: .45; } }
   @media (prefers-reduced-motion: reduce) { .skeleton { animation: none; } }
+  /* Bandeja de solicitudes del Inicio: cada fila es un enlace completo (44 px mínimo), apilada y legible en celular. */
+  .bandeja { display: grid; gap: .5rem; list-style: none; margin: 0; padding: 0; }
+  .bandeja-fila { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: .25rem .75rem; min-height: 44px; padding: .75rem 1rem; border: 1px solid var(--border); border-left-width: 4px; border-radius: var(--radius-sm); background: var(--surface); color: inherit; text-decoration: none; }
+  .bandeja-fila:hover { background: var(--surface-2); }
+  .bandeja-fila:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
+  .bandeja-accion { border-left-color: var(--primary); }
+  .bandeja-titulo { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .bandeja-detalle { grid-column: 1 / -1; font-size: .875rem; color: var(--text-muted); }
   /* Barra de progreso (trabajos en segundo plano): con avance conocido llena según el ancho; sin él (indeterminada) se desliza. */
   .progress { height: .5rem; border-radius: 999px; background: var(--surface-3); overflow: hidden; }
   .progress > span { display: block; height: 100%; background: var(--primary); border-radius: 999px; transition: width .4s ease; }

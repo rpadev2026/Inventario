@@ -3,6 +3,8 @@ import { db } from "@/lib/db/supabase";
 import { leerTodo } from "@/lib/db/leer-todo";
 import { leerSesion } from "@/lib/auth/session";
 import { tienePermiso } from "@/lib/auth/permisos";
+import { cargarBandeja } from "@/lib/services/bandeja";
+import BandejaSolicitudes from "./bandeja-solicitudes";
 
 function Tarjeta({ titulo, valor, href, alerta }: { titulo: string; valor: number; href: string; alerta?: boolean }) {
   return (
@@ -19,11 +21,15 @@ export default async function Inicio({ searchParams }: { searchParams: Promise<{
   const bodeguero = tienePermiso(s.permisos, "solicitudes.gestionar");
   const solicitante = tienePermiso(s.permisos, "solicitudes.crear");
 
-  const [pendientes, porRecibir, stock, prods] = await Promise.all([
+  const veSolicitudes = tienePermiso(s.permisos, "solicitudes.ver_propias", "solicitudes.gestionar");
+
+  const [pendientes, porRecibir, stock, prods, bandeja] = await Promise.all([
     bodeguero ? db.from("Solicitudes").select("IdSolicitud", { count: "exact", head: true }).eq("EstadoSolicitud", 1) : null,
     solicitante ? db.from("Solicitudes").select("IdSolicitud", { count: "exact", head: true }).in("EstadoSolicitud", [2, 4]).eq("IdUsuarioSolicitante", s.uid) : null,
     bodeguero ? leerTodo((a, b) => db.from("StockBodega").select("IdProducto,Cantidad,Bodegas!inner(EsCentral)", { count: "exact" }).eq("Bodegas.EsCentral", true).order("IdProducto").range(a, b)) : null,
     bodeguero ? leerTodo((a, b) => db.from("Productos").select("IdProducto,StockMinimo,StockCritico", { count: "exact" }).eq("IdEstado", 1).order("IdProducto").range(a, b)) : null,
+    // Si la bandeja falla no se cae el Inicio: se muestra un aviso en su lugar.
+    veSolicitudes ? cargarBandeja({ uid: s.uid, gestiona: bodeguero }).catch((e) => { console.error("[inicio] bandeja:", (e as Error).message); return null; }) : undefined,
   ]);
   const st = new Map((stock?.data ?? []).map((r) => [r.IdProducto as number, Number(r.Cantidad)]));
   const bajos = (prods?.data ?? []).filter((p) => (st.get(p.IdProducto) ?? 0) <= Number(p.StockMinimo) && Number(p.StockMinimo) > 0);
@@ -43,6 +49,7 @@ export default async function Inicio({ searchParams }: { searchParams: Promise<{
         {stock && <Tarjeta titulo="Productos bajo mínimo (Central)" valor={bajos.length} href="/bodegas" alerta />}
         {stock && <Tarjeta titulo="Productos en nivel crítico" valor={criticos.length} href="/bodegas" alerta />}
       </div>
+      {veSolicitudes && (bandeja ? <BandejaSolicitudes items={bandeja.items} total={bandeja.total} /> : <BandejaSolicitudes items={[]} total={0} error />)}
     </section>
   );
 }
