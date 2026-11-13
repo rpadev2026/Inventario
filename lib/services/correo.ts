@@ -77,3 +77,18 @@ export async function notificarResuelta(numero: number, correo: string, aprobada
     `<p>Su solicitud <b>#${numero}</b> fue <b>${aprobada ? "aprobada" : "rechazada"}</b>.${aprobada ? " Al recibir los productos, márquela como recepcionada." : ""}</p>${!aprobada && motivo ? `<p>Motivo: ${esc(motivo)}</p>` : ""}<p><a href="${esc(url)}">Ver solicitudes</a></p>`,
     `resuelta:${numero}:${aprobada ? "aprobada" : "rechazada"}`);
 }
+
+export async function notificarParcial(numero: number, correo: string, motivo: string) {
+  const url = `${process.env.APP_URL ?? ""}/solicitudes`;
+  await encolar([correo], `Solicitud #${numero} aprobada parcialmente`,
+    `<p>Su solicitud <b>#${numero}</b> fue <b>aprobada parcialmente</b>: se aprobó menos de lo pedido.</p><p>Motivo: ${esc(motivo)}</p><p>Queda pendiente de la confirmación del Administrador.</p><p><a href="${esc(url)}">Ver solicitudes</a></p>`,
+    `parcial:${numero}`);
+}
+
+/** Cierre de una solicitud (manual o por caducidad): un solo correo a todos los participantes. */
+export async function notificarCierre(numero: number, correos: string[], motivo: string) {
+  const url = `${process.env.APP_URL ?? ""}/solicitudes`;
+  await encolar(correos, `Solicitud #${numero} cerrada`,
+    `<p>La solicitud <b>#${numero}</b> fue <b>cerrada</b>.</p><p>Motivo: ${esc(motivo)}</p><p><a href="${esc(url)}">Ver solicitudes</a></p>`,
+    `cierre:${numero}`);
+}

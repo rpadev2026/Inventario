@@ -211,6 +211,17 @@ describe("0049: participantes de una solicitud", () => {
   });
 });
 
+describe("0049: suscripciones de los Administradores", () => {
+  it("trae solo a los Administradores vigentes y puede excluir a uno", async () => {
+    for (const [u, ep] of [[ADMIN, "a"], [ADMIN2, "b"], [GESTOR, "g"], [SOLICITANTE, "s"], [ADMIN_INACTIVO, "i"]] as const)
+      await db.exec(`select guardar_suscripcion_push(${u}, 'https://push.x/adm-${ep}', 'k', 'a')`);
+    const todos = (await filas(`select "Endpoint" e from suscripciones_push_administradores()`)).map((r) => r.e as string).filter((e) => e.includes("/adm-")).sort();
+    expect(todos).toEqual(["https://push.x/adm-a", "https://push.x/adm-b"]);
+    const sin = (await filas(`select "Endpoint" e from suscripciones_push_administradores(${ADMIN})`)).map((r) => r.e as string).filter((e) => e.includes("/adm-"));
+    expect(sin).toEqual(["https://push.x/adm-b"]);
+  });
+});
+
 describe("0049: permisos de ejecución", () => {
   it("el rol de la app ejecuta las funciones públicas; anon y authenticated ninguna; las internas no son invocables", async () => {
     const id = await solicitud(6);
@@ -218,6 +229,7 @@ describe("0049: permisos de ejecución", () => {
     try {
       await db.query(`select * from participantes_solicitud(${id})`);
       await db.query(`select * from cerrar_solicitudes_caducadas()`);
+      await db.query(`select * from suscripciones_push_administradores()`);
       await db.query(`select cerrar_solicitud(${ADMIN}, ${id}, 'ok')`);
       await expect(db.query(`select aplicar_aprobacion(${GESTOR}, ${id}, ${items(1, 1)})`)).rejects.toThrow(/permission denied/i);
     } finally { await db.exec("reset role"); }

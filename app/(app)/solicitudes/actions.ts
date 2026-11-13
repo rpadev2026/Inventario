@@ -2,11 +2,12 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { db } from "@/lib/db/supabase";
-import { requerirPermiso } from "@/lib/auth/session";
+import { requerirAdmin, requerirPermiso } from "@/lib/auth/session";
 import { after } from "next/server";
-import { notificarEnviada, notificarResuelta } from "@/lib/services/correo";
-import { notificarPushEnviada, notificarPushRecepcionada, notificarPushResuelta } from "@/lib/services/push";
-import { motivoRechazoSchema } from "@/lib/validation/motivo-rechazo";
+import { notificarEnviada, notificarParcial, notificarResuelta } from "@/lib/services/correo";
+import { avisarCierre } from "@/lib/services/cierre";
+import { notificarPushEnviada, notificarPushParcial, notificarPushRecepcionada, notificarPushResuelta } from "@/lib/services/push";
+import { motivoRechazoSchema, motivoSchema, MSG_MOTIVO_CIERRE, MSG_MOTIVO_PARCIAL } from "@/lib/validation/motivo-rechazo";
 
 type R = { error?: string; ok?: boolean; id?: number; token?: string };
 
@@ -73,6 +74,52 @@ export async function aprobarSolicitud(input: unknown): Promise<R> {
     await notificarResuelta(sol.numero, sol.correo, true);
     after(() => notificarPushResuelta(sol.numero, sol.idSolicitante, sol.token, true));
   }
+  revalidatePath("/solicitudes");
+  return { ok: true };
+}
+
+/** Aprobar MENOS de lo pedido: exige motivo; la solicitud queda «Aprobada parcialmente» a la espera del Administrador. */
+export async function aprobarParcialSolicitud(input: unknown): Promise<R> {
+  const s = await requerirPermiso("solicitudes.gestionar");
+  const p = z.object({ id: idSchema, items, motivo: motivoSchema(MSG_MOTIVO_PARCIAL) }).safeParse(input);
+  if (!p.success) return { error: p.error.issues[0].message };
+  if (await esPropia(p.data.id, s.uid)) return { error: "No puede aprobar su propia solicitud" };
+  const { error } = await db.rpc("aprobar_parcial_solicitud", { p_usuario: s.uid, p_solicitud: p.data.id, p_items: p.data.items, p_motivo: p.data.motivo });
+  if (error) return { error: mapError(error) };
+  const sol = await correoSolicitante(p.data.id);
+  if (sol) {
+    await notificarParcial(sol.numero, sol.correo, p.data.motivo);
+    after(() => notificarPushParcial(sol.numero, sol.idSolicitante, sol.token, p.data.motivo));
+  }
+  revalidatePath("/solicitudes");
+  return { ok: true };
+}
+
+/** El Administrador confirma la aprobación parcial: pasa a Aprobada y sigue el flujo normal. */
+export async function reaprobarSolicitud(input: unknown): Promise<R> {
+  const s = await requerirAdmin();
+  const p = z.object({ id: idSchema }).safeParse(input);
+  if (!p.success) return { error: p.error.issues[0].message };
+  const { error } = await db.rpc("reaprobar_solicitud", { p_usuario: s.uid, p_solicitud: p.data.id });
+  if (error) return { error: mapError(error) };
+  const sol = await correoSolicitante(p.data.id);
+  if (sol) {
+    await notificarResuelta(sol.numero, sol.correo, true);
+    after(() => notificarPushResuelta(sol.numero, sol.idSolicitante, sol.token, true));
+  }
+  revalidatePath("/solicitudes");
+  return { ok: true };
+}
+
+/** El Administrador cierra una solicitud aprobada parcialmente (antes de que caduque), con motivo. */
+export async function cerrarSolicitud(_: unknown, fd: FormData): Promise<R> {
+  const s = await requerirAdmin();
+  const p = z.object({ id: idSchema, motivo: motivoSchema(MSG_MOTIVO_CIERRE) }).safeParse({ id: fd.get("id"), motivo: fd.get("motivo") });
+  if (!p.success) return { error: p.error.issues[0].message };
+  const { error } = await db.rpc("cerrar_solicitud", { p_usuario: s.uid, p_solicitud: p.data.id, p_motivo: p.data.motivo });
+  if (error) return { error: mapError(error) };
+  const sol = await correoSolicitante(p.data.id);
+  if (sol) after(() => avisarCierre({ id: p.data.id, numero: sol.numero, token: sol.token }, p.data.motivo));
   revalidatePath("/solicitudes");
   return { ok: true };
 }

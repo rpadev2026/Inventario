@@ -7,7 +7,7 @@ vi.mock("server-only", () => ({}));
 vi.mock("@/lib/db/supabase", () => ({ db: { rpc: (...a: unknown[]) => rpc(...a) }, nulo: null }));
 vi.mock("web-push", () => ({ default: { sendNotification: (...a: unknown[]) => sendNotification(...a), setVapidDetails: (...a: unknown[]) => setVapidDetails(...a) } }));
 
-import { notificarPushEnviada, notificarPushRecepcionada, notificarPushResuelta, pushConfigurado } from "./push";
+import { notificarPushCierre, notificarPushEnviada, notificarPushParcial, notificarPushRecepcionada, notificarPushResuelta, pushConfigurado } from "./push";
 
 const VAPID = { VAPID_PUBLIC_KEY: "pub", VAPID_PRIVATE_KEY: "priv", VAPID_SUBJECT: "mailto:a@x.cl" };
 const SUB = { Endpoint: "https://push.x/1", P256dh: "k", Auth: "a" };
@@ -121,6 +121,40 @@ describe("notificarPushRecepcionada", () => {
 
   it("sin claves VAPID no consulta la base", async () => {
     await notificarPushRecepcionada(5, "BETO", "COCINA", "tok-9", 4, true);
+    expect(rpc).not.toHaveBeenCalled();
+  });
+});
+
+describe("notificarPushParcial", () => {
+  it("avisa al solicitante y a los Administradores (sin el solicitante), cada uno con su texto", async () => {
+    conVapid();
+    rpc.mockImplementation(async (fn: string) => ({ data: [fn === "suscripciones_push_usuarios" ? { ...SUB, Endpoint: "https://push.x/soli" } : { ...SUB, Endpoint: "https://push.x/admin" }], error: null }));
+    sendNotification.mockResolvedValue({});
+    await notificarPushParcial(5, 4, "tok-9", "Falta stock");
+    expect(rpc).toHaveBeenCalledWith("suscripciones_push_usuarios", { p_usuarios: [4] });
+    expect(rpc).toHaveBeenCalledWith("suscripciones_push_administradores", { p_excluir: 4 });
+    const enviados = sendNotification.mock.calls.map((c) => ({ ep: (c[0] as { endpoint: string }).endpoint, ...JSON.parse(c[1] as string) }));
+    expect(enviados.find((e) => e.ep.endsWith("/soli"))).toMatchObject({ titulo: "Solicitud #5 aprobada parcialmente", cuerpo: "Motivo: Falta stock", url: "/solicitudes/tok-9" });
+    expect(enviados.find((e) => e.ep.endsWith("/admin"))).toMatchObject({ titulo: "Solicitud #5 requiere su aprobación", cuerpo: "Aprobada parcialmente. Motivo: Falta stock", url: "/solicitudes/tok-9" });
+  });
+  it("sin claves VAPID no consulta la base", async () => {
+    await notificarPushParcial(5, 4, "tok-9", "x");
+    expect(rpc).not.toHaveBeenCalled();
+  });
+});
+
+describe("notificarPushCierre", () => {
+  it("avisa a los participantes con el motivo y la URL por token", async () => {
+    conVapid();
+    rpc.mockResolvedValueOnce({ data: [SUB], error: null });
+    sendNotification.mockResolvedValue({});
+    await notificarPushCierre(5, "tok-9", "Cierre por caducidad de días", [1, 2, 3]);
+    expect(rpc).toHaveBeenCalledWith("suscripciones_push_usuarios", { p_usuarios: [1, 2, 3] });
+    expect(cuerpoEnviado()).toEqual({ titulo: "Solicitud #5 cerrada", cuerpo: "Motivo: Cierre por caducidad de días", url: "/solicitudes/tok-9", tag: "solicitud-tok-9" });
+  });
+  it("sin participantes no consulta la base", async () => {
+    conVapid();
+    await notificarPushCierre(5, "tok-9", "x", []);
     expect(rpc).not.toHaveBeenCalled();
   });
 });

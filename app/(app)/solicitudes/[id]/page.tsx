@@ -3,13 +3,15 @@ import Link from "next/link";
 import { tokenValido } from "@/lib/token";
 import { notFound } from "next/navigation";
 import { db } from "@/lib/db/supabase";
-import { requerirPaginaPermiso } from "@/lib/auth/session";
+import { esAdmin, requerirPaginaPermiso } from "@/lib/auth/session";
 import { mapaNombres } from "@/lib/catalogo-nombres";
 import { tienePermiso } from "@/lib/auth/permisos";
 import { ESTADOS, ESTADO_TONO } from "../estados";
 import Badge from "@/components/app/badge";
 import { enviarSolicitud } from "../actions";
 import FormRechazar from "../form-rechazar";
+import AccionesParcial from "../acciones-parcial";
+import { fechaCaducidad } from "@/lib/aprobacion-parcial";
 import { PanelAprobar, PanelRecepcion } from "../paneles";
 import FormSolicitud from "../form-solicitud";
 
@@ -63,6 +65,16 @@ export default async function SolicitudPage({ params }: { params: Promise<{ id: 
       {estado === 5 && sol.MotivoRechazo && (
         <p className="alert alert-error"><strong>Motivo del rechazo:</strong> {sol.MotivoRechazo}</p>
       )}
+      {estado === 6 && (
+        <div className="alert alert-warn space-y-1">
+          <p><strong>Aprobada parcialmente:</strong> se aprobó menos de lo pedido. Queda pendiente de la aprobación del Administrador.</p>
+          {sol.MotivoParcial && <p><strong>Motivo:</strong> {sol.MotivoParcial}</p>}
+          {sol.FechaAprobacion && <p>Si no se resuelve, se cierra automáticamente el {fechaCaducidad(sol.FechaAprobacion).toLocaleDateString("es-CL")}.</p>}
+        </div>
+      )}
+      {estado === 7 && (
+        <p className="alert alert-error"><strong>Solicitud cerrada.</strong> {sol.MotivoCierre && <>Motivo: {sol.MotivoCierre}</>}{sol.FechaCierre && <> · {new Date(sol.FechaCierre).toLocaleDateString("es-CL")}</>}</p>
+      )}
 
       {edicion ? (
         <>
@@ -101,11 +113,13 @@ export default async function SolicitudPage({ params }: { params: Promise<{ id: 
           <PanelAprobar id={id} items={detalle.map((d) => {
             const disp = stockCentral.get(d.IdProducto) ?? 0;
             const max = Math.min(Number(d.Cantidad), disp);
-            return { producto: d.IdProducto as number, nombre: `${etiquetaProducto(d.Productos.Codigo, d.Productos.Nombre)} · stock central ${disp}`, max, inicial: max };
+            return { producto: d.IdProducto as number, nombre: `${etiquetaProducto(d.Productos.Codigo, d.Productos.Nombre)} · stock central ${disp}`, max, inicial: max, solicitada: Number(d.Cantidad) };
           })} />
           <FormRechazar id={id} />
         </>
       )}
+
+      {estado === 6 && esAdmin(s) && <AccionesParcial id={id} puedeAprobar={!esDueno} />}
 
       {(estado === 2 || estado === 4) && esDueno && (
         <PanelRecepcion key={detalle.map((d) => `${d.IdProducto}:${d.CantidadRecibida}`).join()} id={id} items={detalle

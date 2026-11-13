@@ -137,11 +137,18 @@ returns table("IdUsuario" bigint, "Correo" text) language sql stable security de
   order by u."IdUsuario";
 $$;
 
+-- Suscripciones push de los Administradores vigentes (quienes deben confirmar una aprobación parcial), menos `p_excluir`.
+create or replace function suscripciones_push_administradores(p_excluir bigint default null)
+returns table("Endpoint" text, "P256dh" text, "Auth" text) language sql stable security definer set search_path = public as $$
+  select s."Endpoint", s."P256dh", s."Auth" from "SuscripcionesPush" s
+  where s."IdUsuario" is distinct from p_excluir and es_administrador(s."IdUsuario");
+$$;
+
 do $$
 declare f text;
 begin
   foreach f in array array[
-    'aprobar_parcial_solicitud(bigint, bigint, jsonb, text)', 'reaprobar_solicitud(bigint, bigint)', 'cerrar_solicitud(bigint, bigint, text)',
+    'suscripciones_push_administradores(bigint)', 'aprobar_parcial_solicitud(bigint, bigint, jsonb, text)', 'reaprobar_solicitud(bigint, bigint)', 'cerrar_solicitud(bigint, bigint, text)',
     'cerrar_solicitudes_caducadas()', 'participantes_solicitud(bigint)'] loop
     execute format('revoke all on function %s from public, anon, authenticated', f);
     execute format('grant execute on function %s to app_servidor', f);

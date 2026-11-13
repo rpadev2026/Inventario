@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { hayCambioDeCantidades } from "./aprobacion-parcial";
+import { DIAS_CADUCIDAD, fechaCaducidad, hayCambioDeCantidades, motivoDeSolicitud } from "./aprobacion-parcial";
 
 const items = [{ producto: 1, solicitada: 100 }, { producto: 2, solicitada: 50 }];
 
@@ -23,4 +23,26 @@ describe("hayCambioDeCantidades", () => {
     expect(hayCambioDeCantidades([{ producto: 1, solicitada: 100 }], { "1": "60" })).toBe(true); // aunque 60 fuera el máximo disponible
   });
   it("sin productos no hay cambio", () => expect(hayCambioDeCantidades([], {})).toBe(false));
+});
+
+describe("fechaCaducidad", () => {
+  it("son 7 días desde la aprobación parcial", () => {
+    expect(DIAS_CADUCIDAD).toBe(7);
+    expect(fechaCaducidad("2026-11-13T15:00:00Z").toISOString()).toBe("2026-11-20T15:00:00.000Z");
+  });
+});
+
+describe("motivoDeSolicitud", () => {
+  const r = { MotivoRechazo: "Sin stock", MotivoParcial: "Falta stock", MotivoCierre: "Ya no se necesita" };
+  it("devuelve el motivo que corresponde al estado", () => {
+    expect(motivoDeSolicitud({ EstadoSolicitud: 5, ...r })).toBe("Sin stock");
+    expect(motivoDeSolicitud({ EstadoSolicitud: 6, ...r })).toBe("Falta stock");
+    expect(motivoDeSolicitud({ EstadoSolicitud: 7, ...r })).toBe("Ya no se necesita");
+  });
+  it("los demás estados no tienen motivo, aunque la fila conserve uno de un estado anterior (parcial → aprobada)", () => {
+    for (const e of [0, 1, 2, 3, 4]) expect(motivoDeSolicitud({ EstadoSolicitud: e, ...r })).toBeNull();
+  });
+  it("un motivo ausente (rechazadas anteriores a 0048) es null", () => {
+    expect(motivoDeSolicitud({ EstadoSolicitud: 5, MotivoRechazo: null, MotivoParcial: null, MotivoCierre: null })).toBeNull();
+  });
 });

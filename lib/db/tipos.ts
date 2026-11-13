@@ -2180,6 +2180,10 @@ export type Database = {
         Args: { p_items: Json; p_motivo: string; p_solicitud: number; p_usuario: number }
         Returns: undefined
       }
+      suscripciones_push_administradores: {
+        Args: { p_excluir?: number }
+        Returns: { Auth: string; Endpoint: string; P256dh: string }[]
+      }
       reaprobar_solicitud: { Args: { p_solicitud: number; p_usuario: number }; Returns: undefined }
       cerrar_solicitud: { Args: { p_motivo: string; p_solicitud: number; p_usuario: number }; Returns: undefined }
       cerrar_solicitudes_caducadas: {
