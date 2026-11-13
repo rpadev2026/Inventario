@@ -50,3 +50,15 @@ export function mensajeErrorAvisos(e: unknown): string {
   if (nombre === "NotAllowedError") return "El navegador bloqueó los avisos. Permítalos en la configuración del sitio y vuelva a intentarlo.";
   return GENERICO;
 }
+
+/**
+ * ¿Hay que suscribir este dispositivo sin que toque el botón? Solo si el permiso YA está concedido (no requiere gesto), el navegador
+ * perdió la suscripción y la persona no eligió «Desactivar avisos». Así reiniciar el servidor o limpiar el service worker no obliga a reactivar.
+ */
+export function debeResuscribir(e: {
+  soportado: boolean; esIos: boolean; instalada: boolean; permiso: NotificationPermission | "default"; configurado: boolean; suscrito: boolean; desactivadoPorUsuario: boolean;
+}): boolean {
+  if (e.desactivadoPorUsuario || e.suscrito || e.permiso !== "granted") return false;
+  const estado = estadoAvisos({ ...e });
+  return estado === "inactivo";
+}

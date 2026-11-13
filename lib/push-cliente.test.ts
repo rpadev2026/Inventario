@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { vi } from "vitest";
-import { claveAplicacion, estadoAvisos, mensajeErrorAvisos, reasignarSuscripcion } from "./push-cliente";
+import { claveAplicacion, estadoAvisos, debeResuscribir, mensajeErrorAvisos, reasignarSuscripcion } from "./push-cliente";
 
 describe("claveAplicacion", () => {
   it("decodifica base64url con y sin relleno a los mismos bytes", () => {
@@ -67,5 +67,21 @@ describe("mensajeErrorAvisos", () => {
   it("cualquier otra cosa: mensaje genérico", () => {
     expect(mensajeErrorAvisos(new Error("x"))).toBe("No se pudo activar los avisos en este dispositivo. Intente nuevamente.");
     expect(mensajeErrorAvisos(null)).toBe("No se pudo activar los avisos en este dispositivo. Intente nuevamente.");
+  });
+});
+
+describe("debeResuscribir", () => {
+  const ok = { soportado: true, esIos: false, instalada: false, permiso: "granted" as const, configurado: true, suscrito: false, desactivadoPorUsuario: false };
+  it("permiso ya concedido, sin suscripción en el navegador y el usuario no los desactivó: se suscribe solo (no necesita gesto)", () => expect(debeResuscribir(ok)).toBe(true));
+  it("si el usuario eligió «Desactivar avisos», no se le vuelve a suscribir", () => expect(debeResuscribir({ ...ok, desactivadoPorUsuario: true })).toBe(false));
+  it("sin permiso concedido (aún no pedido o bloqueado) hace falta el botón", () => {
+    expect(debeResuscribir({ ...ok, permiso: "default" })).toBe(false);
+    expect(debeResuscribir({ ...ok, permiso: "denied" })).toBe(false);
+  });
+  it("ya suscrito, sin soporte, sin claves en el servidor o iPhone sin instalar: no hace nada", () => {
+    expect(debeResuscribir({ ...ok, suscrito: true })).toBe(false);
+    expect(debeResuscribir({ ...ok, soportado: false })).toBe(false);
+    expect(debeResuscribir({ ...ok, configurado: false })).toBe(false);
+    expect(debeResuscribir({ ...ok, esIos: true, instalada: false })).toBe(false);
   });
 });
