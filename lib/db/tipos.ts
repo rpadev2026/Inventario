@@ -1850,6 +1850,41 @@ export type Database = {
           },
         ]
       }
+      SuscripcionesPush: {
+        Row: {
+          Auth: string
+          Endpoint: string
+          FechaRegistroCreacion: string
+          IdSuscripcion: number
+          IdUsuario: number
+          P256dh: string
+        }
+        Insert: {
+          Auth: string
+          Endpoint: string
+          FechaRegistroCreacion?: string
+          IdSuscripcion?: never
+          IdUsuario: number
+          P256dh: string
+        }
+        Update: {
+          Auth?: string
+          Endpoint?: string
+          FechaRegistroCreacion?: string
+          IdSuscripcion?: never
+          IdUsuario?: number
+          P256dh?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "SuscripcionesPush_IdUsuario_fkey"
+            columns: ["IdUsuario"]
+            isOneToOne: false
+            referencedRelation: "Usuarios"
+            referencedColumns: ["IdUsuario"]
+          },
+        ]
+      }
       Usuarios: {
         Row: {
           Apellidos: string
@@ -2032,6 +2067,19 @@ export type Database = {
         Returns: Json
       }
       estado_trabajo_fudo: { Args: never; Returns: Json }
+      guardar_suscripcion_push: {
+        Args: { p_auth: string; p_endpoint: string; p_p256dh: string; p_usuario: number }
+        Returns: undefined
+      }
+      quitar_suscripcion_push: { Args: { p_endpoint: string }; Returns: undefined }
+      suscripciones_push_permiso: {
+        Args: { p_excluir?: number; p_permiso: string }
+        Returns: { Auth: string; Endpoint: string; P256dh: string }[]
+      }
+      suscripciones_push_usuarios: {
+        Args: { p_usuarios: number[] }
+        Returns: { Auth: string; Endpoint: string; P256dh: string }[]
+      }
       exportar_ventas_fudo: {
         Args: { p_desde: string; p_hasta: string; p_motivo: string; p_q: string }
         Returns: Json
