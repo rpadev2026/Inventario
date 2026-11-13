@@ -125,7 +125,7 @@ describe("flujo de solicitudes", () => {
   it("rechazo desde Enviada y estado terminal", async () => {
     const s2 = Number(await val(`select crear_solicitud(2, 2, '[{"producto":1,"cantidad":1}]'::jsonb)`));
     await db.query(`select cambiar_estado_solicitud(2, ${s2}, 1::smallint)`);
-    await db.query(`select cambiar_estado_solicitud(3, ${s2}, 5::smallint)`);
+    await db.query(`select rechazar_solicitud(3, ${s2}, 'Sin stock')`);
     await fails(`select cambiar_estado_solicitud(3, ${s2}, 2::smallint)`, /Transición/);
   });
 });

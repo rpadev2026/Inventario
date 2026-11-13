@@ -1519,6 +1519,7 @@ export type Database = {
       }
       Solicitudes: {
         Row: {
+          MotivoRechazo: string | null
           EstadoSolicitud: number
           FechaAprobacion: string | null
           FechaRegistroModificacion: string
@@ -1531,6 +1532,7 @@ export type Database = {
           Token: string
         }
         Insert: {
+          MotivoRechazo?: string | null
           EstadoSolicitud?: number
           FechaAprobacion?: string | null
           FechaRegistroModificacion?: string
@@ -1543,6 +1545,7 @@ export type Database = {
           Token?: string
         }
         Update: {
+          MotivoRechazo?: string | null
           EstadoSolicitud?: number
           FechaAprobacion?: string | null
           FechaRegistroModificacion?: string
@@ -2149,6 +2152,10 @@ export type Database = {
       procesar_venta_fudo: {
         Args: { p_cierre: string; p_lineas: Json; p_venta: string }
         Returns: Json
+      }
+      rechazar_solicitud: {
+        Args: { p_motivo: string; p_solicitud: number; p_usuario: number }
+        Returns: undefined
       }
       reclamar_correos: {
         Args: { p_max: number }
