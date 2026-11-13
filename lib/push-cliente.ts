@@ -37,3 +37,16 @@ export async function reasignarSuscripcion(
     return false;
   }
 }
+
+const GENERICO = "No se pudo activar los avisos en este dispositivo. Intente nuevamente.";
+
+/** Traduce el error del navegador al suscribirse a un mensaje que diga qué hacer (el genérico no ayuda a diagnosticar). */
+export function mensajeErrorAvisos(e: unknown): string {
+  const nombre = (e as { name?: string } | null)?.name;
+  if (nombre === "AbortError")
+    return "El navegador no pudo conectarse con su servicio de notificaciones. Si usa Brave, active «Usar servicios de Google para mensajería push» en brave://settings/privacy y reinicie el navegador; en otros, revise la conexión.";
+  if (nombre === "InvalidAccessError" || nombre === "InvalidCharacterError")
+    return "La clave pública de los avisos no es válida. Revise VAPID_PUBLIC_KEY en el servidor (debe copiarse completa, sin comillas ni espacios).";
+  if (nombre === "NotAllowedError") return "El navegador bloqueó los avisos. Permítalos en la configuración del sitio y vuelva a intentarlo.";
+  return GENERICO;
+}

@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { vi } from "vitest";
-import { claveAplicacion, estadoAvisos, reasignarSuscripcion } from "./push-cliente";
+import { claveAplicacion, estadoAvisos, mensajeErrorAvisos, reasignarSuscripcion } from "./push-cliente";
 
 describe("claveAplicacion", () => {
   it("decodifica base64url con y sin relleno a los mismos bytes", () => {
@@ -47,5 +47,25 @@ describe("reasignarSuscripcion", () => {
   it("si el servidor rechaza o lanza, devuelve false y no propaga", async () => {
     expect(await reasignarSuscripcion(sub, async () => ({ error: "x" }))).toBe(false);
     expect(await reasignarSuscripcion(sub, async () => { throw new Error("red"); })).toBe(false);
+  });
+});
+
+describe("mensajeErrorAvisos", () => {
+  const ex = (name: string) => Object.assign(new Error(name), { name });
+  it("AbortError: el servicio de push del navegador no respondió (típico de Brave sin los servicios de Google)", () => {
+    const m = mensajeErrorAvisos(ex("AbortError"));
+    expect(m).toContain("Brave");
+    expect(m).toContain("brave://settings/privacy");
+  });
+  it("InvalidAccessError / InvalidCharacterError: la clave pública VAPID no es válida", () => {
+    expect(mensajeErrorAvisos(ex("InvalidAccessError"))).toContain("VAPID_PUBLIC_KEY");
+    expect(mensajeErrorAvisos(ex("InvalidCharacterError"))).toContain("VAPID_PUBLIC_KEY");
+  });
+  it("NotAllowedError: el navegador bloqueó los avisos", () => {
+    expect(mensajeErrorAvisos(ex("NotAllowedError"))).toContain("bloque");
+  });
+  it("cualquier otra cosa: mensaje genérico", () => {
+    expect(mensajeErrorAvisos(new Error("x"))).toBe("No se pudo activar los avisos en este dispositivo. Intente nuevamente.");
+    expect(mensajeErrorAvisos(null)).toBe("No se pudo activar los avisos en este dispositivo. Intente nuevamente.");
   });
 });
