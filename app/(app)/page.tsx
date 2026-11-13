@@ -1,4 +1,6 @@
 import Link from "next/link";
+import { after } from "next/server";
+import { cerrarCaducadas } from "@/lib/services/caducidad";
 import { db } from "@/lib/db/supabase";
 import { leerTodo } from "@/lib/db/leer-todo";
 import { esAdmin, leerSesion } from "@/lib/auth/session";
@@ -21,6 +23,9 @@ export default async function Inicio({ searchParams }: { searchParams: Promise<{
   const s = (await leerSesion())!;
   const bodeguero = tienePermiso(s.permisos, "solicitudes.gestionar");
   const solicitante = tienePermiso(s.permisos, "solicitudes.crear");
+
+  // Respaldo sin cron: quien gestiona, al abrir el Inicio, cierra las aprobadas parcialmente que ya caducaron (la función SQL es idempotente).
+  if (bodeguero) after(() => cerrarCaducadas());
 
   const veSolicitudes = tienePermiso(s.permisos, "solicitudes.ver_propias", "solicitudes.gestionar");
 

@@ -85,6 +85,14 @@ describe("proxy: inactividad", () => {
   });
 });
 
+describe("proxy: ruta del cierre por caducidad (la llama un cron, con CRON_SECRET)", () => {
+  it("pasa sin sesión: se autentica con el secreto del cron, no con la cookie", async () => {
+    const r = await pedir(undefined, "/api/solicitudes/cerrar-caducadas");
+    expect(r.status).toBe(200);
+    expect(r.headers.get("location")).toBeNull();
+  });
+});
+
 describe("proxy: archivos públicos de los avisos push", () => {
   it("/sw.js y /manifest.webmanifest se sirven sin sesión (el navegador los pide sin cookie de sesión válida)", async () => {
     for (const ruta of ["/sw.js", "/manifest.webmanifest"]) {

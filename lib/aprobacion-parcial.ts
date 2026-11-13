@@ -19,3 +19,6 @@ export function fechaCaducidad(fechaAprobacion: string): Date {
 export function motivoDeSolicitud(r: { EstadoSolicitud: number; MotivoRechazo: string | null; MotivoParcial: string | null; MotivoCierre: string | null }): string | null {
   return r.EstadoSolicitud === 5 ? r.MotivoRechazo : r.EstadoSolicitud === 6 ? r.MotivoParcial : r.EstadoSolicitud === 7 ? r.MotivoCierre : null;
 }
+
+/** Motivo con que se cierra sola una solicitud caducada (el mismo texto que guarda `cerrar_solicitudes_caducadas` en SQL; una prueba los compara). */
+export const MOTIVO_CADUCIDAD = "Cierre por caducidad de días";

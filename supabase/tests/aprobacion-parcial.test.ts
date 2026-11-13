@@ -2,6 +2,7 @@ import { describe, it, expect, beforeAll } from "vitest";
 import { PGlite } from "@electric-sql/pglite";
 import { readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
+import { MOTIVO_CADUCIDAD } from "../../lib/aprobacion-parcial";
 
 /** 0049: aprobación parcial (estado 6) → re-aprobación o cierre del Administrador (estado 7) → cierre por caducidad a los 7 días. */
 const dir = join(__dirname, "..");
@@ -179,7 +180,7 @@ describe("0049: cierre por caducidad", () => {
     expect(await estado(vencida)).toBe(7);
     for (const o of otras) expect([1, 2, 5]).toContain(await estado(o));
     const v = await fila(vencida);
-    expect(v).toMatchObject({ MotivoCierre: "Cierre por caducidad de días", IdUsuarioCierre: null });
+    expect(v).toMatchObject({ MotivoCierre: MOTIVO_CADUCIDAD, IdUsuarioCierre: null }); // el texto de SQL y el del aviso son el mismo
     expect(v.FechaCierre).not.toBeNull();
     expect(r[0]).toHaveProperty("Token");
     expect(r[0]).toHaveProperty("NumeroSolicitud");

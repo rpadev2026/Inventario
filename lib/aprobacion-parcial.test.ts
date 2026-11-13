@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { DIAS_CADUCIDAD, fechaCaducidad, hayCambioDeCantidades, motivoDeSolicitud } from "./aprobacion-parcial";
+import { DIAS_CADUCIDAD, MOTIVO_CADUCIDAD, fechaCaducidad, hayCambioDeCantidades, motivoDeSolicitud } from "./aprobacion-parcial";
 
 const items = [{ producto: 1, solicitada: 100 }, { producto: 2, solicitada: 50 }];
 
@@ -45,4 +45,8 @@ describe("motivoDeSolicitud", () => {
   it("un motivo ausente (rechazadas anteriores a 0048) es null", () => {
     expect(motivoDeSolicitud({ EstadoSolicitud: 5, MotivoRechazo: null, MotivoParcial: null, MotivoCierre: null })).toBeNull();
   });
+});
+
+describe("MOTIVO_CADUCIDAD", () => {
+  it("es el motivo que pidió el usuario", () => expect(MOTIVO_CADUCIDAD).toBe("Cierre por caducidad de días"));
 });
