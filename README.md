@@ -83,7 +83,7 @@ Avisan a quien atiende una solicitud cuando se envía, y al solicitante cuando s
 
 ## Motivo del rechazo
 
-Rechazar una solicitud exige un motivo (hasta 100 caracteres). Aplicar la migración `0048_motivo_rechazo.sql` en Supabase (SQL Editor) **antes** de desplegar este código: el botón «Rechazar» llama a la función nueva `rechazar_solicitud`, y la bandeja del Inicio lee la columna `MotivoRechazo`. Sin la migración, el Inicio muestra el aviso de que la bandeja no se pudo cargar y rechazar falla.
+Rechazar una solicitud exige un motivo (hasta 100 caracteres). Aplicar la migración `0048_motivo_rechazo.sql` en Supabase (SQL Editor) **antes** de desplegar este código: el botón «Rechazar» llama a la función nueva `rechazar_solicitud`, y la bandeja del Inicio lee la columna `MotivoRechazo`. Sin la migración fallan el Inicio (aviso de que la bandeja no se pudo cargar), el listado `/solicitudes` («No se pudo cargar las solicitudes») y el rechazo; el detalle de una solicitud sigue funcionando.
 
 ## Pendiente para el despliegue
 Aún no está definido dónde se desplegará la aplicación. Cuando se defina, hay que hacer esto (hoy los correos quedan en la cola `CorreosPendientes` y no se pierden):
