@@ -8,8 +8,10 @@ import { esCorreoValido, MSG_CORREO } from "@/lib/validation/correo";
  * Muestra el mensaje junto al campo al salir de él y bloquea el envío mientras el formato sea inválido.
  * Si no es obligatorio, vacío es válido.
  */
-export default function CampoCorreo({ defaultValue, className, label = "Correo", required, autoComplete = "off", marcado }: {
+export default function CampoCorreo({ defaultValue, className, label = "Correo", required, autoComplete = "off", marcado, ayuda }: {
   defaultValue?: string | null; className?: string; label?: string; required?: boolean; autoComplete?: string;
+  /** Texto de ayuda siempre visible (se reemplaza por el mensaje de error cuando el formato es inválido). */
+  ayuda?: string;
   /** Marca el campo como inválido por un motivo externo (p. ej. credenciales rechazadas). */
   marcado?: boolean;
 }) {
@@ -23,7 +25,7 @@ export default function CampoCorreo({ defaultValue, className, label = "Correo",
 
   const mostrarError = tocado && invalido;
   return (
-    <Field label={label} className={className} hint={mostrarError ? MSG_CORREO : undefined}>
+    <Field label={label} className={className} hint={mostrarError ? MSG_CORREO : ayuda}>
       <input ref={ref} name="correo" type="email" inputMode="email" autoComplete={autoComplete} className="input" value={valor} required={required}
         aria-invalid={mostrarError || marcado ? true : undefined}
         onChange={(e) => setValor(e.target.value)} onBlur={() => setTocado(true)} />
