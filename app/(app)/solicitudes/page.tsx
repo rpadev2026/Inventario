@@ -30,7 +30,7 @@ export default async function SolicitudesPage({ searchParams }: { searchParams: 
   if (errCount) throw new Error("No se pudo cargar las solicitudes");
   const pg = paginar({ pagina: sp.pagina, tam: sp.tam }, count ?? 0);
   const { data, error } = await db.from("Solicitudes")
-    .select("IdSolicitud,Token,NumeroSolicitud,FechaSolicitud,EstadoSolicitud,IdUsuarioSolicitante,Bodegas!inner(NombreBodega),Usuarios!Solicitudes_IdUsuarioSolicitante_fkey!inner(Nombres,Apellidos)")
+    .select("IdSolicitud,Token,NumeroSolicitud,FechaSolicitud,EstadoSolicitud,IdUsuarioSolicitante,MotivoRechazo,Bodegas!inner(NombreBodega),Usuarios!Solicitudes_IdUsuarioSolicitante_fkey!inner(Nombres,Apellidos)")
     .match(filtro).order("IdSolicitud", { ascending: false }).range(pg.from, pg.to);
   if (error) throw new Error("No se pudo cargar las solicitudes");
   const puedeCrear = tienePermiso(s.permisos, "solicitudes.crear");
@@ -70,7 +70,10 @@ export default async function SolicitudesPage({ searchParams }: { searchParams: 
                 <td>{new Date(r.FechaSolicitud).toLocaleDateString("es-CL")}</td>
                 <td>{r.Usuarios.Nombres} {r.Usuarios.Apellidos}</td>
                 <td>{r.Bodegas.NombreBodega}</td>
-                <td><Badge tone={ESTADO_TONO[r.EstadoSolicitud]}>{ESTADOS[r.EstadoSolicitud]}</Badge></td>
+                <td>
+                  <Badge tone={ESTADO_TONO[r.EstadoSolicitud]}>{ESTADOS[r.EstadoSolicitud]}</Badge>
+                  {r.EstadoSolicitud === 5 && r.MotivoRechazo && <div className="text-sm text-muted">{`Motivo: ${r.MotivoRechazo}`}</div>}
+                </td>
                 <td><Link className="link link-sm" href={`/solicitudes/${r.Token}`}>Ver</Link></td>
               </tr>
             ))}

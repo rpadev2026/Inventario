@@ -39,12 +39,12 @@ export async function notificarPushEnviada(numero: number, solicitante: string, 
 }
 
 /** Se aprobó o rechazó: avisa al solicitante. */
-export async function notificarPushResuelta(numero: number, idSolicitante: number, token: string, aprobada: boolean): Promise<void> {
+export async function notificarPushResuelta(numero: number, idSolicitante: number, token: string, aprobada: boolean, motivo?: string): Promise<void> {
   await enviar(
     async () => db.rpc("suscripciones_push_usuarios", { p_usuarios: [idSolicitante] }),
     {
       titulo: `Solicitud #${numero} ${aprobada ? "aprobada" : "rechazada"}`,
-      cuerpo: aprobada ? "Ya puede recepcionar los productos cuando lleguen." : "Revise el detalle de la solicitud.",
+      cuerpo: aprobada ? "Ya puede recepcionar los productos cuando lleguen." : motivo ? `Motivo: ${motivo}` : "Revise el detalle de la solicitud.",
       url: `/solicitudes/${token}`, tag: `solicitud-${token}`,
     },
   );

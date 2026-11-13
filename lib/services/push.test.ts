@@ -79,6 +79,14 @@ describe("notificarPushResuelta", () => {
     expect(cuerpoEnviado()).toEqual({ titulo: "Solicitud #7 aprobada", cuerpo: "Ya puede recepcionar los productos cuando lleguen.", url: "/solicitudes/tok-2", tag: "solicitud-tok-2" });
   });
 
+  it("rechazada con motivo: el cuerpo lleva el motivo", async () => {
+    conVapid();
+    rpc.mockResolvedValueOnce({ data: [SUB], error: null });
+    sendNotification.mockResolvedValue({});
+    await notificarPushResuelta(7, 3, "tok-2", false, "Sin stock en central");
+    expect(cuerpoEnviado()).toMatchObject({ titulo: "Solicitud #7 rechazada", cuerpo: "Motivo: Sin stock en central", url: "/solicitudes/tok-2" });
+  });
+
   it("texto de rechazada", async () => {
     conVapid();
     rpc.mockResolvedValueOnce({ data: [SUB], error: null });

@@ -71,9 +71,9 @@ export async function notificarEnviada(numero: number, solicitante: string, bode
     `enviada:${numero}`);
 }
 
-export async function notificarResuelta(numero: number, correo: string, aprobada: boolean) {
+export async function notificarResuelta(numero: number, correo: string, aprobada: boolean, motivo?: string) {
   const url = `${process.env.APP_URL ?? ""}/solicitudes`;
   await encolar([correo], `Solicitud #${numero} ${aprobada ? "aprobada" : "rechazada"}`,
-    `<p>Su solicitud <b>#${numero}</b> fue <b>${aprobada ? "aprobada" : "rechazada"}</b>.${aprobada ? " Al recibir los productos, márquela como recepcionada." : ""}</p><p><a href="${esc(url)}">Ver solicitudes</a></p>`,
+    `<p>Su solicitud <b>#${numero}</b> fue <b>${aprobada ? "aprobada" : "rechazada"}</b>.${aprobada ? " Al recibir los productos, márquela como recepcionada." : ""}</p>${!aprobada && motivo ? `<p>Motivo: ${esc(motivo)}</p>` : ""}<p><a href="${esc(url)}">Ver solicitudes</a></p>`,
     `resuelta:${numero}:${aprobada ? "aprobada" : "rechazada"}`);
 }

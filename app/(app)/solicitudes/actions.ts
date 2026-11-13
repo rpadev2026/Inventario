@@ -6,6 +6,7 @@ import { requerirPermiso } from "@/lib/auth/session";
 import { after } from "next/server";
 import { notificarEnviada, notificarResuelta } from "@/lib/services/correo";
 import { notificarPushEnviada, notificarPushResuelta } from "@/lib/services/push";
+import { motivoRechazoSchema } from "@/lib/validation/motivo-rechazo";
 
 type R = { error?: string; ok?: boolean; id?: number; token?: string };
 
@@ -76,18 +77,20 @@ export async function aprobarSolicitud(input: unknown): Promise<R> {
   return { ok: true };
 }
 
-export async function rechazarSolicitud(fd: FormData) {
+export async function rechazarSolicitud(_: unknown, fd: FormData): Promise<R> {
   const s = await requerirPermiso("solicitudes.gestionar");
-  const id = idSchema.parse(fd.get("id"));
-  if (await esPropia(id, s.uid)) return;
-  const { error } = await db.rpc("cambiar_estado_solicitud", { p_usuario: s.uid, p_solicitud: id, p_nuevo: 5 });
-  if (error) return;
-  const sol = await correoSolicitante(id);
+  const p = z.object({ id: idSchema, motivo: motivoRechazoSchema }).safeParse({ id: fd.get("id"), motivo: fd.get("motivo") });
+  if (!p.success) return { error: p.error.issues[0].message };
+  if (await esPropia(p.data.id, s.uid)) return { error: "No puede rechazar su propia solicitud" };
+  const { error } = await db.rpc("rechazar_solicitud", { p_usuario: s.uid, p_solicitud: p.data.id, p_motivo: p.data.motivo });
+  if (error) return { error: mapError(error) };
+  const sol = await correoSolicitante(p.data.id);
   if (sol) {
-    await notificarResuelta(sol.numero, sol.correo, false);
-    after(() => notificarPushResuelta(sol.numero, sol.idSolicitante, sol.token, false));
+    await notificarResuelta(sol.numero, sol.correo, false, p.data.motivo);
+    after(() => notificarPushResuelta(sol.numero, sol.idSolicitante, sol.token, false, p.data.motivo));
   }
   revalidatePath("/solicitudes");
+  return { ok: true };
 }
 
 export async function recepcionarSolicitud(input: unknown): Promise<R> {
