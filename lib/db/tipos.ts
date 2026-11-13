@@ -2073,7 +2073,7 @@ export type Database = {
       }
       quitar_suscripcion_push: { Args: { p_endpoint: string }; Returns: undefined }
       suscripciones_push_permiso: {
-        Args: { p_permiso: string }
+        Args: { p_excluir?: number; p_permiso: string }
         Returns: { Auth: string; Endpoint: string; P256dh: string }[]
       }
       suscripciones_push_usuarios: {

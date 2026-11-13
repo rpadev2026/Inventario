@@ -31,10 +31,10 @@ returns table("Endpoint" text, "P256dh" text, "Auth" text) language sql stable s
 $$;
 
 -- Mismos destinatarios que los correos: usuarios vigentes con un rol vigente que tenga el permiso, más los de rol Administrador.
-create or replace function suscripciones_push_permiso(p_permiso text)
+create or replace function suscripciones_push_permiso(p_permiso text, p_excluir bigint default null)
 returns table("Endpoint" text, "P256dh" text, "Auth" text) language sql stable security definer set search_path = public as $$
   select s."Endpoint", s."P256dh", s."Auth" from "SuscripcionesPush" s
-  where exists (
+  where s."IdUsuario" is distinct from p_excluir and exists ( -- p_excluir: quien originó el aviso no se avisa a sí mismo
     select 1 from "UsuariosRoles" ur
     join "Roles" r on r."IdRol" = ur."IdRol" and r."IdEstado" = 1
     join "Usuarios" u on u."IdUsuario" = ur."IdUsuario" and u."IdEstado" = 1
@@ -47,7 +47,7 @@ declare f text;
 begin
   foreach f in array array[
     'guardar_suscripcion_push(bigint, text, text, text)', 'quitar_suscripcion_push(text)',
-    'suscripciones_push_usuarios(bigint[])', 'suscripciones_push_permiso(text)'] loop
+    'suscripciones_push_usuarios(bigint[])', 'suscripciones_push_permiso(text, bigint)'] loop
     execute format('revoke all on function %s from public, anon, authenticated', f);
     execute format('grant execute on function %s to app_servidor', f);
   end loop;

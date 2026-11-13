@@ -69,6 +69,13 @@ describe("0047: suscripciones push", () => {
     expect(todas).not.toContain("https://push.x/cami");
   });
 
+  it("suscripciones_push_permiso puede excluir a quien originó el aviso", async () => {
+    const a = await uid("ana@x.cl");
+    const r = (await filas(`select "Endpoint" from suscripciones_push_permiso('solicitudes.gestionar', ${a})`)).map((x) => x.Endpoint as string);
+    expect(r).not.toContain("https://push.x/p-admin");
+    expect(r).toContain("https://push.x/p-bodega");
+  });
+
   it("el rol de la app no lee ni escribe la tabla directo, pero sí usa las funciones", async () => {
     await expect(como(`select * from "SuscripcionesPush"`)).rejects.toThrow(/permission denied|row-level security/i);
     await expect(como(`insert into "SuscripcionesPush"("IdUsuario","Endpoint","P256dh","Auth") values (1,'x','k','a')`)).rejects.toThrow(/permission denied|row-level security/i);
@@ -78,7 +85,7 @@ describe("0047: suscripciones push", () => {
   });
 
   it("anon y authenticated no ejecutan las funciones", async () => {
-    for (const f of ["guardar_suscripcion_push(1,'x','k','a')", "quitar_suscripcion_push('x')", "suscripciones_push_usuarios(array[1]::bigint[])", "suscripciones_push_permiso('x')"]) {
+    for (const f of ["guardar_suscripcion_push(1,'x','k','a')", "quitar_suscripcion_push('x')", "suscripciones_push_usuarios(array[1]::bigint[])", "suscripciones_push_permiso('x', null)"]) {
       for (const r of ["anon", "authenticated"]) {
         await db.exec(`set role ${r}`);
         await expect(db.query(`select ${f.startsWith("susc") ? "* from " : ""}${f}`)).rejects.toThrow(/permission denied/i);
