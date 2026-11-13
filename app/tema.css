@@ -240,6 +240,7 @@ body { background: var(--bg); color: var(--text); font-family: var(--font-body);
   .bandeja-accion { border-left-color: var(--primary); }
   .bandeja-titulo { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .bandeja-detalle { grid-column: 1 / -1; font-size: .875rem; color: var(--text-muted); }
+  .bandeja-motivo { grid-column: 1 / -1; font-size: .875rem; color: var(--danger, var(--text)); overflow-wrap: anywhere; } /* el motivo puede ser una sola palabra larga */
   /* Barra de progreso (trabajos en segundo plano): con avance conocido llena según el ancho; sin él (indeterminada) se desliza. */
   .progress { height: .5rem; border-radius: 999px; background: var(--surface-3); overflow: hidden; }
   .progress > span { display: block; height: 100%; background: var(--primary); border-radius: 999px; transition: width .4s ease; }

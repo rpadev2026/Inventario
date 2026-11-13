@@ -1,9 +1,9 @@
 import { describe, it, expect } from "vitest";
-import { armarBandeja, ESTADOS_NO_FINALIZADOS, type FilaSolicitud } from "./bandeja-solicitudes";
+import { armarBandeja, DIAS_RECHAZADA, ESTADOS_NO_FINALIZADOS, type FilaSolicitud } from "./bandeja-solicitudes";
 
 const fila = (id: number, estado: number, solicitante: number, fecha = "2026-11-10T12:00:00Z"): FilaSolicitud => ({
   IdSolicitud: id, Token: `token-${id}`, NumeroSolicitud: id, FechaSolicitud: fecha, EstadoSolicitud: estado,
-  IdUsuarioSolicitante: solicitante, NombreBodega: "CUARTO FRIO", Solicitante: `Usuario ${solicitante}`,
+  IdUsuarioSolicitante: solicitante, NombreBodega: "CUARTO FRIO", Solicitante: `Usuario ${solicitante}`, MotivoRechazo: null, FechaResolucion: null,
 });
 const ids = (r: ReturnType<typeof armarBandeja>) => r.items.map((i) => i.IdSolicitud);
 const espera = (r: ReturnType<typeof armarBandeja>, id: number) => r.items.find((i) => i.IdSolicitud === id)?.espera;
@@ -92,5 +92,48 @@ describe("armarBandeja", () => {
   it("conserva los datos de la fila para poder enlazar por token", () => {
     const [item] = armarBandeja([fila(7, 1, 1)], SOLICITANTE).items;
     expect(item).toMatchObject({ IdSolicitud: 7, Token: "token-7", NumeroSolicitud: 7, NombreBodega: "CUARTO FRIO", Solicitante: "Usuario 1", propia: true });
+  });
+});
+
+describe("armarBandeja: solicitudes rechazadas recientes", () => {
+  const AHORA = new Date("2026-11-13T15:00:00Z");
+  const hace = (min: number) => new Date(AHORA.getTime() - min * 60_000).toISOString();
+  const rechazada = (id: number, solicitante: number, fechaResolucion: string | null, motivo: string | null = "Sin stock"): FilaSolicitud =>
+    ({ ...fila(id, 5, solicitante), FechaResolucion: fechaResolucion, MotivoRechazo: motivo });
+  const SIETE_DIAS = DIAS_RECHAZADA * 24 * 60;
+
+  it("se queda 7 días", () => expect(DIAS_RECHAZADA).toBe(7));
+
+  it("la rechazada propia aparece con su motivo, espera «Rechazada» y no pide acción", () => {
+    const r = armarBandeja([rechazada(1, 1, hace(60))], SOLICITANTE, 10, AHORA);
+    expect(ids(r)).toEqual([1]);
+    expect(r.items[0]).toMatchObject({ espera: "Rechazada", propia: true, requiereAccion: false, MotivoRechazo: "Sin stock" });
+  });
+
+  it("a 6 días 23 h aparece; pasados 7 días ya no", () => {
+    expect(ids(armarBandeja([rechazada(1, 1, hace(SIETE_DIAS - 60))], SOLICITANTE, 10, AHORA))).toEqual([1]);
+    expect(ids(armarBandeja([rechazada(1, 1, hace(SIETE_DIAS + 1))], SOLICITANTE, 10, AHORA))).toEqual([]);
+  });
+
+  it("la rechazada ajena no se ve nunca, ni siquiera quien gestiona", () => {
+    expect(armarBandeja([rechazada(1, 2, hace(60))], SOLICITANTE, 10, AHORA).total).toBe(0);
+    expect(armarBandeja([rechazada(1, 2, hace(60))], GESTOR, 10, AHORA).total).toBe(0);
+  });
+
+  it("quien gestiona sí ve las suyas propias rechazadas", () => {
+    expect(ids(armarBandeja([rechazada(1, 9, hace(60))], GESTOR, 10, AHORA))).toEqual([1]);
+  });
+
+  it("sin fecha de rechazo (rechazadas anteriores a la migración) o con fecha inválida no se muestra", () => {
+    expect(armarBandeja([rechazada(1, 1, null), rechazada(2, 1, "no es fecha")], SOLICITANTE, 10, AHORA).total).toBe(0);
+  });
+
+  it("una rechazada anterior sin motivo (null) se muestra igual", () => {
+    expect(armarBandeja([rechazada(1, 1, hace(60), null)], SOLICITANTE, 10, AHORA).items[0].MotivoRechazo).toBeNull();
+  });
+
+  it("se ordena con el resto por fecha de solicitud, después de lo que pide acción", () => {
+    const r = armarBandeja([rechazada(1, 1, hace(60)), fila(2, 2, 1, "2026-11-01T00:00:00Z"), fila(3, 1, 1, "2026-11-12T00:00:00Z")], SOLICITANTE, 10, AHORA);
+    expect(ids(r)).toEqual([2, 3, 1]); // 2 = Aprobada propia = por recepcionar (pide acción); luego por fecha de solicitud: 3 (12-nov) y 1 (10-nov)
   });
 });

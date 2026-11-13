@@ -9,11 +9,9 @@ let db: PGlite;
 const filas = async (sql: string) => (await db.query<any>(sql)).rows;
 const falla = (sql: string, re: RegExp) => expect(db.query(sql)).rejects.toThrow(re);
 const MSG = /Indique el motivo del rechazo \(máximo 100 caracteres\)/;
-let n = 0;
 /** Una solicitud nueva en el estado pedido (insertada directo: solo importa la máquina de estados). */
 async function solicitud(estado: number, solicitante = 2): Promise<number> {
   const r = await filas(`insert into "Solicitudes"("IdUsuarioSolicitante","IdBodegaDestino","EstadoSolicitud") values (${solicitante}, (select min("IdBodega") from "Bodegas" where not "EsCentral"), ${estado}) returning "IdSolicitud" as id`);
-  n++;
   return r[0].id;
 }
 

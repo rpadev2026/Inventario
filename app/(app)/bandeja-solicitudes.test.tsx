@@ -6,7 +6,7 @@ import type { ItemBandeja } from "@/lib/bandeja-solicitudes";
 const AHORA = new Date("2026-11-13T15:00:00Z");
 const item = (id: number, o: Partial<ItemBandeja> = {}): ItemBandeja => ({
   IdSolicitud: id, Token: `3a8c9632-90ee-452b-9fd1-d4098ec2bf4${id}`, NumeroSolicitud: 10 + id, FechaSolicitud: "2026-11-13T13:00:00Z", EstadoSolicitud: 1,
-  IdUsuarioSolicitante: 1, NombreBodega: "CUARTO FRIO", Solicitante: "JORGE LOPEZ", espera: "Por aprobar", propia: false, requiereAccion: true, ...o,
+  IdUsuarioSolicitante: 1, NombreBodega: "CUARTO FRIO", Solicitante: "JORGE LOPEZ", MotivoRechazo: null, FechaResolucion: null, espera: "Por aprobar", propia: false, requiereAccion: true, ...o,
 });
 const html = (items: ItemBandeja[], total = items.length, extra: { error?: boolean } = {}) =>
   renderToStaticMarkup(<BandejaSolicitudes items={items} total={total} ahora={AHORA} {...extra} />);
@@ -74,5 +74,27 @@ describe("BandejaSolicitudes", () => {
     expect(h).toContain('role="alert"');
     expect(h).toContain("No se pudo cargar la bandeja");
     expect(h).not.toContain("No tienes solicitudes pendientes");
+  });
+
+  it("una solicitud rechazada muestra su insignia «Rechazada» y el motivo", () => {
+    const h = html([item(3, { EstadoSolicitud: 5, espera: "Rechazada", propia: true, requiereAccion: false, MotivoRechazo: "Sin stock en central", FechaResolucion: "2026-11-12T10:00:00Z" })]);
+    expect(h).toContain("Rechazada");
+    expect(h).toContain("Motivo: Sin stock en central");
+    expect(h).toContain('href="/solicitudes/3a8c9632-90ee-452b-9fd1-d4098ec2bf43"');
+  });
+
+  it("el motivo se muestra como texto: un motivo con HTML no se inyecta", () => {
+    const h = html([item(3, { EstadoSolicitud: 5, espera: "Rechazada", propia: true, requiereAccion: false, MotivoRechazo: "<b>x</b> & \"y\"" })]);
+    expect(h).not.toContain("<b>x</b>");
+    expect(h).toContain("&lt;b&gt;x&lt;/b&gt;");
+  });
+
+  it("una rechazada anterior sin motivo no muestra la línea «Motivo»", () => {
+    const h = html([item(3, { EstadoSolicitud: 5, espera: "Rechazada", propia: true, requiereAccion: false, MotivoRechazo: null })]);
+    expect(h).not.toContain("Motivo:");
+  });
+
+  it("las solicitudes que no están rechazadas no muestran línea de motivo", () => {
+    expect(html([item(1)])).not.toContain("Motivo:");
   });
 });
