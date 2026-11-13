@@ -49,3 +49,15 @@ export async function notificarPushResuelta(numero: number, idSolicitante: numbe
     },
   );
 }
+
+/** El solicitante recepcionó (total o parcialmente): avisa a quienes gestionan solicitudes, menos a él mismo. */
+export async function notificarPushRecepcionada(numero: number, solicitante: string, bodega: string, token: string, idSolicitante: number, total: boolean): Promise<void> {
+  await enviar(
+    async () => db.rpc("suscripciones_push_permiso", { p_permiso: "solicitudes.gestionar", p_excluir: idSolicitante }),
+    {
+      titulo: `Solicitud #${numero} recepcionada${total ? "" : " parcialmente"}`,
+      cuerpo: total ? `${solicitante} recibió los productos para ${bodega}.` : `${solicitante} recibió una parte de los productos para ${bodega}.`,
+      url: `/solicitudes/${token}`, tag: `solicitud-${token}`,
+    },
+  );
+}
