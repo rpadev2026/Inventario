@@ -1519,6 +1519,10 @@ export type Database = {
       }
       Solicitudes: {
         Row: {
+          FechaCierre: string | null
+          IdUsuarioCierre: number | null
+          MotivoCierre: string | null
+          MotivoParcial: string | null
           MotivoRechazo: string | null
           EstadoSolicitud: number
           FechaAprobacion: string | null
@@ -1532,6 +1536,10 @@ export type Database = {
           Token: string
         }
         Insert: {
+          FechaCierre?: string | null
+          IdUsuarioCierre?: number | null
+          MotivoCierre?: string | null
+          MotivoParcial?: string | null
           MotivoRechazo?: string | null
           EstadoSolicitud?: number
           FechaAprobacion?: string | null
@@ -1545,6 +1553,10 @@ export type Database = {
           Token?: string
         }
         Update: {
+          FechaCierre?: string | null
+          IdUsuarioCierre?: number | null
+          MotivoCierre?: string | null
+          MotivoParcial?: string | null
           MotivoRechazo?: string | null
           EstadoSolicitud?: number
           FechaAprobacion?: string | null
@@ -1558,6 +1570,13 @@ export type Database = {
           Token?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "Solicitudes_IdUsuarioCierre_fkey"
+            columns: ["IdUsuarioCierre"]
+            isOneToOne: false
+            referencedRelation: "Usuarios"
+            referencedColumns: ["IdUsuario"]
+          },
           {
             foreignKeyName: "Solicitudes_IdBodegaDestino_fkey"
             columns: ["IdBodegaDestino"]
@@ -2156,6 +2175,20 @@ export type Database = {
       rechazar_solicitud: {
         Args: { p_motivo: string; p_solicitud: number; p_usuario: number }
         Returns: undefined
+      }
+      aprobar_parcial_solicitud: {
+        Args: { p_items: Json; p_motivo: string; p_solicitud: number; p_usuario: number }
+        Returns: undefined
+      }
+      reaprobar_solicitud: { Args: { p_solicitud: number; p_usuario: number }; Returns: undefined }
+      cerrar_solicitud: { Args: { p_motivo: string; p_solicitud: number; p_usuario: number }; Returns: undefined }
+      cerrar_solicitudes_caducadas: {
+        Args: never
+        Returns: { IdSolicitud: number; NumeroSolicitud: number; Token: string }[]
+      }
+      participantes_solicitud: {
+        Args: { p_solicitud: number }
+        Returns: { Correo: string; IdUsuario: number }[]
       }
       reclamar_correos: {
         Args: { p_max: number }
