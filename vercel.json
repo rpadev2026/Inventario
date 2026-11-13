@@ -1,0 +1,5 @@
+{
+  "crons": [
+    { "path": "/api/solicitudes/cerrar-caducadas", "schedule": "17 11 * * *" }
+  ]
+}
