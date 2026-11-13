@@ -67,7 +67,7 @@ export default function ActivarAvisos({ clavePublica }: { clavePublica?: string 
   }
 
   return (
-    <section className="card" aria-labelledby="titulo-avisos">
+    <section className="card space-y-2" aria-labelledby="titulo-avisos">
       <h2 id="titulo-avisos" className="section-title">Avisos en este dispositivo</h2>
       <p className="text-sm text-muted" aria-live="polite">{estado ? TEXTO[estado] : "Comprobando…"}</p>
       {error && <p role="alert" className="alert alert-error">{error}</p>}
