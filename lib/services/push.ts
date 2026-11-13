@@ -61,3 +61,23 @@ export async function notificarPushRecepcionada(numero: number, solicitante: str
     },
   );
 }
+
+/** Una gestora aprobó MENOS de lo pedido: avisa al solicitante y a los Administradores (que deben confirmar o cerrar), cada uno con su texto. */
+export async function notificarPushParcial(numero: number, idSolicitante: number, token: string, motivo: string): Promise<void> {
+  const base = { url: `/solicitudes/${token}`, tag: `solicitud-${token}` };
+  await Promise.all([
+    enviar(async () => db.rpc("suscripciones_push_usuarios", { p_usuarios: [idSolicitante] }),
+      { titulo: `Solicitud #${numero} aprobada parcialmente`, cuerpo: `Motivo: ${motivo}`, ...base }),
+    enviar(async () => db.rpc("suscripciones_push_administradores", { p_excluir: idSolicitante }),
+      { titulo: `Solicitud #${numero} requiere su aprobación`, cuerpo: `Aprobada parcialmente. Motivo: ${motivo}`, ...base }),
+  ]);
+}
+
+/** Cierre de una solicitud (manual o por caducidad): avisa a los participantes. */
+export async function notificarPushCierre(numero: number, token: string, motivo: string, idsParticipantes: number[]): Promise<void> {
+  if (!idsParticipantes.length) return;
+  await enviar(
+    async () => db.rpc("suscripciones_push_usuarios", { p_usuarios: idsParticipantes }),
+    { titulo: `Solicitud #${numero} cerrada`, cuerpo: `Motivo: ${motivo}`, url: `/solicitudes/${token}`, tag: `solicitud-${token}` },
+  );
+}

@@ -7,14 +7,15 @@ import Badge from "@/components/app/badge";
 import Field from "@/components/app/field";
 import Paginador from "@/components/app/paginador";
 import { paginar } from "@/lib/paginacion";
+import { motivoDeSolicitud } from "@/lib/aprobacion-parcial";
 
 export default async function SolicitudesPage({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
   const sp = await searchParams;
   const s = await requerirPaginaPermiso("solicitudes.ver_propias", "solicitudes.gestionar");
   // El solicitante ve solo las suyas; quien gestiona solicitudes ve todas.
   const ve_todas = tienePermiso(s.permisos, "solicitudes.gestionar");
-  // Estado pedido en la URL (0–5); cualquier otro valor = todos.
-  const estadoPedido = typeof sp.estado === "string" && /^[0-5]$/.test(sp.estado) ? Number(sp.estado) : undefined;
+  // Estado pedido en la URL (0–7); cualquier otro valor = todos.
+  const estadoPedido = typeof sp.estado === "string" && /^[0-7]$/.test(sp.estado) ? Number(sp.estado) : undefined;
   // Solicitante pedido (solo quien ve todas las solicitudes puede filtrar por él; los demás ven solo las suyas).
   const solicitantePedido = ve_todas && typeof sp.solicitante === "string" && /^\d{1,15}$/.test(sp.solicitante) ? Number(sp.solicitante) : undefined;
   const { data: sols, error: errSols } = ve_todas ? await db.rpc("listar_solicitantes") : { data: null, error: null };
@@ -30,7 +31,7 @@ export default async function SolicitudesPage({ searchParams }: { searchParams: 
   if (errCount) throw new Error("No se pudo cargar las solicitudes");
   const pg = paginar({ pagina: sp.pagina, tam: sp.tam }, count ?? 0);
   const { data, error } = await db.from("Solicitudes")
-    .select("IdSolicitud,Token,NumeroSolicitud,FechaSolicitud,EstadoSolicitud,IdUsuarioSolicitante,MotivoRechazo,Bodegas!inner(NombreBodega),Usuarios!Solicitudes_IdUsuarioSolicitante_fkey!inner(Nombres,Apellidos)")
+    .select("IdSolicitud,Token,NumeroSolicitud,FechaSolicitud,EstadoSolicitud,IdUsuarioSolicitante,MotivoRechazo,MotivoParcial,MotivoCierre,Bodegas!inner(NombreBodega),Usuarios!Solicitudes_IdUsuarioSolicitante_fkey!inner(Nombres,Apellidos)")
     .match(filtro).order("IdSolicitud", { ascending: false }).range(pg.from, pg.to);
   if (error) throw new Error("No se pudo cargar las solicitudes");
   const puedeCrear = tienePermiso(s.permisos, "solicitudes.crear");
@@ -72,7 +73,7 @@ export default async function SolicitudesPage({ searchParams }: { searchParams: 
                 <td>{r.Bodegas.NombreBodega}</td>
                 <td>
                   <Badge tone={ESTADO_TONO[r.EstadoSolicitud]}>{ESTADOS[r.EstadoSolicitud]}</Badge>
-                  {r.EstadoSolicitud === 5 && r.MotivoRechazo && <div className="text-sm text-muted">{`Motivo: ${r.MotivoRechazo}`}</div>}
+                  {motivoDeSolicitud(r) && <div className="text-sm text-muted">{`Motivo: ${motivoDeSolicitud(r)}`}</div>}
                 </td>
                 <td><Link className="link link-sm" href={`/solicitudes/${r.Token}`}>Ver</Link></td>
               </tr>

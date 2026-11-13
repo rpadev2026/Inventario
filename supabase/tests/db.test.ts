@@ -100,8 +100,13 @@ describe("flujo de solicitudes", () => {
     await fails(`select aprobar_solicitud(3, ${sol}, '[{"producto":1,"cantidad":31}]'::jsonb)`, /inválida/);
     await fails(`select aprobar_solicitud(3, ${sol}, '[{"producto":1,"cantidad":0}]'::jsonb)`, /al menos un producto/);
   });
-  it("aprueba con cantidad menor; ítems no informados quedan en 0", async () => {
-    await db.query(`select aprobar_solicitud(3, ${sol}, '[{"producto":1,"cantidad":20}]'::jsonb)`);
+  it("aprueba con cantidad menor: solo por la vía parcial (con motivo) y el Administrador la confirma; ítems no informados quedan en 0", async () => {
+    await fails(`select aprobar_solicitud(3, ${sol}, '[{"producto":1,"cantidad":20}]'::jsonb)`, /cantidades menores/);
+    await db.query(`select aprobar_parcial_solicitud(3, ${sol}, '[{"producto":1,"cantidad":20}]'::jsonb, 'Poco stock')`);
+    expect(Number(await val(`select "EstadoSolicitud" from "Solicitudes" where "IdSolicitud"=${sol}`))).toBe(6);
+    await db.query(`insert into "UsuariosRoles"("IdUsuario","IdRol") values (1, (select "IdRol" from "Roles" where "NombreRol"='Administrador'))`);
+    await db.query(`select reaprobar_solicitud(1, ${sol})`);
+    await db.query(`delete from "UsuariosRoles" where "IdUsuario"=1 and "IdRol"=(select "IdRol" from "Roles" where "NombreRol"='Administrador')`);
     expect(Number(await val(`select "EstadoSolicitud" from "Solicitudes" where "IdSolicitud"=${sol}`))).toBe(2);
     expect(Number(await val(`select "CantidadAprobada" from "SolicitudesDetalle" where "IdSolicitud"=${sol} and "IdProducto"=2`))).toBe(0);
   });
@@ -120,7 +125,7 @@ describe("flujo de solicitudes", () => {
     expect(Number(await val(`select recepcionar_solicitud(2, ${sol}, '[{"producto":1,"cantidad":12}]'::jsonb)`))).toBe(3);
     expect(Number(await val(`select "Cantidad" from "StockBodega" where "IdBodega"=2 and "IdProducto"=1`))).toBe(20);
     await fails(`select recepcionar_solicitud(2, ${sol}, '[{"producto":1,"cantidad":1}]'::jsonb)`, /recepcionable/);
-    expect(Number(await val(`select count(*) from "HistorialSolicitudes" where "IdSolicitud"=${sol}`))).toBe(5);
+    expect(Number(await val(`select count(*) from "HistorialSolicitudes" where "IdSolicitud"=${sol}`))).toBe(6); // creada, enviada, aprobada parcialmente, aprobada, 2 recepciones
   });
   it("rechazo desde Enviada y estado terminal", async () => {
     const s2 = Number(await val(`select crear_solicitud(2, 2, '[{"producto":1,"cantidad":1}]'::jsonb)`));

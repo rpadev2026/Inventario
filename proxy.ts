@@ -5,7 +5,7 @@ import { COOKIE_FILTROS, resolverFiltros } from "@/lib/filtros-url";
 
 // /api/correos/procesar se autentica con CRON_SECRET (lo llama un programador, sin sesión).
 // /sw.js, el manifest y el ícono los pide el navegador para los avisos push y la instalación (sin datos de negocio).
-const PUBLICAS = ["/login", "/api/correos/procesar", "/api/fudo/sincronizar", "/sw.js", "/manifest.webmanifest", "/icono.svg"];
+const PUBLICAS = ["/login", "/api/correos/procesar", "/api/fudo/sincronizar", "/api/solicitudes/cerrar-caducadas", "/sw.js", "/manifest.webmanifest", "/icono.svg"];
 
 /** CSP con nonce por petición: solo se ejecutan los scripts que Next marca con él ('strict-dynamic' cubre los que estos cargan). */
 function politica(nonce: string): string {
