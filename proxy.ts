@@ -4,7 +4,8 @@ import { inactiva, minutosInactividad, REFRESCO_MS } from "@/lib/auth/inactivida
 import { COOKIE_FILTROS, resolverFiltros } from "@/lib/filtros-url";
 
 // /api/correos/procesar se autentica con CRON_SECRET (lo llama un programador, sin sesión).
-const PUBLICAS = ["/login", "/api/correos/procesar", "/api/fudo/sincronizar"];
+// /sw.js, el manifest y el ícono los pide el navegador para los avisos push y la instalación (sin datos de negocio).
+const PUBLICAS = ["/login", "/api/correos/procesar", "/api/fudo/sincronizar", "/sw.js", "/manifest.webmanifest", "/icono.svg"];
 
 /** CSP con nonce por petición: solo se ejecutan los scripts que Next marca con él ('strict-dynamic' cubre los que estos cargan). */
 function politica(nonce: string): string {
@@ -15,6 +16,7 @@ function politica(nonce: string): string {
     // Los estilos en línea (atributos style de React) no admiten nonce: se mantiene 'unsafe-inline' solo aquí.
     "style-src 'self' 'unsafe-inline'",
     "img-src 'self' data:",
+    "worker-src 'self'", // con 'strict-dynamic' script-src no se hereda al service worker de los avisos push
     "object-src 'none'",
     "frame-ancestors 'none'",
     "form-action 'self'",

@@ -84,3 +84,17 @@ describe("proxy: inactividad", () => {
     expect((await pedir(undefined, "/api/fudo/sincronizar")).status).toBe(200);
   });
 });
+
+describe("proxy: archivos públicos de los avisos push", () => {
+  it("/sw.js y /manifest.webmanifest se sirven sin sesión (el navegador los pide sin cookie de sesión válida)", async () => {
+    for (const ruta of ["/sw.js", "/manifest.webmanifest"]) {
+      const r = await pedir(undefined, ruta);
+      expect(r.status, ruta).toBe(200);
+      expect(r.headers.get("location"), ruta).toBeNull();
+    }
+  });
+  it("la CSP permite el service worker propio (worker-src 'self'): con 'strict-dynamic' no se hereda de script-src", async () => {
+    const r = await pedir(undefined, "/login");
+    expect(r.headers.get("content-security-policy")).toContain("worker-src 'self'");
+  });
+});
