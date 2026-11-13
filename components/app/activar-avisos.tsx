@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { suscribirPush, desuscribirPush } from "@/app/(app)/push/actions";
-import { claveAplicacion, estadoAvisos, mensajeErrorAvisos, reasignarSuscripcion, type EstadoAvisos } from "@/lib/push-cliente";
+import { claveAplicacion, debeResuscribir, estadoAvisos, mensajeErrorAvisos, reasignarSuscripcion, type EstadoAvisos } from "@/lib/push-cliente";
 
 const TEXTO: Record<EstadoAvisos, string> = {
   "no-soportado": "Este navegador no permite avisos. Pruebe con Chrome, Edge, Firefox o Safari actualizado.",
@@ -12,6 +12,29 @@ const TEXTO: Record<EstadoAvisos, string> = {
   inactivo: "Reciba un aviso en este dispositivo cuando llegue una solicitud o se resuelva la suya.",
   activo: "Los avisos están activados en este dispositivo.",
 };
+
+const DESACTIVADO = "inventario:avisos-desactivados"; // la persona eligió «Desactivar avisos» en este navegador: no se re-suscribe sola
+const leerDesactivado = () => { try { return localStorage.getItem(DESACTIVADO) === "1"; } catch { return false; } };
+const marcarDesactivado = (v: boolean) => { try { if (v) localStorage.setItem(DESACTIVADO, "1"); else localStorage.removeItem(DESACTIVADO); } catch { /* sin almacenamiento */ } };
+
+/** Registra el worker, suscribe al navegador y guarda la suscripción en el servidor (el permiso ya debe estar concedido). Lanza si algo falla. */
+async function suscribirDispositivo(clavePublica: string) {
+  await navigator.serviceWorker.register("/sw.js");
+  const reg = await navigator.serviceWorker.ready;
+  const opciones = { userVisibleOnly: true, applicationServerKey: claveAplicacion(clavePublica) as BufferSource };
+  let sub: PushSubscription;
+  try {
+    sub = await reg.pushManager.subscribe(opciones);
+  } catch (e) {
+    // Una suscripción hecha con otra clave (p. ej. se regeneraron las claves VAPID) bloquea la nueva: se descarta y se reintenta una vez.
+    if ((e as { name?: string }).name !== "InvalidStateError") throw e;
+    await (await reg.pushManager.getSubscription())?.unsubscribe();
+    sub = await reg.pushManager.subscribe(opciones);
+  }
+  const j = sub.toJSON();
+  const r = await suscribirPush({ endpoint: j.endpoint, p256dh: j.keys?.p256dh, auth: j.keys?.auth });
+  if (r.error) { await sub.unsubscribe(); throw Object.assign(new Error(r.error), { esDeNegocio: true }); }
+}
 
 /** Botón «Activar avisos» del Inicio: pide el permiso solo al tocarlo y guarda la suscripción de ESTE dispositivo. */
 export default function ActivarAvisos({ clavePublica }: { clavePublica?: string }) {
@@ -35,7 +58,12 @@ export default function ActivarAvisos({ clavePublica }: { clavePublica?: string 
           if (sub && Notification.permission === "granted") await reasignarSuscripcion(sub, suscribirPush);
         } catch { /* sin registro todavía */ }
       }
-      if (vivo) setEstado(estadoAvisos({ soportado, esIos, instalada, permiso: soportado ? Notification.permission : "default", configurado: !!clavePublica, suscrito }));
+      const datos = { soportado, esIos, instalada, permiso: soportado ? Notification.permission : "default" as const, configurado: !!clavePublica, suscrito };
+      // El navegador perdió la suscripción pero el permiso sigue concedido: se suscribe en silencio (si falla, queda el botón).
+      if (debeResuscribir({ ...datos, desactivadoPorUsuario: leerDesactivado() })) {
+        try { await suscribirDispositivo(clavePublica!); datos.suscrito = true; } catch (e) { console.error("[avisos] no se pudo re-suscribir:", e); }
+      }
+      if (vivo) setEstado(estadoAvisos(datos));
     })();
     return () => { vivo = false; };
   }, [clavePublica]);
@@ -45,25 +73,12 @@ export default function ActivarAvisos({ clavePublica }: { clavePublica?: string 
     try {
       const permiso = await Notification.requestPermission();
       if (permiso !== "granted") { setEstado(permiso === "denied" ? "bloqueado" : "inactivo"); return; }
-      await navigator.serviceWorker.register("/sw.js");
-      const reg = await navigator.serviceWorker.ready;
-      const opciones = { userVisibleOnly: true, applicationServerKey: claveAplicacion(clavePublica!) as BufferSource };
-      let sub: PushSubscription;
-      try {
-        sub = await reg.pushManager.subscribe(opciones);
-      } catch (e) {
-        // Una suscripción hecha con otra clave (p. ej. se regeneraron las claves VAPID) bloquea la nueva: se descarta y se reintenta una vez.
-        if ((e as { name?: string }).name !== "InvalidStateError") throw e;
-        await (await reg.pushManager.getSubscription())?.unsubscribe();
-        sub = await reg.pushManager.subscribe(opciones);
-      }
-      const j = sub.toJSON();
-      const r = await suscribirPush({ endpoint: j.endpoint, p256dh: j.keys?.p256dh, auth: j.keys?.auth });
-      if (r.error) { await sub.unsubscribe(); setError(r.error); return; }
+      await suscribirDispositivo(clavePublica!);
+      marcarDesactivado(false);
       setEstado("activo");
     } catch (e) {
       console.error("[avisos] no se pudo activar:", e); // la causa real queda en la consola del navegador (F12)
-      setError(mensajeErrorAvisos(e));
+      setError((e as { esDeNegocio?: boolean }).esDeNegocio ? (e as Error).message : mensajeErrorAvisos(e));
     } finally { setOcupado(false); }
   }
 
@@ -76,6 +91,7 @@ export default function ActivarAvisos({ clavePublica }: { clavePublica?: string 
         if (r.error) { setError(r.error); return; }
         await sub.unsubscribe();
       }
+      marcarDesactivado(true); // la persona lo eligió: no se vuelve a suscribir sola
       setEstado("inactivo");
     } catch {
       setError("No se pudo desactivar los avisos. Intente nuevamente.");
