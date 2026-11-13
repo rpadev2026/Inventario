@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { suscribirPush, desuscribirPush } from "@/app/(app)/push/actions";
-import { claveAplicacion, estadoAvisos, reasignarSuscripcion, type EstadoAvisos } from "@/lib/push-cliente";
+import { claveAplicacion, estadoAvisos, mensajeErrorAvisos, reasignarSuscripcion, type EstadoAvisos } from "@/lib/push-cliente";
 
 const TEXTO: Record<EstadoAvisos, string> = {
   "no-soportado": "Este navegador no permite avisos. Pruebe con Chrome, Edge, Firefox o Safari actualizado.",
@@ -47,13 +47,23 @@ export default function ActivarAvisos({ clavePublica }: { clavePublica?: string 
       if (permiso !== "granted") { setEstado(permiso === "denied" ? "bloqueado" : "inactivo"); return; }
       await navigator.serviceWorker.register("/sw.js");
       const reg = await navigator.serviceWorker.ready;
-      const sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: claveAplicacion(clavePublica!) as BufferSource });
+      const opciones = { userVisibleOnly: true, applicationServerKey: claveAplicacion(clavePublica!) as BufferSource };
+      let sub: PushSubscription;
+      try {
+        sub = await reg.pushManager.subscribe(opciones);
+      } catch (e) {
+        // Una suscripción hecha con otra clave (p. ej. se regeneraron las claves VAPID) bloquea la nueva: se descarta y se reintenta una vez.
+        if ((e as { name?: string }).name !== "InvalidStateError") throw e;
+        await (await reg.pushManager.getSubscription())?.unsubscribe();
+        sub = await reg.pushManager.subscribe(opciones);
+      }
       const j = sub.toJSON();
       const r = await suscribirPush({ endpoint: j.endpoint, p256dh: j.keys?.p256dh, auth: j.keys?.auth });
       if (r.error) { await sub.unsubscribe(); setError(r.error); return; }
       setEstado("activo");
-    } catch {
-      setError("No se pudo activar los avisos en este dispositivo. Intente nuevamente.");
+    } catch (e) {
+      console.error("[avisos] no se pudo activar:", e); // la causa real queda en la consola del navegador (F12)
+      setError(mensajeErrorAvisos(e));
     } finally { setOcupado(false); }
   }
 
