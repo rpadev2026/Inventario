@@ -25,7 +25,7 @@ import { cargarBandeja } from "./bandeja";
 const AHORA = new Date("2026-11-13T15:00:00.000Z");
 const DESDE = "2026-11-06T15:00:00Z"; // ahora − 7 días, sin milisegundos
 const filaDb = (id: number, estado: number, solicitante: number, extra: Record<string, unknown> = {}) => ({
-  IdSolicitud: id, Token: `token-${id}`, NumeroSolicitud: id, FechaSolicitud: "2026-11-10T12:00:00Z", EstadoSolicitud: estado, MotivoRechazo: null, FechaAprobacion: null, ...extra,
+  IdSolicitud: id, Token: `token-${id}`, NumeroSolicitud: id, FechaSolicitud: "2026-11-10T12:00:00Z", EstadoSolicitud: estado, MotivoRechazo: null, MotivoParcial: null, FechaAprobacion: null, ...extra,
   IdUsuarioSolicitante: solicitante, Bodegas: { NombreBodega: "CUARTO FRIO" }, Usuarios: { Nombres: "JORGE", Apellidos: "LOPEZ" },
 });
 const llamada = (op: string) => llamadas.filter((l) => l[0] === op);
@@ -37,12 +37,12 @@ describe("cargarBandeja", () => {
     await cargarBandeja({ uid: 1, gestiona: false }, AHORA);
     expect(llamada("from")).toEqual([["from", "Solicitudes"]]);
     expect(llamada("eq")).toContainEqual(["eq", "IdUsuarioSolicitante", 1]);
-    expect(llamada("or")).toEqual([["or", `EstadoSolicitud.in.(0,1,2,4),and(EstadoSolicitud.eq.5,FechaAprobacion.gte.${DESDE})`]]);
+    expect(llamada("or")).toEqual([["or", `EstadoSolicitud.in.(0,1,2,4,6),and(EstadoSolicitud.eq.5,FechaAprobacion.gte.${DESDE})`]]);
   });
 
   it("gestiona: pide las Enviadas, Aprobadas y Parciales de todos y solo sus propios borradores", async () => {
     await cargarBandeja({ uid: 9, gestiona: true }, AHORA);
-    expect(llamada("or")).toEqual([["or", `EstadoSolicitud.in.(1,2,4),and(IdUsuarioSolicitante.eq.9,EstadoSolicitud.eq.0),and(IdUsuarioSolicitante.eq.9,EstadoSolicitud.eq.5,FechaAprobacion.gte.${DESDE})`]]);
+    expect(llamada("or")).toEqual([["or", `EstadoSolicitud.in.(1,2,4,6),and(IdUsuarioSolicitante.eq.9,EstadoSolicitud.eq.0),and(IdUsuarioSolicitante.eq.9,EstadoSolicitud.eq.5,FechaAprobacion.gte.${DESDE})`]]);
     expect(llamada("eq").some((l) => l[1] === "IdUsuarioSolicitante")).toBe(false);
   });
 
@@ -59,6 +59,7 @@ describe("cargarBandeja", () => {
     expect(cols).toContain("Usuarios!Solicitudes_IdUsuarioSolicitante_fkey!inner(Nombres,Apellidos)");
     expect(cols).toContain("Token");
     expect(cols).toContain("MotivoRechazo");
+    expect(cols).toContain("MotivoParcial");
     expect(cols).toContain("FechaAprobacion");
   });
 
@@ -89,12 +90,18 @@ describe("cargarBandeja", () => {
   it("convierte la rechazada reciente con su motivo y fecha de rechazo", async () => {
     filasSimuladas = [filaDb(7, 5, 1, { MotivoRechazo: "Sin stock", FechaAprobacion: "2026-11-12T10:00:00Z" })];
     const r = await cargarBandeja({ uid: 1, gestiona: false }, AHORA);
-    expect(r.items[0]).toMatchObject({ IdSolicitud: 7, espera: "Rechazada", MotivoRechazo: "Sin stock", FechaResolucion: "2026-11-12T10:00:00Z" });
+    expect(r.items[0]).toMatchObject({ IdSolicitud: 7, espera: "Rechazada", Motivo: "Sin stock", FechaResolucion: "2026-11-12T10:00:00Z" });
   });
 
   it("una rechazada vieja que llegara de la base igual se descarta (la lógica pura también filtra)", async () => {
     filasSimuladas = [filaDb(7, 5, 1, { MotivoRechazo: "x", FechaAprobacion: "2026-11-01T10:00:00Z" })];
     expect((await cargarBandeja({ uid: 1, gestiona: false }, AHORA)).items).toEqual([]);
+  });
+
+  it("la Aprobada parcialmente trae el motivo parcial, no el de rechazo, y respeta la marca admin", async () => {
+    filasSimuladas = [filaDb(8, 6, 4, { MotivoParcial: "Falta stock", FechaAprobacion: "2026-11-12T10:00:00Z" })];
+    const r = await cargarBandeja({ uid: 1, gestiona: true, admin: true }, AHORA);
+    expect(r.items[0]).toMatchObject({ IdSolicitud: 8, espera: "Por aprobar", requiereAccion: true, Motivo: "Falta stock" });
   });
 
   it("un error de la base se informa con un mensaje de negocio, sin filtrar el detalle", async () => {

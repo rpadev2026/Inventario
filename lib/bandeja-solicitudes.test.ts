@@ -3,7 +3,7 @@ import { armarBandeja, DIAS_RECHAZADA, ESTADOS_NO_FINALIZADOS, type FilaSolicitu
 
 const fila = (id: number, estado: number, solicitante: number, fecha = "2026-11-10T12:00:00Z"): FilaSolicitud => ({
   IdSolicitud: id, Token: `token-${id}`, NumeroSolicitud: id, FechaSolicitud: fecha, EstadoSolicitud: estado,
-  IdUsuarioSolicitante: solicitante, NombreBodega: "CUARTO FRIO", Solicitante: `Usuario ${solicitante}`, MotivoRechazo: null, FechaResolucion: null,
+  IdUsuarioSolicitante: solicitante, NombreBodega: "CUARTO FRIO", Solicitante: `Usuario ${solicitante}`, Motivo: null, FechaResolucion: null,
 });
 const ids = (r: ReturnType<typeof armarBandeja>) => r.items.map((i) => i.IdSolicitud);
 const espera = (r: ReturnType<typeof armarBandeja>, id: number) => r.items.find((i) => i.IdSolicitud === id)?.espera;
@@ -12,8 +12,8 @@ const SOLICITANTE = { uid: 1, gestiona: false };
 const GESTOR = { uid: 9, gestiona: true };
 
 describe("armarBandeja", () => {
-  it("las no finalizadas son Creada, Enviada, Aprobada y Recepción parcial", () => {
-    expect([...ESTADOS_NO_FINALIZADOS]).toEqual([0, 1, 2, 4]);
+  it("las no finalizadas son Creada, Enviada, Aprobada, Recepción parcial y Aprobada parcialmente", () => {
+    expect([...ESTADOS_NO_FINALIZADOS]).toEqual([0, 1, 2, 4, 6]);
   });
 
   it("descarta Recepcionada (3) y Rechazada (5), para el solicitante y para quien gestiona", () => {
@@ -99,7 +99,7 @@ describe("armarBandeja: solicitudes rechazadas recientes", () => {
   const AHORA = new Date("2026-11-13T15:00:00Z");
   const hace = (min: number) => new Date(AHORA.getTime() - min * 60_000).toISOString();
   const rechazada = (id: number, solicitante: number, fechaResolucion: string | null, motivo: string | null = "Sin stock"): FilaSolicitud =>
-    ({ ...fila(id, 5, solicitante), FechaResolucion: fechaResolucion, MotivoRechazo: motivo });
+    ({ ...fila(id, 5, solicitante), FechaResolucion: fechaResolucion, Motivo: motivo });
   const SIETE_DIAS = DIAS_RECHAZADA * 24 * 60;
 
   it("se queda 7 días", () => expect(DIAS_RECHAZADA).toBe(7));
@@ -107,7 +107,7 @@ describe("armarBandeja: solicitudes rechazadas recientes", () => {
   it("la rechazada propia aparece con su motivo, espera «Rechazada» y no pide acción", () => {
     const r = armarBandeja([rechazada(1, 1, hace(60))], SOLICITANTE, 10, AHORA);
     expect(ids(r)).toEqual([1]);
-    expect(r.items[0]).toMatchObject({ espera: "Rechazada", propia: true, requiereAccion: false, MotivoRechazo: "Sin stock" });
+    expect(r.items[0]).toMatchObject({ espera: "Rechazada", propia: true, requiereAccion: false, Motivo: "Sin stock" });
   });
 
   it("a 6 días 23 h aparece; pasados 7 días ya no", () => {
@@ -129,11 +129,47 @@ describe("armarBandeja: solicitudes rechazadas recientes", () => {
   });
 
   it("una rechazada anterior sin motivo (null) se muestra igual", () => {
-    expect(armarBandeja([rechazada(1, 1, hace(60), null)], SOLICITANTE, 10, AHORA).items[0].MotivoRechazo).toBeNull();
+    expect(armarBandeja([rechazada(1, 1, hace(60), null)], SOLICITANTE, 10, AHORA).items[0].Motivo).toBeNull();
   });
 
   it("se ordena con el resto por fecha de solicitud, después de lo que pide acción", () => {
     const r = armarBandeja([rechazada(1, 1, hace(60)), fila(2, 2, 1, "2026-11-01T00:00:00Z"), fila(3, 1, 1, "2026-11-12T00:00:00Z")], SOLICITANTE, 10, AHORA);
     expect(ids(r)).toEqual([2, 3, 1]); // 2 = Aprobada propia = por recepcionar (pide acción); luego por fecha de solicitud: 3 (12-nov) y 1 (10-nov)
+  });
+});
+
+describe("armarBandeja: Aprobada parcialmente (estado 6)", () => {
+  const ADMIN = { uid: 5, gestiona: true, admin: true };
+  const parcial = (id: number, solicitante: number) => ({ ...fila(id, 6, solicitante), Motivo: "Falta stock" });
+
+  it("la ve el solicitante dueño (esperando al Administrador, sin acción) y no la de otro", () => {
+    const r = armarBandeja([parcial(1, 1), parcial(2, 2)], SOLICITANTE);
+    expect(ids(r)).toEqual([1]);
+    expect(r.items[0]).toMatchObject({ espera: "En espera de aprobación", requiereAccion: false, propia: true, Motivo: "Falta stock" });
+  });
+
+  it("quien gestiona sin ser Administrador la ve de todos «En seguimiento», sin acción", () => {
+    const r = armarBandeja([parcial(1, 1), parcial(2, 9)], GESTOR);
+    expect(ids(r).sort()).toEqual([1, 2]);
+    expect(espera(r, 1)).toBe("En seguimiento");
+    expect(espera(r, 2)).toBe("En espera de aprobación"); // la propia de quien gestiona
+    expect(r.items.every((i) => !i.requiereAccion)).toBe(true);
+  });
+
+  it("el Administrador la ve «Por aprobar» y pide su acción, salvo la suya (esa espera a otro Administrador)", () => {
+    const r = armarBandeja([parcial(1, 1), parcial(2, 5)], ADMIN);
+    expect(espera(r, 1)).toBe("Por aprobar");
+    expect(r.items.find((i) => i.IdSolicitud === 1)?.requiereAccion).toBe(true);
+    expect(espera(r, 2)).toBe("En espera de aprobación");
+    expect(r.items.find((i) => i.IdSolicitud === 2)?.requiereAccion).toBe(false);
+  });
+
+  it("sin la marca admin, un gestor no recibe «Por aprobar» (esa acción es solo del rol Administrador)", () => {
+    expect(espera(armarBandeja([parcial(1, 1)], { uid: 5, gestiona: true }), 1)).toBe("En seguimiento");
+  });
+
+  it("la Cerrada (7) no aparece en la bandeja de nadie", () => {
+    expect(armarBandeja([fila(1, 7, 1), fila(2, 7, 5)], ADMIN).total).toBe(0);
+    expect(armarBandeja([fila(1, 7, 1)], SOLICITANTE).total).toBe(0);
   });
 });
