@@ -89,7 +89,7 @@ Rechazar una solicitud exige un motivo (hasta 100 caracteres). Aplicar la migrac
 
 Aprobar menos de lo pedido exige un motivo y deja la solicitud «Aprobada parcialmente» hasta que el Administrador la confirme o la cierre; a los 7 días se cierra sola.
 1. Aplicar la migración `0049_aprobacion_parcial_cierre.sql` en Supabase (SQL Editor) **antes** de desplegar este código (cambia `aprobar_solicitud` y los estados válidos).
-2. El cierre automático necesita que alguien lo dispare: programar un cron diario que llame `GET` o `POST /api/solicitudes/cerrar-caducadas` con `Authorization: Bearer <CRON_SECRET>` (en Vercel, un cron en `vercel.json` ya envía ese encabezado si `CRON_SECRET` está definida). Sin cron igual funciona de forma diferida: cuando alguien con permiso de gestionar solicitudes abre el Inicio, se cierran las vencidas y se avisa.
+2. El cierre automático lo dispara un cron de Vercel declarado en `vercel.json` (todos los días a las 11:17 UTC, ≈ 7:17–8:17 en Chile). Requiere que `CRON_SECRET` (mínimo 16 caracteres) esté definida en las variables del proyecto en Vercel: Vercel la envía sola como `Authorization: Bearer <CRON_SECRET>`. Los cron de Vercel solo se ejecutan en el despliegue de producción, no en previews. Con otro hosting, programar un cron diario que llame `GET` o `POST /api/solicitudes/cerrar-caducadas` con ese encabezado. Sin cron igual funciona de forma diferida: cuando alguien con permiso de gestionar solicitudes abre el Inicio, se cierran las vencidas y se avisa.
 3. `CRON_SECRET` (mínimo 16 caracteres) ya se usa para los correos y la sincronización de Fudo.
 
 ## Pendiente para el despliegue
