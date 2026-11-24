@@ -71,7 +71,7 @@ Menú **Reportes** (permiso `reportes.ver`: lo tiene el Administrador y el rol C
 
 - **Stock valorizado** (`/reportes/stock`): cada producto en cada bodega (un mismo producto puede estar en varias) con su valor = cantidad en unidad base × costo unitario base (último precio de factura, con IVA). Un producto con stock y sin costo no suma y se avisa que el total es parcial; el stock negativo (ventas de Fudo) se valoriza en negativo.
 - **Ventas por producto** (`/reportes/ventas-producto`) y **Ventas por período** (`/reportes/ventas`: por día, semana de lunes a domingo o mes, con rangos rápidos): salen de las líneas de las ventas de Fudo que se guardan al sincronizar (menú Ventas Fudo, o el cron `/api/fudo/sincronizar`). Las fechas son las de Chile. **Las ventas procesadas antes de la migración 0042 no tienen líneas** y no aparecen.
-- **Por confirmar con credenciales reales de Fudo:** el monto de cada línea se calcula como `price` de la línea × `quantity` (si la línea no trae precio, el precio actual del producto); los descuentos o propinas de la venta completa no se reparten entre líneas, así que el total puede diferir del cierre de caja de Fudo.
+- **Por confirmar con credenciales reales de Fudo:** el monto de cada línea es el `price` de la línea, que en Fudo ya es el TOTAL de la línea (confirmado con ventas reales; si la línea no trae precio, el precio actual del producto × cantidad); los descuentos o propinas de la venta completa no se reparten entre líneas, así que el total puede diferir del cierre de caja de Fudo.
 
 ## Avisos push
 

@@ -13,7 +13,7 @@ export type ClienteFudo = {
   /** Ventas cerradas entre `desde` (incluida) y `hasta` (excluida) con sus líneas vigentes (sin las anuladas). */
   ventasCerradas(desde: Date, hasta: Date): Promise<VentaFudo[]>;
 };
-/** Una venta cerrada; `lineas` trae el id de Fudo del producto, la cantidad vendida y su monto (precio × cantidad; null si Fudo no lo informa). */
+/** Una venta cerrada; `lineas` trae el id de Fudo del producto, la cantidad vendida y su monto (total de la línea; null si Fudo no lo informa). */
 export type VentaFudo = { id: string; cierre: string; lineas: { producto: string; nombre: string; cantidad: number; monto: number | null }[] };
 type Deps = { apiKey: string; apiSecret: string; fetch?: typeof fetch; ahora?: () => number; base?: string; auth?: string; timeoutMs?: number };
 type Recurso = { id: string; attributes: { name: string; code?: string | null; price: number; cost?: number | null; active: boolean } };
@@ -22,6 +22,20 @@ type Respuesta = { data: any[]; included?: any[] }; // eslint-disable-line @type
 const PAGINA_VENTAS = 100; // las ventas traen sus líneas incluidas: páginas más chicas que el máximo de la API (500)
 const MARGEN_S = 60; // se renueva el token si le quedan menos segundos
 const TIMEOUT_MS = 30_000; // por petición; una página de ventas con sus líneas es la respuesta más pesada
+
+/**
+ * El `total` de la venta es lo que Fudo cobra (ya con descuentos); la suma de las líneas puede ser mayor. Se reparte la diferencia entre las líneas en
+ * proporción a su monto, para que los reportes cuadren con Fudo. Sin total válido, o si alguna línea no trae monto, no se toca nada.
+ */
+export function repartirTotal(lineas: VentaFudo["lineas"], total: number): VentaFudo["lineas"] {
+  const suma = lineas.reduce((a, l) => a + (l.monto ?? Number.NaN), 0);
+  if (!Number.isFinite(total) || total < 0 || !(suma > 0) || Math.abs(suma - total) < 0.005) return lineas;
+  const nuevas = lineas.map((l) => ({ ...l, monto: Math.round((l.monto as number) * (total / suma) * 100) / 100 }));
+  const resto = Math.round((total - nuevas.reduce((a, l) => a + l.monto, 0)) * 100) / 100; // el redondeo se absorbe en la línea mayor
+  const mayor = nuevas.reduce((m, l, i) => (l.monto > nuevas[m].monto ? i : m), 0);
+  nuevas[mayor].monto = Math.max(0, Math.round((nuevas[mayor].monto + resto) * 100) / 100);
+  return nuevas;
+}
 
 export function crearClienteFudo(d: Deps): ClienteFudo {
   const f = conTimeout(d.fetch ?? fetch, d.timeoutMs ?? TIMEOUT_MS, "Fudo");
@@ -86,17 +100,18 @@ export function crearClienteFudo(d: Deps): ClienteFudo {
               const ref = it.relationships?.product?.data;
               const producto = buscar(ref);
               const cantidad = Number(it.attributes?.quantity);
-              // shortcut: se asume que `price` de la línea es el precio unitario con IVA al momento de la venta (si falta, el precio actual del
-              // producto); descuentos o propinas de la venta completa no se reparten entre las líneas. Confirmar con credenciales reales.
-              const crudo = it.attributes?.price ?? producto?.attributes?.price;
-              const unitario = crudo == null || crudo === "" ? Number.NaN : Number(crudo);
+              // `price` de la línea es el TOTAL de la línea (ya multiplicado por la cantidad; confirmado con ventas reales, p. ej. 7 × $2.900 = 20.300).
+              // Si falta, se usa el precio unitario actual del producto × cantidad. El descuento de la venta completa se reparte después (`repartirTotal`).
+              const propio = it.attributes?.price;
+              const unitario = Number(producto?.attributes?.price);
+              const total = propio != null && propio !== "" ? Number(propio) : unitario * cantidad;
               return {
                 producto: String(ref?.id ?? ""), nombre: String(producto?.attributes?.name ?? ""), cantidad,
-                monto: Number.isFinite(unitario) && unitario >= 0 ? Math.round(unitario * cantidad * 100) / 100 : null,
+                monto: Number.isFinite(total) && total >= 0 ? Math.round(total * 100) / 100 : null,
               };
             })
             .filter((l) => l.producto && l.cantidad > 0);
-          ventas.push({ id: String(v.id), cierre: String(v.attributes.closedAt), lineas });
+          ventas.push({ id: String(v.id), cierre: String(v.attributes.closedAt), lineas: repartirTotal(lineas, Number(v.attributes.total)) });
         }
         if (data.length < PAGINA_VENTAS) return ventas;
       }

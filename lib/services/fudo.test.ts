@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { crearClienteFudo } from "./fudo";
+import { crearClienteFudo, repartirTotal } from "./fudo";
 
 const recurso = (id: number, name: string, price: number, extra = {}) => ({ id: String(id), type: "Product", attributes: { name, price, active: true, ...extra } });
 
@@ -47,20 +47,20 @@ describe("ventas cerradas de Fudo", () => {
   it("arma el filtro por estado y rango de cierre, y trae las líneas con su producto (sin las anuladas)", async () => {
     const { cliente, urls } = ventasFalso([{
       data: [venta(1, [{ id: 11, q: 2, producto: 5 }, { id: 12, q: 1, producto: 6 }, { id: 13, q: 1, producto: 5 }])],
-      included: [item(11, 5, 2, false, 9000), item(12, 6, 1, true), item(13, 5, 1), prod(5, "Pizza", 9990), prod(6, "Café")],
+      included: [item(11, 5, 2, false, 18000), item(12, 6, 1, true), item(13, 5, 1), prod(5, "Pizza", 9990), prod(6, "Café")],
     }]);
     const r = await cliente.ventasCerradas(new Date("2026-10-15T00:00:00Z"), new Date("2026-10-16T00:00:00Z"));
     expect(urls.at(-1)).toContain("filter[saleState]=in.(CLOSED)&filter[closedAt]=and(gte.2026-10-15T00:00:00Z,lt.2026-10-16T00:00:00Z)");
     expect(urls.at(-1)).toContain("include=items,items.product");
     expect(r).toEqual([{ id: "1", cierre: "2026-10-15T20:00:00Z", lineas: [{ producto: "5", nombre: "Pizza", cantidad: 2, monto: 18000 }, { producto: "5", nombre: "Pizza", cantidad: 1, monto: 9990 }] }]);
   });
-  it("el monto es precio × cantidad (el de la línea; si falta, el del producto) y null si no hay ningún precio", async () => {
+  it("el monto es el total de la línea (price ya incluye la cantidad; si falta, precio del producto × cantidad) y null si no hay ningún precio", async () => {
     const { cliente } = ventasFalso([{
-      data: [venta(1, [{ id: 21, q: 3, producto: 7 }, { id: 22, q: 1, producto: 8 }, { id: 23, q: 2, producto: 9 }])],
-      included: [item(21, 7, 3, false, 1500.5), item(22, 8, 1), item(23, 9, 2), prod(7, "Bebida", 1000), prod(8, "Papas", 2500), prod(9, "Regalo")],
+      data: [venta(1, [{ id: 21, q: 3, producto: 7 }, { id: 22, q: 2, producto: 8 }, { id: 23, q: 2, producto: 9 }])],
+      included: [item(21, 7, 3, false, 4501.5), item(22, 8, 2), item(23, 9, 2), prod(7, "Bebida", 1000), prod(8, "Papas", 2500), prod(9, "Regalo")],
     }]);
     const [v] = await cliente.ventasCerradas(new Date(0), new Date());
-    expect(v.lineas.map((l) => l.monto)).toEqual([4501.5, 2500, null]);
+    expect(v.lineas.map((l) => l.monto)).toEqual([4501.5, 5000, null]);
   });
   it("pagina hasta que una página viene incompleta", async () => {
     const llena = Array.from({ length: 100 }, (_, i) => venta(i + 1, []));
@@ -124,5 +124,19 @@ describe("Fudo no responde", () => {
     }) as unknown as typeof fetch;
     const cliente = crearClienteFudo({ apiKey: "k", apiSecret: "s", fetch: f, timeoutMs: 40 });
     await expect(cliente.ventasCerradas(new Date("2026-11-01T00:00:00Z"), new Date("2026-11-02T00:00:00Z"))).rejects.toThrow(/no respondió/);
+  });
+});
+
+describe("repartirTotal", () => {
+  const l = (monto: number | null) => ({ producto: "1", nombre: "x", cantidad: 1, monto });
+  it("reparte el descuento de la venta en proporción y la suma queda igual al total", () => {
+    const r = repartirTotal([l(10000), l(20000), l(30000)], 36000);
+    expect(r.map((x) => x.monto)).toEqual([6000, 12000, 18000]);
+    expect(repartirTotal([l(100), l(100), l(100)], 100).reduce((a, x) => a + (x.monto ?? 0), 0)).toBeCloseTo(100, 2);
+  });
+  it("no toca nada si el total coincide, no es válido o falta algún monto", () => {
+    expect(repartirTotal([l(5)], 5)).toEqual([l(5)]);
+    expect(repartirTotal([l(5)], Number.NaN)).toEqual([l(5)]);
+    expect(repartirTotal([l(5), l(null)], 3)).toEqual([l(5), l(null)]);
   });
 });
